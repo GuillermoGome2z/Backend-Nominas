@@ -1,4 +1,4 @@
-﻿namespace ProyectoNominas.Backend.Models
+﻿namespace ProyectoNomina.Backend.Models
 {
     public class Usuario
     {
