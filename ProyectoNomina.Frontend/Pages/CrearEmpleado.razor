@@ -1,0 +1,94 @@
+﻿@page "/crear-empleado"
+@using ProyectoNomina.Frontend.Models
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="container mt-5">
+    <div class="card shadow rounded">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">🧑‍💼 Crear Nuevo Empleado</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="nuevoEmpleado" OnValidSubmit="CrearEmpleadoAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group mb-3">
+                    <label for="nombre" class="form-label">Nombre:</label>
+                    <InputText id="nombre" @bind-Value="nuevoEmpleado.Nombre" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.Nombre)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="apellido" class="form-label">Apellido:</label>
+                    <InputText id="apellido" @bind-Value="nuevoEmpleado.Apellido" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.Apellido)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="departamentoId" class="form-label">Departamento ID:</label>
+                    <InputNumber id="departamentoId" @bind-Value="nuevoEmpleado.DepartamentoId" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.DepartamentoId)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="puestoId" class="form-label">Puesto ID:</label>
+                    <InputNumber id="puestoId" @bind-Value="nuevoEmpleado.PuestoId" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.PuestoId)" />
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-success me-2">💾 Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Volver">↩️ Volver</button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(mensaje))
+            {
+                <div class="alert @mensajeCssClass mt-4">@mensaje</div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private Empleado nuevoEmpleado = new Empleado();
+    private string? mensaje;
+    private string mensajeCssClass = "alert-info";
+
+    private async Task CrearEmpleadoAsync()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Empleados", nuevoEmpleado);
+
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Empleado creado con éxito.";
+                mensajeCssClass = "alert-success";
+                nuevoEmpleado = new Empleado(); // Limpiar formulario
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                mensaje = $"❌ Error al crear empleado: {response.StatusCode} - {errorContent}";
+                mensajeCssClass = "alert-danger";
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            mensaje = $"⚠️ Error de conexión: {httpEx.Message}";
+            mensajeCssClass = "alert-danger";
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"⚠️ Error inesperado: {ex.Message}";
+            mensajeCssClass = "alert-danger";
+        }
+    }
+
+    private void Volver()
+    {
+        NavigationManager.NavigateTo("/"); // Redirige a la página principal o a la lista de empleados
+    }
+}la
