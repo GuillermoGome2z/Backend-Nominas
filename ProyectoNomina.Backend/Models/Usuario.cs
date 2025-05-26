@@ -1,4 +1,6 @@
-﻿namespace ProyectoNomina.Backend.Models
+﻿using System.Text.Json.Serialization;
+
+namespace ProyectoNomina.Backend.Models
 {
     public class Usuario
     {
@@ -7,6 +9,7 @@
         public string Correo { get; set; }
         public string ClaveHash { get; set; }
 
-        public ICollection<UsuarioRol> UsuarioRoles { get; set; }
+        [JsonIgnore]
+        public ICollection<UsuarioRol> UsuarioRoles { get; set; } = new List<UsuarioRol>();
     }
 }
