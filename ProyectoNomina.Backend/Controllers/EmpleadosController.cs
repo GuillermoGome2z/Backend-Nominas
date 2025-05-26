@@ -2,9 +2,12 @@
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace ProyectoNomina.Backend.Controllers
 {
+    [Authorize] // ⬅️ protege todo el controlador
     [ApiController]
     [Route("api/[controller]")]
     public class EmpleadosController : ControllerBase
