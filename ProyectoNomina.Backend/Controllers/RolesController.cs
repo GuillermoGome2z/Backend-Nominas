@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 
 namespace ProyectoNomina.Backend.Controllers
 {
+    [Authorize] // ⬅️ protege todo el controlador
     [ApiController]
     [Route("api/[controller]")]
     public class RolesController : ControllerBase
