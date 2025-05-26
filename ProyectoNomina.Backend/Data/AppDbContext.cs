@@ -11,7 +11,6 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Rol> Roles { get; set; }
         public DbSet<UsuarioRol> UsuarioRoles { get; set; }
 
-        // Agrega aquí el resto de tus entidades si ya las tienes
         public DbSet<Empleado> Empleados { get; set; }
         public DbSet<Puesto> Puestos { get; set; }
         public DbSet<Departamento> Departamentos { get; set; }
@@ -22,5 +21,14 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Bonificacion> Bonificaciones { get; set; }
         public DbSet<Deduccion> Deducciones { get; set; }
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
+
+        // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<UsuarioRol>()
+                .HasKey(ur => new { ur.UsuarioId, ur.RolId });
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }
