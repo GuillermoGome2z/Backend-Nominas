@@ -1,3 +1,6 @@
+﻿
+using Microsoft.EntityFrameworkCore;
+using ProyectoNomina.Backend.Data;
 
 namespace ProyectoNomina.Backend
 {
@@ -7,16 +10,18 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // ✅ 1. Agregar el DbContext y leer la cadena de conexión
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            // ✅ 2. Servicios del controlador y Swagger
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // ✅ 3. Middleware y pipeline HTTP
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -24,10 +29,7 @@ namespace ProyectoNomina.Backend
             }
 
             app.UseHttpsRedirection();
-
             app.UseAuthorization();
-
-
             app.MapControllers();
 
             app.Run();
