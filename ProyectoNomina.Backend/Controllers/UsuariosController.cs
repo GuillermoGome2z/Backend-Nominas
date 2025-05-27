@@ -8,7 +8,7 @@ using BCrypt.Net;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [ApiController]
+    [Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [Authorize] // ✅ Protege todo el controlador
     public class UsuariosController : ControllerBase
