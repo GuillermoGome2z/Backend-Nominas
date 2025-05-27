@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [Authorize] // ⬅️ protege todo el controlador
+    [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
     public class EmpleadosController : ControllerBase
