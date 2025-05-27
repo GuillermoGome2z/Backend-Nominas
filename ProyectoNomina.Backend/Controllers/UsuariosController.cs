@@ -8,9 +8,9 @@ using BCrypt.Net;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // ✅ Protege todo el controlador
+    [Authorize(Roles = "Admin")]
     public class UsuariosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -22,9 +22,9 @@ namespace ProyectoNomina.Backend.Controllers
             _jwtService = jwtService;
         }
 
-        // ✅ PÚBLICO: Registro de nuevos usuarios
+        // ✅ REGISTRO: Permitir sin token
         [HttpPost("register")]
-        [AllowAnonymous] // ⛔ Permitir sin token
+        [AllowAnonymous]
         public async Task<ActionResult<Usuario>> RegistrarUsuario(Usuario usuario)
         {
             if (await _context.Usuarios.AnyAsync(u => u.Correo == usuario.Correo))
@@ -37,13 +37,14 @@ namespace ProyectoNomina.Backend.Controllers
             return CreatedAtAction(nameof(GetUsuario), new { id = usuario.Id }, usuario);
         }
 
-        // ✅ PÚBLICO: Inicio de sesión
+        // ✅ LOGIN: Permitir sin token
         [HttpPost("login")]
-        [AllowAnonymous] // ⛔ Permitir sin token
-        public async Task<ActionResult<string>> Login(LoginDto credenciales)
+        [AllowAnonymous]
+        public async Task<ActionResult<string>> Login([FromBody] LoginDto credenciales)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.UsuarioRoles).ThenInclude(ur => ur.Rol)
+                .Include(u => u.UsuarioRoles)
+                .ThenInclude(ur => ur.Rol)
                 .FirstOrDefaultAsync(u => u.Correo == credenciales.Correo);
 
             if (usuario == null || !BCrypt.Net.BCrypt.Verify(credenciales.Clave, usuario.ClaveHash))
@@ -55,7 +56,7 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(new { token });
         }
 
-        // ✅ PROTEGIDO: Obtener todos los usuarios
+        // ✅ GET: api/Usuarios
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
         {
@@ -65,7 +66,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .ToListAsync();
         }
 
-        // ✅ PROTEGIDO: Obtener un usuario por ID
+        // ✅ GET: api/Usuarios/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Usuario>> GetUsuario(int id)
         {
@@ -77,7 +78,7 @@ namespace ProyectoNomina.Backend.Controllers
             return usuario == null ? NotFound() : usuario;
         }
 
-        // ✅ PROTEGIDO: Eliminar un usuario
+        // ✅ DELETE: api/Usuarios/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUsuario(int id)
         {
@@ -91,7 +92,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
     }
 
-    // DTO para login
+    // ✅ DTO para login
     public class LoginDto
     {
         public string Correo { get; set; }
