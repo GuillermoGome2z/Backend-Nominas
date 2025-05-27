@@ -29,5 +29,9 @@ namespace ProyectoNomina.Backend.Models
 
         [JsonIgnore]
         public ICollection<DetalleNomina>? DetallesNomina { get; set; }
+
+        [JsonIgnore]
+        public ICollection<InformacionAcademica>? Estudios { get; set; }
+
     }
 }

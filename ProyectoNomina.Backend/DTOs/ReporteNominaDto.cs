@@ -1,0 +1,13 @@
+﻿namespace ProyectoNomina.Backend.DTOs
+{
+    public class ReporteNominaDto
+    {
+        public int NominaId { get; set; }
+        public string Descripcion { get; set; }
+        public DateTime FechaGeneracion { get; set; }
+        public decimal TotalSalarios { get; set; }
+        public decimal TotalBonificaciones { get; set; }
+        public decimal TotalDeducciones { get; set; }
+        public decimal TotalNeto { get; set; }
+    }
+}
