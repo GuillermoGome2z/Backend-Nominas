@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
-using ProyectoNomina.Backend.Filters; // ✅ Agrega esta línea
+using ProyectoNomina.Backend.Filters; // ✅ Filtro de auditoría
 using System.Text;
 
 namespace ProyectoNomina.Backend
@@ -14,11 +14,11 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ✅ 1. Agregar el DbContext
+            // 1️⃣ Conexión a Base de Datos
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // ✅ 2. Configuración de JWT
+            // 2️⃣ Configuración de JWT
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
 
@@ -37,22 +37,22 @@ namespace ProyectoNomina.Backend
                     };
                 });
 
-            // ✅ 3. Servicios necesarios
-            builder.Services.AddScoped<JwtService>(); // Servicio JWT
-            builder.Services.AddScoped<AuditoriaActionFilter>(); // ✅ Registrar el filtro de auditoría
+            // 3️⃣ Servicios personalizados
+            builder.Services.AddScoped<JwtService>();               // Servicio JWT
+            builder.Services.AddScoped<AuditoriaActionFilter>();   // Filtro de auditoría
 
-            // ✅ 4. Agregar filtros globales a los controladores
+            // 4️⃣ Controladores con filtro global para auditoría
             builder.Services.AddControllers(options =>
             {
-                options.Filters.Add<AuditoriaActionFilter>(); // ✅ Filtro agregado globalmente
+                options.Filters.Add<AuditoriaActionFilter>(); // 🔍 Audita cada acción
             });
 
+            // 5️⃣ Configuración de Swagger + JWT
             builder.Services.AddEndpointsApiExplorer();
-
-            // ✅ 5. Swagger configurado para JWT
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new() { Title = "ProyectoNomina", Version = "v1" });
+
                 options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -62,6 +62,7 @@ namespace ProyectoNomina.Backend
                     In = Microsoft.OpenApi.Models.ParameterLocation.Header,
                     Description = "Escribe: Bearer {tu token JWT}"
                 });
+
                 options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
                 {
                     {
@@ -80,7 +81,7 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // ✅ 6. Middleware de ejecución
+            // 6️⃣ Middleware
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -89,7 +90,7 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
 
-            app.UseAuthentication(); // 👈 Importante: antes de UseAuthorization
+            app.UseAuthentication(); // 🔐 Antes de Authorization
             app.UseAuthorization();
 
             app.MapControllers();
@@ -97,3 +98,4 @@ namespace ProyectoNomina.Backend
         }
     }
 }
+
