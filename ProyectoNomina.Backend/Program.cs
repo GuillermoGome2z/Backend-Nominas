@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Backend.Filters; // ✅ Agrega esta línea
 using System.Text;
 
 namespace ProyectoNomina.Backend
@@ -13,11 +14,11 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ✅ 1. Agregar el DbContext y leer la cadena de conexión
+            // ✅ 1. Agregar el DbContext
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // ✅ 2. Configuración de JWT (lectura del bloque JwtSettings)
+            // ✅ 2. Configuración de JWT
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
 
@@ -36,11 +37,19 @@ namespace ProyectoNomina.Backend
                     };
                 });
 
-            // ✅ 3. Agregar servicios necesarios
-            builder.Services.AddControllers();
+            // ✅ 3. Servicios necesarios
+            builder.Services.AddScoped<JwtService>(); // Servicio JWT
+            builder.Services.AddScoped<AuditoriaActionFilter>(); // ✅ Registrar el filtro de auditoría
+
+            // ✅ 4. Agregar filtros globales a los controladores
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<AuditoriaActionFilter>(); // ✅ Filtro agregado globalmente
+            });
+
             builder.Services.AddEndpointsApiExplorer();
 
-            // ✅ 4. Configurar Swagger para usar JWT
+            // ✅ 5. Swagger configurado para JWT
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new() { Title = "ProyectoNomina", Version = "v1" });
@@ -69,12 +78,9 @@ namespace ProyectoNomina.Backend
                 });
             });
 
-            // ✅ 5. Inyectar el servicio JWT personalizado
-            builder.Services.AddScoped<JwtService>();
-
             var app = builder.Build();
 
-            // ✅ 6. Middleware
+            // ✅ 6. Middleware de ejecución
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -83,7 +89,7 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
 
-            app.UseAuthentication(); // 👈 Añadir antes de UseAuthorization
+            app.UseAuthentication(); // 👈 Importante: antes de UseAuthorization
             app.UseAuthorization();
 
             app.MapControllers();
