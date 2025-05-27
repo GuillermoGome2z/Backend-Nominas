@@ -21,6 +21,8 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Bonificacion> Bonificaciones { get; set; }
         public DbSet<Deduccion> Deducciones { get; set; }
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
+        public DbSet<InformacionAcademica> InformacionAcademica { get; set; }
+
 
         // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA
         protected override void OnModelCreating(ModelBuilder modelBuilder)
