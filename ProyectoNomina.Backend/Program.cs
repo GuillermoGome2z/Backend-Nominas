@@ -6,21 +6,19 @@ using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
 
-
 namespace ProyectoNomina.Backend
 {
     public class Program
     {
         public static void Main(string[] args)
         {
-        
             var builder = WebApplication.CreateBuilder(args);
 
             // 1️⃣ Conexión a Base de Datos
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2️⃣ Configuración de JWT (Json Web Token) para autenticación
+            // 2️⃣ Configuración de JWT
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
 
@@ -29,37 +27,47 @@ namespace ProyectoNomina.Backend
                 {
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
-                        ValidateIssuer = true, // ✅ Verifica el emisor del token
-                        ValidateAudience = true, // ✅ Verifica el receptor del token
-                        ValidateLifetime = true, // ✅ Verifica si el token aún no ha expirado
-                        ValidateIssuerSigningKey = true, // ✅ Verifica la clave del token
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
                         ValidIssuer = jwtSettings["Issuer"],
                         ValidAudience = jwtSettings["Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
                     };
                 });
 
-            // 3️⃣ Servicios personalizados
-            builder.Services.AddScoped<JwtService>();            // Servicio para generar y validar JWT
-            builder.Services.AddScoped<NominaService>();         // Servicio para cálculos de nómina
-            builder.Services.AddScoped<ReporteService>();        // Servicio para generar reportes PDF
-            builder.Services.AddScoped<AuditoriaService>();      // Servicio para registrar acciones de auditoría
-            builder.Services.AddScoped<AuditoriaActionFilter>(); // Filtro que registra auditoría por cada acción
-            builder.Services.AddHttpContextAccessor();           // Necesario para acceder al usuario actual
+            // 3️⃣ Agregar CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.WithOrigins("https://localhost:5001") // ⚠️ Puerto del frontend Blazor WebAssembly
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+            });
 
-            // 4️⃣ Agregar filtro global para registrar auditoría de todas las acciones
+            // 4️⃣ Servicios personalizados
+            builder.Services.AddScoped<JwtService>();
+            builder.Services.AddScoped<NominaService>();
+            builder.Services.AddScoped<ReporteService>();
+            builder.Services.AddScoped<AuditoriaService>();
+            builder.Services.AddScoped<AuditoriaActionFilter>();
+            builder.Services.AddHttpContextAccessor();
+
+            // 5️⃣ Filtro global de auditoría
             builder.Services.AddControllers(options =>
             {
                 options.Filters.Add<AuditoriaActionFilter>();
             });
 
-            // 5️⃣ Configurar Swagger con soporte para JWT
+            // 6️⃣ Swagger con JWT
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new() { Title = "ProyectoNomina", Version = "v1" });
 
-                // Configuración de esquema de seguridad JWT
                 options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -88,22 +96,22 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // 6️⃣ Configuración del pipeline de middleware
+            // 7️⃣ Middleware
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();     // Habilita Swagger en desarrollo
-                app.UseSwaggerUI();  // Interfaz visual de Swagger
+                app.UseSwagger();
+                app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();  // Redirige HTTP a HTTPS
+            app.UseHttpsRedirection();
 
-            app.UseAuthentication();    // Middleware de autenticación JWT
-            app.UseAuthorization();     // Middleware de autorización (roles y políticas)
+            app.UseCors("CorsPolicy");     // 🔥 Agregado aquí: Permitir acceso del frontend
 
-            app.MapControllers();       // Mapea los controladores a rutas
-            app.Run();                  // Inicia la aplicación
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.MapControllers();
+            app.Run();
         }
     }
 }
-
-
