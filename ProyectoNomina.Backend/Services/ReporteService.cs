@@ -8,7 +8,7 @@ namespace ProyectoNomina.Backend.Services
 {
     public class ReporteService
     {
-        // ✅ 1. Reporte de Nómina Procesada
+        // ✅ Reporte 1: Nómina Procesada
         public byte[] GenerarReporteNominaPdf(Nomina nomina)
         {
             var document = Document.Create(container =>
@@ -16,26 +16,22 @@ namespace ProyectoNomina.Backend.Services
                 container.Page(page =>
                 {
                     page.Margin(30);
-
-                    // Encabezado del reporte
                     page.Header().Text("Reporte de Nómina").FontSize(20).Bold().AlignCenter();
 
-                    // Contenido del reporte
                     page.Content().Element(e =>
                     {
-                        e.Text($"Fecha de generación: {nomina.FechaGeneracion:dd/MM/yyyy}").FontSize(12).Bold();
-                        e.Text($"Descripción: {nomina.Descripcion}").FontSize(12).Bold();
+                        e.Text($"Fecha de generación: {nomina.FechaGeneracion:dd/MM/yyyy}").FontSize(12);
+                        e.Text($"Descripción: {nomina.Descripcion}").FontSize(12);
 
-                        // Tabla con los detalles de la nómina
                         e.Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(2); // Nombre del empleado
-                                columns.RelativeColumn();  // Salario bruto
-                                columns.RelativeColumn();  // Deducciones
-                                columns.RelativeColumn();  // Bonificaciones
-                                columns.RelativeColumn();  // Salario neto
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
                             });
 
                             table.Header(header =>
@@ -58,7 +54,6 @@ namespace ProyectoNomina.Backend.Services
                         });
                     });
 
-                    // Pie de página
                     page.Footer().AlignCenter().Text($"Generado por Proyecto Nómina - {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10);
                 });
             });
@@ -66,7 +61,7 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ 2. Reporte de Estado de Expedientes
+        // ✅ Reporte 2: Estado de Expedientes
         public byte[] GenerarReporteExpediente(List<ReporteExpedienteDto> expedientes)
         {
             var document = Document.Create(container =>
@@ -82,11 +77,11 @@ namespace ProyectoNomina.Backend.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(3); // Empleado
-                                columns.RelativeColumn();  // Estado
-                                columns.RelativeColumn();  // Requeridos
-                                columns.RelativeColumn();  // Presentados
-                                columns.RelativeColumn();  // Faltantes
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
                             });
 
                             table.Header(header =>
@@ -116,7 +111,7 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ 3. Reporte de Información Académica (corregido para usar propiedades válidas)
+        // ✅ Reporte 3: Información Académica
         public byte[] GenerarReporteInformacionAcademica(List<InformacionAcademica> datos)
         {
             var document = Document.Create(container =>
@@ -132,11 +127,11 @@ namespace ProyectoNomina.Backend.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(2); // Empleado
-                                columns.RelativeColumn(2); // Título
-                                columns.RelativeColumn(2); // Institución
-                                columns.RelativeColumn();  // Fecha de graduación
-                                columns.RelativeColumn(2); // Tipo de certificación
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn(2);
                             });
 
                             table.Header(header =>
@@ -166,7 +161,101 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // 🔁 Estilo común de celdas para tablas
+        // ✅ Reporte 4: Ajustes Manuales
+        public byte[] GenerarReporteAjustesManuales(List<AjusteManual> ajustes)
+        {
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(30);
+                    page.Header().Text("Reporte de Ajustes Manuales").FontSize(20).Bold().AlignCenter();
+
+                    page.Content().Element(e =>
+                    {
+                        e.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn(4);
+                                columns.RelativeColumn(2);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyle).Text("Empleado");
+                                header.Cell().Element(CellStyle).Text("Monto");
+                                header.Cell().Element(CellStyle).Text("Motivo");
+                                header.Cell().Element(CellStyle).Text("Fecha");
+                            });
+
+                            foreach (var ajuste in ajustes)
+                            {
+                                table.Cell().Element(CellStyle).Text(ajuste.Empleado.NombreCompleto);
+                                table.Cell().Element(CellStyle).Text($"Q{ajuste.Monto:F2}");
+                                table.Cell().Element(CellStyle).Text(ajuste.Motivo);
+                                table.Cell().Element(CellStyle).Text(ajuste.Fecha.ToString("dd/MM/yyyy"));
+                            }
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text($"Generado por Proyecto Nómina - {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10);
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
+        // ✅ Reporte 5: Auditoría del sistema
+        public byte[] GenerarReporteAuditoria(List<Auditoria> auditoria)
+        {
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(30);
+                    page.Header().Text("Reporte de Auditoría").FontSize(20).Bold().AlignCenter();
+
+                    page.Content().Element(e =>
+                    {
+                        e.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn();
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyle).Text("Usuario");
+                                header.Cell().Element(CellStyle).Text("Acción");
+                                header.Cell().Element(CellStyle).Text("Detalles");
+                                header.Cell().Element(CellStyle).Text("Fecha");
+                            });
+
+                            foreach (var log in auditoria)
+                            {
+                                table.Cell().Element(CellStyle).Text(log.Usuario);
+                                table.Cell().Element(CellStyle).Text(log.Accion);
+                                table.Cell().Element(CellStyle).Text(log.Detalles);
+                                table.Cell().Element(CellStyle).Text(log.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                            }
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text($"Generado por Proyecto Nómina - {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10);
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
+        // 🔁 Estilo común de celdas
         private static IContainer CellStyle(IContainer container)
         {
             return container
@@ -178,3 +267,4 @@ namespace ProyectoNomina.Backend.Services
         }
     }
 }
+
