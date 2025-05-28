@@ -6,12 +6,14 @@ using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
 
+
 namespace ProyectoNomina.Backend
 {
     public class Program
     {
         public static void Main(string[] args)
         {
+        
             var builder = WebApplication.CreateBuilder(args);
 
             // 1️⃣ Conexión a Base de Datos

@@ -1,19 +1,34 @@
+﻿using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using ProyectoNomina.Client;
+using ProyectoNomina.Client.Auth;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Net.Http.Headers;
+using ProyectoNomina.Frontend;
 
-namespace ProyectoNomina.Frontend
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
+
+// 🔌 Configura el HttpClient para enviar JWT automáticamente
+builder.Services.AddScoped(sp =>
 {
-    public class Program
+    var httpClient = new HttpClient
     {
-        public static async Task Main(string[] args)
-        {
-            var builder = WebAssemblyHostBuilder.CreateDefault(args);
-            builder.RootComponents.Add<App>("#app");
-            builder.RootComponents.Add<HeadOutlet>("head::after");
+        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+    };
 
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+    httpClient.DefaultRequestHeaders.Accept.Clear();
+    httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    return httpClient;
+});
 
-            await builder.Build().RunAsync();
-        }
-    }
-}
+// ✅ Registrar el AuthenticationStateProvider personalizado
+builder.Services.AddAuthorizationCore(); // Habilita la autorización
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+builder.Services.AddScoped<IAuthService, AuthService>(); // Servicio para login/logout/token
+
+await builder.Build().RunAsync();
+
