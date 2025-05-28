@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc.Filters;
+﻿// 1️⃣ Modelo Auditoria.cs ya corregido
+// 2️⃣ Ahora implementaremos el servicio y filtro paso a paso
+
+using Microsoft.AspNetCore.Mvc.Filters;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using System.Security.Claims;
 
 namespace ProyectoNomina.Backend.Filters
 {
-    public class AuditoriaActionFilter : IAsyncActionFilter
+    public class AuditoriaActionFilter : IActionFilter
     {
         private readonly AppDbContext _context;
 
@@ -14,31 +17,31 @@ namespace ProyectoNomina.Backend.Filters
             _context = context;
         }
 
-        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        public void OnActionExecuting(ActionExecutingContext context)
         {
-            // Continuar la ejecución primero
-            var resultado = await next();
+            // Se ejecuta antes de que el controlador procese la solicitud
+            var usuario = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anónimo";
+            var endpoint = context.HttpContext.Request.Path;
+            var metodo = context.HttpContext.Request.Method;
 
-            // Si la respuesta es exitosa (200-299)
-            if (resultado.Result is Microsoft.AspNetCore.Mvc.ObjectResult objectResult &&
-                objectResult.StatusCode >= 200 && objectResult.StatusCode < 300)
+            var detalles = $"Endpoint: {endpoint}, Método: {metodo}";
+
+            var auditoria = new Auditoria
             {
-                var usuario = context.HttpContext.User.Identity?.Name ?? "Anónimo";
+                Accion = metodo,
+                Usuario = usuario,
+                Fecha = DateTime.Now,
+                Detalles = detalles,
+                Endpoint = endpoint
+            };
 
-                var metodo = context.HttpContext.Request.Method;
-                var endpoint = context.HttpContext.Request.Path;
+            _context.Auditorias.Add(auditoria);
+            _context.SaveChanges();
+        }
 
-                var auditoria = new Auditoria
-                {
-                    Usuario = usuario,
-                    Accion = metodo,
-                    Fecha = DateTime.Now,
-                    Detalles = $"Accedió a {endpoint}"
-                };
-
-                _context.Auditorias.Add(auditoria);
-                await _context.SaveChangesAsync();
-            }
+        public void OnActionExecuted(ActionExecutedContext context)
+        {
+            // No se utiliza por ahora
         }
     }
 }

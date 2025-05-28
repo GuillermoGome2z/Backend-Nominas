@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Backend.Services;
-using BCrypt.Net;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -22,22 +21,38 @@ namespace ProyectoNomina.Backend.Controllers
             _jwtService = jwtService;
         }
 
-        // ✅ REGISTRO: Permitir sin token
-        [HttpPost("register")]
+        // ✅ REGISTRO
+        [HttpPost("registro")]
         [AllowAnonymous]
-        public async Task<ActionResult<Usuario>> RegistrarUsuario(Usuario usuario)
+        public async Task<ActionResult> RegistrarUsuario([FromBody] UsuarioRegistroDTO dto)
         {
-            if (await _context.Usuarios.AnyAsync(u => u.Correo == usuario.Correo))
+            if (await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo))
                 return BadRequest("Ya existe un usuario con este correo.");
 
-            usuario.ClaveHash = BCrypt.Net.BCrypt.HashPassword(usuario.ClaveHash);
+            var usuario = new Usuario
+            {
+                NombreCompleto = dto.Nombre,
+                Correo = dto.Correo,
+                ClaveHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            };
+
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUsuario), new { id = usuario.Id }, usuario);
+            // Asociación con Rol
+            var usuarioRol = new UsuarioRol
+            {
+                UsuarioId = usuario.Id,
+                RolId = dto.RolId
+            };
+
+            _context.UsuarioRoles.Add(usuarioRol);
+            await _context.SaveChangesAsync();
+
+            return Ok("Usuario registrado correctamente.");
         }
 
-        // ✅ LOGIN: Permitir sin token
+        // ✅ LOGIN
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<ActionResult<string>> Login([FromBody] LoginDto credenciales)
@@ -56,7 +71,7 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(new { token });
         }
 
-        // ✅ GET: api/Usuarios
+        // ✅ GET todos los usuarios
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
         {
@@ -66,7 +81,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .ToListAsync();
         }
 
-        // ✅ GET: api/Usuarios/5
+        // ✅ GET por ID
         [HttpGet("{id}")]
         public async Task<ActionResult<Usuario>> GetUsuario(int id)
         {
@@ -78,7 +93,7 @@ namespace ProyectoNomina.Backend.Controllers
             return usuario == null ? NotFound() : usuario;
         }
 
-        // ✅ DELETE: api/Usuarios/5
+        // ✅ DELETE por ID
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUsuario(int id)
         {
@@ -92,7 +107,16 @@ namespace ProyectoNomina.Backend.Controllers
         }
     }
 
-    // ✅ DTO para login
+    // ✅ DTOs
+
+    public class UsuarioRegistroDTO
+    {
+        public string Nombre { get; set; }
+        public string Correo { get; set; }
+        public string Password { get; set; }
+        public int RolId { get; set; }
+    }
+
     public class LoginDto
     {
         public string Correo { get; set; }

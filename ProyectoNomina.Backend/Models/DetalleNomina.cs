@@ -14,5 +14,6 @@
         public decimal Deducciones { get; set; }
         public decimal Bonificaciones { get; set; }
         public decimal SalarioNeto { get; set; }
+        public string DesgloseDeducciones { get; set; } = string.Empty;
     }
 }

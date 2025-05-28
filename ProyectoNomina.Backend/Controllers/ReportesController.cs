@@ -3,24 +3,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.DTOs;
+using ProyectoNomina.Backend.Services;
 
 namespace ProyectoNomina.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrador,RRHH")] // 🔐 Acceso solo para roles específicos
+    [Authorize(Roles = "Administrador,RRHH")] // 🔐 Solo accesible por roles específicos
     public class ReportesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ReporteService _reporteService;
 
-        public ReportesController(AppDbContext context)
+        public ReportesController(AppDbContext context, ReporteService reporteService)
         {
             _context = context;
+            _reporteService = reporteService;
         }
 
-        /// <summary>
-        /// 🧾 Retorna un resumen de todas las nóminas procesadas con totales por categoría.
-        /// </summary>
+        /// 🧾 Endpoint para mostrar resumen de todas las nóminas procesadas
+        /// Devuelve un DTO con totales por cada nómina registrada
         [HttpGet("Nominas")]
         public async Task<ActionResult<IEnumerable<ReporteNominaDto>>> ObtenerReporteNominas()
         {
@@ -45,22 +47,16 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// <summary>
-        /// 📄 Retorna el estado del expediente para todos los empleados con base en los documentos requeridos.
-        /// </summary>
+        /// 📄 Retorna el estado de los expedientes de todos los empleados
         [HttpGet("Expedientes")]
         public async Task<ActionResult<IEnumerable<ReporteExpedienteDto>>> ObtenerReporteExpedientes()
         {
-            // Obtener todos los empleados
             var empleados = await _context.Empleados.ToListAsync();
-
-            // Obtener los tipos de documento requeridos
             var tiposRequeridos = await _context.TiposDocumento
                 .Where(t => t.EsRequerido)
                 .Select(t => t.Id)
                 .ToListAsync();
 
-            // Generar el reporte por cada empleado
             var reporte = new List<ReporteExpedienteDto>();
 
             foreach (var emp in empleados)
@@ -89,6 +85,60 @@ namespace ProyectoNomina.Backend.Controllers
 
             return Ok(reporte);
         }
+
+        /// ✅ 📄 Genera y devuelve en PDF el estado de expedientes
+        [HttpGet("Expedientes/pdf")]
+        public async Task<IActionResult> GenerarPdfExpedientes()
+        {
+            var empleados = await _context.Empleados.ToListAsync();
+            var tiposRequeridos = await _context.TiposDocumento
+                .Where(t => t.EsRequerido)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            var reporte = new List<ReporteExpedienteDto>();
+
+            foreach (var emp in empleados)
+            {
+                var entregados = await _context.DocumentosEmpleado
+                    .Where(d => d.EmpleadoId == emp.Id)
+                    .Select(d => d.TipoDocumentoId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var faltantes = tiposRequeridos.Except(entregados).ToList();
+
+                string estado = faltantes.Count == 0 ? "Completo"
+                               : entregados.Count == 0 ? "Incompleto"
+                               : "En proceso";
+
+                reporte.Add(new ReporteExpedienteDto
+                {
+                    Empleado = emp.NombreCompleto,
+                    EstadoExpediente = estado,
+                    DocumentosRequeridos = tiposRequeridos.Count,
+                    DocumentosPresentados = entregados.Count,
+                    DocumentosFaltantes = faltantes.Count
+                });
+            }
+
+            var pdf = _reporteService.GenerarReporteExpediente(reporte);
+            return File(pdf, "application/pdf", "ReporteExpediente.pdf");
+        }
+
+        /// 🎓 Genera y devuelve en PDF la información académica de los empleados
+        [HttpGet("InformacionAcademica/pdf")]
+        public async Task<IActionResult> GenerarReporteInformacionAcademicaPdf()
+        {
+            var datos = await _context.InformacionAcademica
+                .Include(i => i.Empleado)
+                .ToListAsync();
+
+            if (!datos.Any())
+                return NotFound("No hay registros de información académica.");
+
+            var pdf = _reporteService.GenerarReporteInformacionAcademica(datos);
+            return File(pdf, "application/pdf", "ReporteInformacionAcademica.pdf");
+        }
     }
 }
-
