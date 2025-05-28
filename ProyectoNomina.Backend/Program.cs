@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
-using ProyectoNomina.Backend.Filters; // ✅ Filtro de auditoría
+using ProyectoNomina.Backend.Filters;
 using System.Text;
 
 namespace ProyectoNomina.Backend
@@ -18,7 +18,7 @@ namespace ProyectoNomina.Backend
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2️⃣ Configuración de JWT
+            // 2️⃣ Configuración de JWT (Json Web Token) para autenticación
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
 
@@ -27,10 +27,10 @@ namespace ProyectoNomina.Backend
                 {
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
+                        ValidateIssuer = true, // ✅ Verifica el emisor del token
+                        ValidateAudience = true, // ✅ Verifica el receptor del token
+                        ValidateLifetime = true, // ✅ Verifica si el token aún no ha expirado
+                        ValidateIssuerSigningKey = true, // ✅ Verifica la clave del token
                         ValidIssuer = jwtSettings["Issuer"],
                         ValidAudience = jwtSettings["Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
@@ -38,21 +38,26 @@ namespace ProyectoNomina.Backend
                 });
 
             // 3️⃣ Servicios personalizados
-            builder.Services.AddScoped<JwtService>();               // Servicio JWT
-            builder.Services.AddScoped<AuditoriaActionFilter>();   // Filtro de auditoría
+            builder.Services.AddScoped<JwtService>();            // Servicio para generar y validar JWT
+            builder.Services.AddScoped<NominaService>();         // Servicio para cálculos de nómina
+            builder.Services.AddScoped<ReporteService>();        // Servicio para generar reportes PDF
+            builder.Services.AddScoped<AuditoriaService>();      // Servicio para registrar acciones de auditoría
+            builder.Services.AddScoped<AuditoriaActionFilter>(); // Filtro que registra auditoría por cada acción
+            builder.Services.AddHttpContextAccessor();           // Necesario para acceder al usuario actual
 
-            // 4️⃣ Controladores con filtro global para auditoría
+            // 4️⃣ Agregar filtro global para registrar auditoría de todas las acciones
             builder.Services.AddControllers(options =>
             {
-                options.Filters.Add<AuditoriaActionFilter>(); // 🔍 Audita cada acción
+                options.Filters.Add<AuditoriaActionFilter>();
             });
 
-            // 5️⃣ Configuración de Swagger + JWT
+            // 5️⃣ Configurar Swagger con soporte para JWT
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new() { Title = "ProyectoNomina", Version = "v1" });
 
+                // Configuración de esquema de seguridad JWT
                 options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -81,21 +86,22 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // 6️⃣ Middleware
+            // 6️⃣ Configuración del pipeline de middleware
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwagger();     // Habilita Swagger en desarrollo
+                app.UseSwaggerUI();  // Interfaz visual de Swagger
             }
 
-            app.UseHttpsRedirection();
+            app.UseHttpsRedirection();  // Redirige HTTP a HTTPS
 
-            app.UseAuthentication(); // 🔐 Antes de Authorization
-            app.UseAuthorization();
+            app.UseAuthentication();    // Middleware de autenticación JWT
+            app.UseAuthorization();     // Middleware de autorización (roles y políticas)
 
-            app.MapControllers();
-            app.Run();
+            app.MapControllers();       // Mapea los controladores a rutas
+            app.Run();                  // Inicia la aplicación
         }
     }
 }
+
 

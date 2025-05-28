@@ -37,15 +37,19 @@ namespace ProyectoNomina.Backend.Controllers
                 .Include(d => d.Nomina)
                 .FirstOrDefaultAsync(d => d.Id == id);
 
-            if (detalle == null) return NotFound();
-            return detalle;
+            return detalle == null ? NotFound() : detalle;
         }
 
         // POST: api/DetalleNominas
         [HttpPost]
-        public async Task<ActionResult<DetalleNomina>> PostDetalle(DetalleNomina detalle)
+        public async Task<ActionResult<DetalleNomina>> PostDetalle([FromBody] DetalleNomina detalle)
         {
-            // Cálculo del salario neto
+            if (!_context.Empleados.Any(e => e.Id == detalle.EmpleadoId) ||
+                !_context.Nominas.Any(n => n.Id == detalle.NominaId))
+            {
+                return BadRequest("El Empleado o la Nómina no existen.");
+            }
+
             detalle.SalarioNeto = detalle.SalarioBruto + detalle.Bonificaciones - detalle.Deducciones;
 
             _context.DetalleNominas.Add(detalle);
@@ -56,9 +60,13 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/DetalleNominas/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutDetalle(int id, DetalleNomina detalle)
+        public async Task<IActionResult> PutDetalle(int id, [FromBody] DetalleNomina detalle)
         {
-            if (id != detalle.Id) return BadRequest();
+            if (id != detalle.Id)
+                return BadRequest();
+
+            if (!_context.DetalleNominas.Any(d => d.Id == id))
+                return NotFound();
 
             detalle.SalarioNeto = detalle.SalarioBruto + detalle.Bonificaciones - detalle.Deducciones;
 
@@ -70,10 +78,7 @@ namespace ProyectoNomina.Backend.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!_context.DetalleNominas.Any(d => d.Id == id))
-                    return NotFound();
-                else
-                    throw;
+                return StatusCode(500, "Error al actualizar el detalle de nómina.");
             }
 
             return NoContent();
@@ -84,7 +89,8 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<IActionResult> DeleteDetalle(int id)
         {
             var detalle = await _context.DetalleNominas.FindAsync(id);
-            if (detalle == null) return NotFound();
+            if (detalle == null)
+                return NotFound();
 
             _context.DetalleNominas.Remove(detalle);
             await _context.SaveChangesAsync();

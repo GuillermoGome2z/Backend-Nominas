@@ -6,6 +6,7 @@ using ProyectoNomina.Backend.Models;
 
 namespace ProyectoNomina.Backend.Controllers
 {
+    [AllowAnonymous]
     [Authorize(Roles = "Admin")] // ⬅️ protege todo el controlador
     [ApiController]
     [Route("api/[controller]")]

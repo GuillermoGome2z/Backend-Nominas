@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Backend.Services;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -12,10 +13,12 @@ namespace ProyectoNomina.Backend.Controllers
     public class NominasController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly NominaService _nominaService;
 
-        public NominasController(AppDbContext context)
+        public NominasController(AppDbContext context, NominaService nominaService)
         {
             _context = context;
+            _nominaService = nominaService;
         }
 
         // GET: api/Nominas
@@ -24,6 +27,7 @@ namespace ProyectoNomina.Backend.Controllers
         {
             return await _context.Nominas
                 .Include(n => n.Detalles)
+                .ThenInclude(d => d.Empleado)
                 .ToListAsync();
         }
 
@@ -33,10 +37,10 @@ namespace ProyectoNomina.Backend.Controllers
         {
             var nomina = await _context.Nominas
                 .Include(n => n.Detalles)
+                .ThenInclude(d => d.Empleado)
                 .FirstOrDefaultAsync(n => n.Id == id);
 
-            if (nomina == null) return NotFound();
-            return nomina;
+            return nomina == null ? NotFound() : nomina;
         }
 
         // POST: api/Nominas
@@ -48,6 +52,29 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetNomina), new { id = nomina.Id }, nomina);
+        }
+
+        // POST: api/Nominas/procesar
+        [HttpPost("procesar")]
+        public async Task<IActionResult> ProcesarNomina([FromBody] string descripcion)
+        {
+            var empleados = await _context.Empleados.ToListAsync();
+            if (!empleados.Any())
+                return BadRequest("No hay empleados para procesar nómina.");
+
+            var nomina = new Nomina
+            {
+                FechaGeneracion = DateTime.Now,
+                Descripcion = descripcion,
+                Detalles = new List<DetalleNomina>()
+            };
+
+            await _nominaService.Calcular(nomina); // ✅ Corrección aquí
+
+            _context.Nominas.Add(nomina);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { mensaje = "Nómina procesada correctamente", nominaId = nomina.Id });
         }
 
         // PUT: api/Nominas/5

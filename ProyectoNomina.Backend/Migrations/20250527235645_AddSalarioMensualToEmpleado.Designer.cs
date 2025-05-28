@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProyectoNomina.Backend.Data;
 
@@ -11,9 +12,11 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250527235645_AddSalarioMensualToEmpleado")]
+    partial class AddSalarioMensualToEmpleado
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,10 +55,6 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Detalles")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Endpoint")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -124,10 +123,6 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.Property<decimal>("Deducciones")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("DesgloseDeducciones")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("int");

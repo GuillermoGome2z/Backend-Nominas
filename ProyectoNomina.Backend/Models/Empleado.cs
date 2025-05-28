@@ -11,6 +11,7 @@ namespace ProyectoNomina.Backend.Models
         public string Direccion { get; set; } = null!;
         public string Telefono { get; set; } = null!;
         public DateTime FechaContratacion { get; set; }
+        public decimal SalarioMensual { get; set; }
 
         // Relaciones con clave foránea
         public int DepartamentoId { get; set; }
