@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProyectoNomina.Backend.Data;
 
@@ -11,9 +12,11 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250528152721_AddCamposPendientes")]
+    partial class AddCamposPendientes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,7 +57,6 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("Monto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Motivo")
@@ -109,7 +111,6 @@ namespace ProyectoNomina.Backend.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Monto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Nombre")
@@ -130,7 +131,6 @@ namespace ProyectoNomina.Backend.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Monto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Nombre")
@@ -151,16 +151,13 @@ namespace ProyectoNomina.Backend.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Bonificaciones")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Deducciones")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("DesgloseDeducciones")
                         .IsRequired()
-                        .HasPrecision(18, 2)
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("EmpleadoId")
@@ -170,11 +167,9 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("SalarioBruto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SalarioNeto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
@@ -250,7 +245,6 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("SalarioMensual")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Telefono")
@@ -332,7 +326,6 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("SalarioBase")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");

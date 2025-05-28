@@ -22,6 +22,9 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Deduccion> Deducciones { get; set; }
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
         public DbSet<InformacionAcademica> InformacionAcademica { get; set; }
+        public DbSet<AjusteManual> AjustesManuales { get; set; }
+        public DbSet<Auditoria> AuditoriaLogs { get; set; }
+
 
 
         // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA

@@ -1,4 +1,6 @@
 ﻿using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace ProyectoNomina.Backend.Models
 {
@@ -11,6 +13,7 @@ namespace ProyectoNomina.Backend.Models
         public string Direccion { get; set; } = null!;
         public string Telefono { get; set; } = null!;
         public DateTime FechaContratacion { get; set; }
+        [Precision(18, 2)]
         public decimal SalarioMensual { get; set; }
 
         // Relaciones con clave foránea

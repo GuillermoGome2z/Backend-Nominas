@@ -22,7 +22,6 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         /// 🧾 Endpoint para mostrar resumen de todas las nóminas procesadas
-        /// Devuelve un DTO con totales por cada nómina registrada
         [HttpGet("Nominas")]
         public async Task<ActionResult<IEnumerable<ReporteNominaDto>>> ObtenerReporteNominas()
         {
@@ -86,7 +85,7 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// ✅ 📄 Genera y devuelve en PDF el estado de expedientes
+        /// 📄 Genera y devuelve en PDF el estado de expedientes
         [HttpGet("Expedientes/pdf")]
         public async Task<IActionResult> GenerarPdfExpedientes()
         {
@@ -139,6 +138,34 @@ namespace ProyectoNomina.Backend.Controllers
 
             var pdf = _reporteService.GenerarReporteInformacionAcademica(datos);
             return File(pdf, "application/pdf", "ReporteInformacionAcademica.pdf");
+        }
+
+        /// 📋 Genera y devuelve en PDF los ajustes manuales realizados en las nóminas
+        [HttpGet("Ajustes/pdf")]
+        public async Task<IActionResult> GenerarReporteAjustesPdf()
+        {
+            var ajustes = await _context.AjustesManuales
+                .Include(a => a.Empleado)
+                .ToListAsync();
+
+            if (!ajustes.Any())
+                return NotFound("No hay ajustes manuales registrados.");
+
+            var pdf = _reporteService.GenerarReporteAjustesManuales(ajustes);
+            return File(pdf, "application/pdf", "ReporteAjustes.pdf");
+        }
+
+        /// 📌 Genera y devuelve en PDF el registro de auditoría del sistema
+        [HttpGet("Auditoria/pdf")]
+        public async Task<IActionResult> GenerarReporteAuditoriaPdf()
+        {
+            var auditoria = await _context.Auditorias.ToListAsync();
+
+            if (!auditoria.Any())
+                return NotFound("No hay registros de auditoría.");
+
+            var pdf = _reporteService.GenerarReporteAuditoria(auditoria);
+            return File(pdf, "application/pdf", "ReporteAuditoria.pdf");
         }
     }
 }
