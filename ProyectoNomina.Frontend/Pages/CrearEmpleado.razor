@@ -26,13 +26,13 @@
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="departamentoId" class="form-label">Departamento ID:</label>
+                    <label for="departamentoId" class="form-label">Departamento :</label>
                     <InputNumber id="departamentoId" @bind-Value="nuevoEmpleado.DepartamentoId" class="form-control" />
                     <ValidationMessage For="@(() => nuevoEmpleado.DepartamentoId)" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="puestoId" class="form-label">Puesto ID:</label>
+                    <label for="puestoId" class="form-label">Puesto :</label>
                     <InputNumber id="puestoId" @bind-Value="nuevoEmpleado.PuestoId" class="form-control" />
                     <ValidationMessage For="@(() => nuevoEmpleado.PuestoId)" />
                 </div>
@@ -91,4 +91,4 @@
     {
         NavigationManager.NavigateTo("/"); // Redirige a la página principal o a la lista de empleados
     }
-}la
+ca 
