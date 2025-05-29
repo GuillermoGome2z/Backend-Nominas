@@ -33,7 +33,7 @@ namespace ProyectoNomina.Backend
                         ValidateIssuerSigningKey = true,
                         ValidIssuer = jwtSettings["Issuer"],
                         ValidAudience = jwtSettings["Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
                     };
                 });
 
@@ -42,7 +42,7 @@ namespace ProyectoNomina.Backend
             {
                 options.AddPolicy("CorsPolicy", policy =>
                 {
-                    policy.WithOrigins("https://localhost:7057") // ⚠️ Puerto del frontend Blazor WebAssembly
+                    policy.WithOrigins("https://localhost:7057") // Blazor WebAssembly
                           .AllowAnyHeader()
                           .AllowAnyMethod();
                 });
@@ -105,7 +105,7 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
 
-            app.UseCors("CorsPolicy");     // 🔥 Agregado aquí: Permitir acceso del frontend
+            app.UseCors("CorsPolicy"); // Permitir acceso del frontend Blazor
 
             app.UseAuthentication();
             app.UseAuthorization();
