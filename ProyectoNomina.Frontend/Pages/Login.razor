@@ -1,0 +1,57 @@
+﻿@page "/login"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Iniciar Sesión</PageTitle>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <img src="imagenes/LogotipoUMG.png" class="login-logo" />
+        <h2>Iniciar Sesión</h2>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert-error">@error</div>
+        }
+
+        <EditForm Model="loginModel" OnValidSubmit="IniciarSesion">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label>Correo</label>
+                <InputText class="form-input" @bind-Value="loginModel.Correo" />
+            </div>
+
+            <div class="form-group">
+                <label>Contraseña</label>
+                <InputText class="form-input" @bind-Value="loginModel.Contraseña" type="password" />
+            </div>
+
+            <button type="submit" class="btn-login">Entrar</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string? error;
+
+    private async Task IniciarSesion()
+    {
+        try
+        {
+            await AuthService.Login(loginModel.Correo!, loginModel.Contraseña!);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    public class LoginModel
+    {
+        public string? Correo { get; set; }
+        public string? Contraseña { get; set; }
+    }
+}

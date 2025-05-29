@@ -1,4 +1,6 @@
 ﻿@page "/crear-empleado"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using ProyectoNomina.Frontend.Models
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
