@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using ProyectoNomina.Shared.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -19,14 +19,14 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpPost("login")]
-        public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
+        public ActionResult<LoginResponseDto> Login([FromBody] LoginRequestDto request)
         {
             // Usuario fijo para pruebas
             if (request.Correo == "admin@empresa.com" && request.Contraseña == "Admin123!")
             {
                 var token = GenerarToken(request.Correo, "Admin");
 
-                return Ok(new LoginResponse
+                return Ok(new LoginResponseDto
                 {
                     Token = token,
                     NombreUsuario = "Administrador",

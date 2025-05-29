@@ -1,9 +1,10 @@
 ﻿@page "/crear-empleado"
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
-@using ProyectoNomina.Frontend.Models
 @inject HttpClient Http
-@inject NavigationManager NavigationManager
+@inject NavigationManager Navigation
+@using ProyectoNomina.Shared.Models.DTOs
+@using System.Net.Http.Json
 
 <div class="container mt-5">
     <div class="card shadow rounded">
@@ -16,33 +17,64 @@
                 <ValidationSummary />
 
                 <div class="form-group mb-3">
-                    <label for="nombre" class="form-label">Nombre:</label>
-                    <InputText id="nombre" @bind-Value="nuevoEmpleado.Nombre" class="form-control" />
-                    <ValidationMessage For="@(() => nuevoEmpleado.Nombre)" />
+                    <label for="nombre" class="form-label">Nombre Completo:</label>
+                    <InputText id="nombre" @bind-Value="nuevoEmpleado.NombreCompleto" class="form-control" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="apellido" class="form-label">Apellido:</label>
-                    <InputText id="apellido" @bind-Value="nuevoEmpleado.Apellido" class="form-control" />
-                    <ValidationMessage For="@(() => nuevoEmpleado.Apellido)" />
+                    <label for="correo" class="form-label">Correo:</label>
+                    <InputText id="correo" @bind-Value="nuevoEmpleado.Correo" class="form-control" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="departamentoId" class="form-label">Departamento :</label>
+                    <label for="telefono" class="form-label">Teléfono:</label>
+                    <InputText id="telefono" @bind-Value="nuevoEmpleado.Telefono" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="direccion" class="form-label">Dirección:</label>
+                    <InputText id="direccion" @bind-Value="nuevoEmpleado.Direccion" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="salario" class="form-label">Salario Base:</label>
+                    <InputNumber id="salario" @bind-Value="nuevoEmpleado.SalarioBase" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="fecha" class="form-label">Fecha de Contratación:</label>
+                    <InputDate id="fecha" @bind-Value="nuevoEmpleado.FechaContratacion" class="form-control" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="departamentoId" class="form-label">Departamento ID:</label>
                     <InputNumber id="departamentoId" @bind-Value="nuevoEmpleado.DepartamentoId" class="form-control" />
-                    <ValidationMessage For="@(() => nuevoEmpleado.DepartamentoId)" />
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="puestoId" class="form-label">Puesto :</label>
+                    <label for="nit" class="form-label">NIT:</label>
+                    <InputText id="nit" @bind-Value="nuevoEmpleado.NIT" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.NIT)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="dpi" class="form-label">DPI:</label>
+                    <InputText id="dpi" @bind-Value="nuevoEmpleado.DPI" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.DPI)" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="puestoId" class="form-label">Puesto ID:</label>
                     <InputNumber id="puestoId" @bind-Value="nuevoEmpleado.PuestoId" class="form-control" />
-                    <ValidationMessage For="@(() => nuevoEmpleado.PuestoId)" />
                 </div>
 
                 <div class="text-center">
                     <button type="submit" class="btn btn-success me-2">💾 Guardar</button>
                     <button type="button" class="btn btn-secondary" @onclick="Volver">↩️ Volver</button>
                 </div>
+
+               
+
             </EditForm>
 
             @if (!string.IsNullOrEmpty(mensaje))
@@ -54,7 +86,7 @@
 </div>
 
 @code {
-    private Empleado nuevoEmpleado = new Empleado();
+    private EmpleadoCreacionDto nuevoEmpleado = new();
     private string? mensaje;
     private string mensajeCssClass = "alert-info";
 
@@ -68,19 +100,14 @@
             {
                 mensaje = "✅ Empleado creado con éxito.";
                 mensajeCssClass = "alert-success";
-                nuevoEmpleado = new Empleado(); // Limpiar formulario
+                nuevoEmpleado = new(); // Limpiar formulario
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                mensaje = $"❌ Error al crear empleado: {response.StatusCode} - {errorContent}";
+                var error = await response.Content.ReadAsStringAsync();
+                mensaje = $"❌ Error al crear empleado: {error}";
                 mensajeCssClass = "alert-danger";
             }
-        }
-        catch (HttpRequestException httpEx)
-        {
-            mensaje = $"⚠️ Error de conexión: {httpEx.Message}";
-            mensajeCssClass = "alert-danger";
         }
         catch (Exception ex)
         {
@@ -91,6 +118,6 @@
 
     private void Volver()
     {
-        NavigationManager.NavigateTo("/"); // Redirige a la página principal o a la lista de empleados
+        Navigation.NavigateTo("/");
     }
-} 
+}

@@ -2,14 +2,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
-using ProyectoNomina.Backend.DTOs;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrador,RRHH")] // 🔐 Solo accesible por roles específicos
+    [Authorize(Roles = "Administrador,RRHH")]
     public class ReportesController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,7 +21,9 @@ namespace ProyectoNomina.Backend.Controllers
             _reporteService = reporteService;
         }
 
-        /// 🧾 Endpoint para mostrar resumen de todas las nóminas procesadas
+        /// <summary>
+        /// Retorna un resumen de todas las nóminas procesadas.
+        /// </summary>
         [HttpGet("Nominas")]
         public async Task<ActionResult<IEnumerable<ReporteNominaDto>>> ObtenerReporteNominas()
         {
@@ -29,7 +31,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .Include(n => n.Detalles)
                 .ToListAsync();
 
-            if (nominas == null || nominas.Count == 0)
+            if (!nominas.Any())
                 return NotFound("No se encontraron nóminas registradas.");
 
             var reporte = nominas.Select(n => new ReporteNominaDto
@@ -46,7 +48,9 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// 📄 Retorna el estado de los expedientes de todos los empleados
+        /// <summary>
+        /// Retorna el estado de los expedientes de todos los empleados.
+        /// </summary>
         [HttpGet("Expedientes")]
         public async Task<ActionResult<IEnumerable<ReporteExpedienteDto>>> ObtenerReporteExpedientes()
         {
@@ -68,9 +72,9 @@ namespace ProyectoNomina.Backend.Controllers
 
                 var faltantes = tiposRequeridos.Except(entregados).ToList();
 
-                string estado = faltantes.Count == 0 ? "Completo"
-                               : entregados.Count == 0 ? "Incompleto"
-                               : "En proceso";
+                var estado = faltantes.Count == 0 ? "Completo"
+                           : entregados.Count == 0 ? "Incompleto"
+                           : "En proceso";
 
                 reporte.Add(new ReporteExpedienteDto
                 {
@@ -85,7 +89,9 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// 📄 Genera y devuelve en PDF el estado de expedientes
+        /// <summary>
+        /// Genera un PDF con el estado de los expedientes.
+        /// </summary>
         [HttpGet("Expedientes/pdf")]
         public async Task<IActionResult> GenerarPdfExpedientes()
         {
@@ -107,9 +113,9 @@ namespace ProyectoNomina.Backend.Controllers
 
                 var faltantes = tiposRequeridos.Except(entregados).ToList();
 
-                string estado = faltantes.Count == 0 ? "Completo"
-                               : entregados.Count == 0 ? "Incompleto"
-                               : "En proceso";
+                var estado = faltantes.Count == 0 ? "Completo"
+                           : entregados.Count == 0 ? "Incompleto"
+                           : "En proceso";
 
                 reporte.Add(new ReporteExpedienteDto
                 {
@@ -125,13 +131,13 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteExpediente.pdf");
         }
 
-        /// 🎓 Genera y devuelve en PDF la información académica de los empleados
+        /// <summary>
+        /// Genera un PDF con la información académica de los empleados.
+        /// </summary>
         [HttpGet("InformacionAcademica/pdf")]
         public async Task<IActionResult> GenerarReporteInformacionAcademicaPdf()
         {
-            var datos = await _context.InformacionAcademica
-                .Include(i => i.Empleado)
-                .ToListAsync();
+            var datos = await _context.InformacionAcademica.Include(i => i.Empleado).ToListAsync();
 
             if (!datos.Any())
                 return NotFound("No hay registros de información académica.");
@@ -140,13 +146,13 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteInformacionAcademica.pdf");
         }
 
-        /// 📋 Genera y devuelve en PDF los ajustes manuales realizados en las nóminas
+        /// <summary>
+        /// Genera un PDF con los ajustes manuales realizados.
+        /// </summary>
         [HttpGet("Ajustes/pdf")]
         public async Task<IActionResult> GenerarReporteAjustesPdf()
         {
-            var ajustes = await _context.AjustesManuales
-                .Include(a => a.Empleado)
-                .ToListAsync();
+            var ajustes = await _context.AjustesManuales.Include(a => a.Empleado).ToListAsync();
 
             if (!ajustes.Any())
                 return NotFound("No hay ajustes manuales registrados.");
@@ -155,7 +161,9 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteAjustes.pdf");
         }
 
-        /// 📌 Genera y devuelve en PDF el registro de auditoría del sistema
+        /// <summary>
+        /// Genera un PDF con el registro de auditoría del sistema.
+        /// </summary>
         [HttpGet("Auditoria/pdf")]
         public async Task<IActionResult> GenerarReporteAuditoriaPdf()
         {
