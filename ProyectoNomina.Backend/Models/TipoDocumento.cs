@@ -1,5 +1,5 @@
 ﻿using ProyectoNomina.Backend.Models;
-
+using ProyectoNomina.Shared.Models.DTOs;
 public class TipoDocumento
 {
     public int Id { get; set; }

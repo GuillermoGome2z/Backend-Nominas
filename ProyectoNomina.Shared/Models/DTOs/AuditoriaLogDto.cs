@@ -1,18 +1,17 @@
 ﻿using System;
-using ProyectoNomina.Shared.Models.DTOs;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ProyectoNomina.Backend.Models
+namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class AuditoriaLog
+    public class AuditoriaLogDto
     {
         public int Id { get; set; }
-
         public string Usuario { get; set; } = string.Empty;
-
         public string Accion { get; set; } = string.Empty;
-
         public string Detalles { get; set; } = string.Empty;
-
         public DateTime Fecha { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿namespace ProyectoNomina.Backend.Models
+﻿using ProyectoNomina.Shared.Models.DTOs;
+namespace ProyectoNomina.Backend.Models
 {
     public class DocumentoEmpleado
     {
