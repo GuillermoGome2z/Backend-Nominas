@@ -26,7 +26,7 @@ namespace ProyectoNomina.Frontend.Auth
 
         public async Task Login(string correo, string contraseña)
         {
-            var response = await _http.PostAsJsonAsync("api/Auth/login", new { Correo = correo, Contraseña = contraseña });
+            var response = await _http.PostAsJsonAsync("api/Usuarios/login", new { Correo = correo, Contraseña = contraseña });
 
             if (!response.IsSuccessStatusCode)
                 throw new ApplicationException("Credenciales incorrectas");
