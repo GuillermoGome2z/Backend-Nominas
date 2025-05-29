@@ -1,5 +1,6 @@
 ﻿using ProyectoNomina.Backend.Models;
 using System.Text.Json.Serialization;
+using ProyectoNomina.Shared.Models.DTOs;
 
 public class Departamento
 {

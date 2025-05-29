@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
-using ProyectoNomina.Client.Models;
+using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models;
 
 namespace ProyectoNomina.Client.Services
 {

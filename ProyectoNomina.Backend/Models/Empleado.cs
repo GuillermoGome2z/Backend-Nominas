@@ -1,6 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Models
 {

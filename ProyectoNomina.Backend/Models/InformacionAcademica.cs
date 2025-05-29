@@ -1,4 +1,5 @@
 ﻿using System;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Models
 {

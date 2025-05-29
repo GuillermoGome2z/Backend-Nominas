@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using ProyectoNomina.Shared.Models.DTOs;
 namespace ProyectoNomina.Backend.Models;
 
     public class Rol
