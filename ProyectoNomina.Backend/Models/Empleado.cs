@@ -8,6 +8,7 @@ namespace ProyectoNomina.Backend.Models
     public class Empleado
     {
         public int Id { get; set; }
+        public string Correo { get; set; }
         public string NombreCompleto { get; set; } = null!;
         public string DPI { get; set; } = null!;
         public string NIT { get; set; } = null!;

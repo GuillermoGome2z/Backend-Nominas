@@ -2,7 +2,7 @@
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using ProyectoNomina.Backend.Models;
-using ProyectoNomina.Backend.DTOs;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Services
 {

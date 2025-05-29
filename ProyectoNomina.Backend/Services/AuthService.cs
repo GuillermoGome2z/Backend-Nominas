@@ -1,6 +1,6 @@
 ﻿using System.Net.Http.Json;
 using ProyectoNomina.Backend.Models;
-using ProyectoNomina.Shared.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Client.Services
 {
@@ -15,12 +15,12 @@ namespace ProyectoNomina.Client.Services
             _config = config;
         }
 
-        public async Task<LoginResponse?> LoginAsync(LoginRequest request)
+        public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto request)
         {
             var response = await _http.PostAsJsonAsync("api/Usuarios/login", request);
 
             if (response.IsSuccessStatusCode)
-                return await response.Content.ReadFromJsonAsync<LoginResponse>();
+                return await response.Content.ReadFromJsonAsync<LoginResponseDto>();
 
             return null;
         }

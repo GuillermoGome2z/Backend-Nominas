@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
+
 
 namespace ProyectoNomina.Backend.Controllers
 {

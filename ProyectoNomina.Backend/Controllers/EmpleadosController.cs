@@ -2,8 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
-
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -19,63 +19,110 @@ namespace ProyectoNomina.Backend.Controllers
             _context = context;
         }
 
-        // GET: api/Empleados
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Empleado>>> GetEmpleados()
+        public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados()
         {
-            return await _context.Empleados
+            var empleados = await _context.Empleados
                 .Include(e => e.Departamento)
                 .Include(e => e.Puesto)
+                .Select(e => new EmpleadoDto
+                {
+                    Id = e.Id,
+                    NombreCompleto = e.NombreCompleto,
+                    DPI = e.DPI,
+                    NIT = e.NIT,
+                    Direccion = e.Direccion,
+                    Telefono = e.Telefono,
+                    FechaContratacion = e.FechaContratacion,
+                    SalarioMensual = e.SalarioMensual,
+                    DepartamentoId = e.DepartamentoId,
+                    PuestoId = e.PuestoId,
+                    NombreDepartamento = e.Departamento!.Nombre,
+                    NombrePuesto = e.Puesto!.Nombre
+                })
                 .ToListAsync();
+
+            return Ok(empleados);
         }
 
-        // GET: api/Empleados/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Empleado>> GetEmpleado(int id)
+        public async Task<ActionResult<EmpleadoDto>> GetEmpleado(int id)
         {
-            var empleado = await _context.Empleados
+            var e = await _context.Empleados
                 .Include(e => e.Departamento)
                 .Include(e => e.Puesto)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
-            if (empleado == null) return NotFound();
-            return empleado;
+            if (e == null) return NotFound();
+
+            var dto = new EmpleadoDto
+            {
+                Id = e.Id,
+                NombreCompleto = e.NombreCompleto,
+                DPI = e.DPI,
+                NIT = e.NIT,
+                Direccion = e.Direccion,
+                Telefono = e.Telefono,
+                FechaContratacion = e.FechaContratacion,
+                SalarioMensual = e.SalarioMensual,
+                DepartamentoId = e.DepartamentoId,
+                PuestoId = e.PuestoId,
+                NombreDepartamento = e.Departamento?.Nombre,
+                NombrePuesto = e.Puesto?.Nombre
+            };
+
+            return Ok(dto);
         }
 
-        // POST: api/Empleados
         [HttpPost]
-        public async Task<ActionResult<Empleado>> PostEmpleado(Empleado empleado)
+        public async Task<IActionResult> PostEmpleado([FromBody] EmpleadoCreacionDto dto)
         {
-            _context.Empleados.Add(empleado);
+            var nuevo = new Empleado
+            {
+                NombreCompleto = dto.NombreCompleto,
+                Correo = dto.Correo,
+                Telefono = dto.Telefono,
+                Direccion = dto.Direccion,
+                SalarioMensual = dto.SalarioBase, // SalarioBase viene del DTO
+                DepartamentoId = dto.DepartamentoId,
+                PuestoId = dto.PuestoId,
+                FechaContratacion = dto.FechaContratacion,
+
+                // ✅ Estos campos son obligatorios
+                DPI = dto.DPI,
+                NIT = dto.NIT
+            };
+
+            _context.Empleados.Add(nuevo);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetEmpleado), new { id = empleado.Id }, empleado);
+            return Ok(new { mensaje = "Empleado creado correctamente", id = nuevo.Id });
         }
 
-        // PUT: api/Empleados/5
+
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutEmpleado(int id, Empleado empleado)
+        public async Task<IActionResult> PutEmpleado(int id, EmpleadoDto dto)
         {
-            if (id != empleado.Id) return BadRequest();
+            if (id != dto.Id) return BadRequest();
 
-            _context.Entry(empleado).State = EntityState.Modified;
+            var empleado = await _context.Empleados.FindAsync(id);
+            if (empleado == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Empleados.Any(e => e.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            empleado.NombreCompleto = dto.NombreCompleto;
+            empleado.DPI = dto.DPI;
+            empleado.NIT = dto.NIT;
+            empleado.Direccion = dto.Direccion;
+            empleado.Telefono = dto.Telefono;
+            empleado.FechaContratacion = dto.FechaContratacion;
+            empleado.SalarioMensual = dto.SalarioMensual;
+            empleado.DepartamentoId = dto.DepartamentoId;
+            empleado.PuestoId = dto.PuestoId;
 
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // DELETE: api/Empleados/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpleado(int id)
         {
@@ -84,7 +131,6 @@ namespace ProyectoNomina.Backend.Controllers
 
             _context.Empleados.Remove(empleado);
             await _context.SaveChangesAsync();
-
             return NoContent();
         }
     }

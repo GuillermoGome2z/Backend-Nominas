@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ProyectoNomina.Shared.Models
+namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class LoginResponse
+    public class LoginResponseDto
     {
         public string Token { get; set; } = string.Empty;
         public string NombreUsuario { get; set; } = string.Empty;
