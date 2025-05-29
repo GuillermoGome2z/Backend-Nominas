@@ -1,23 +1,21 @@
 ﻿using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using ProyectoNomina.Client;
-using ProyectoNomina.Client.Auth;
-using Microsoft.AspNetCore.Components.Authorization;
-using System.Net.Http.Headers;
 using ProyectoNomina.Frontend;
+using ProyectoNomina.Frontend.Auth;
+using Microsoft.AspNetCore.Components.Authorization;
+using Blazored.LocalStorage;
+using System.Net.Http.Headers;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// 🔌 Configura el HttpClient para enviar JWT automáticamente
+// 🌐 BaseAddress del backend
 builder.Services.AddScoped(sp =>
 {
     var httpClient = new HttpClient
     {
-        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+        BaseAddress = new Uri("https://localhost:7187") // 🔗 URL del backend
     };
 
     httpClient.DefaultRequestHeaders.Accept.Clear();
@@ -25,10 +23,14 @@ builder.Services.AddScoped(sp =>
     return httpClient;
 });
 
-// ✅ Registrar el AuthenticationStateProvider personalizado
-builder.Services.AddAuthorizationCore(); // Habilita la autorización
+// ✅ Blazored.LocalStorage para JWT
+builder.Services.AddBlazoredLocalStorage();
+
+// ✅ Autenticación
+builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
-builder.Services.AddScoped<IAuthService, AuthService>(); // Servicio para login/logout/token
+
+// ✅ Registro correcto del servicio de autenticación
+builder.Services.AddScoped<IAuthService, AuthService>(); // 🔧 esta línea estaba mal
 
 await builder.Build().RunAsync();
-

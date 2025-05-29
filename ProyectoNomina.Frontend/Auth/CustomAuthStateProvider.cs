@@ -1,63 +1,64 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
-using System.Security.Claims;
-using System.Text.Json;
-using Microsoft.JSInterop;
+﻿using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
-
-namespace ProyectoNomina.Client.Auth
+namespace ProyectoNomina.Frontend.Auth
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
-        private readonly IJSRuntime _jsRuntime;
+        private readonly ILocalStorageService _localStorage;
+        private readonly ClaimsPrincipal _anonimo = new(new ClaimsIdentity());
 
-        private ClaimsPrincipal _anonimo = new ClaimsPrincipal(new ClaimsIdentity());
-
-        public CustomAuthStateProvider(IJSRuntime jsRuntime)
+        public CustomAuthStateProvider(ILocalStorageService localStorage)
         {
-            _jsRuntime = jsRuntime;
+            _localStorage = localStorage;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            // 🔐 Obtener el token desde localStorage
-            var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "jwtToken");
+            var token = await _localStorage.GetItemAsync<string>("jwtToken");
 
+            // 🔴 Si no hay token, usuario anónimo
             if (string.IsNullOrWhiteSpace(token))
                 return new AuthenticationState(_anonimo);
 
-            // 🔍 Validar si el token ha expirado
             var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
 
-            if (jwtToken.ValidTo < DateTime.UtcNow)
+            JwtSecurityToken jwtToken;
+            try
             {
-                // Token expirado
-                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "jwtToken");
+                jwtToken = handler.ReadJwtToken(token);
+            }
+            catch
+            {
+                await _localStorage.RemoveItemAsync("jwtToken");
                 return new AuthenticationState(_anonimo);
             }
 
-            // ✅ Crear ClaimsPrincipal a partir del token
-            var claims = jwtToken.Claims;
-            var usuario = new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt"));
+            // 🔴 Si el token expiró, eliminar y devolver anónimo
+            if (jwtToken.ValidTo < DateTime.UtcNow)
+            {
+                await _localStorage.RemoveItemAsync("jwtToken");
+                return new AuthenticationState(_anonimo);
+            }
 
+            var usuario = new ClaimsPrincipal(new ClaimsIdentity(jwtToken.Claims, "jwt"));
             return new AuthenticationState(usuario);
         }
 
-        public async Task NotificarCambioEstadoAutenticacion(string token)
+        public async Task NotifyUserAuthentication(string token)
         {
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
-            var claims = jwtToken.Claims;
-            var usuario = new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt"));
+            var usuario = new ClaimsPrincipal(new ClaimsIdentity(jwtToken.Claims, "jwt"));
 
-            // 🔔 Notificar a Blazor que cambió el estado de autenticación
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(usuario)));
         }
 
-        public void NotificarLogout()
+        public async Task Logout()
         {
-            // 🔔 Notificar que ya no hay usuario autenticado
+            await _localStorage.RemoveItemAsync("jwtToken");
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_anonimo)));
         }
     }

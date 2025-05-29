@@ -42,7 +42,7 @@ namespace ProyectoNomina.Backend
             {
                 options.AddPolicy("CorsPolicy", policy =>
                 {
-                    policy.WithOrigins("https://localhost:5001") // ⚠️ Puerto del frontend Blazor WebAssembly
+                    policy.WithOrigins("https://localhost:7057") // ⚠️ Puerto del frontend Blazor WebAssembly
                           .AllowAnyHeader()
                           .AllowAnyMethod();
                 });
