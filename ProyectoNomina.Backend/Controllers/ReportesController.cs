@@ -21,9 +21,6 @@ namespace ProyectoNomina.Backend.Controllers
             _reporteService = reporteService;
         }
 
-        /// <summary>
-        /// Retorna un resumen de todas las nóminas procesadas.
-        /// </summary>
         [HttpGet("Nominas")]
         public async Task<ActionResult<IEnumerable<ReporteNominaDto>>> ObtenerReporteNominas()
         {
@@ -48,9 +45,6 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// <summary>
-        /// Retorna el estado de los expedientes de todos los empleados.
-        /// </summary>
         [HttpGet("Expedientes")]
         public async Task<ActionResult<IEnumerable<ReporteExpedienteDto>>> ObtenerReporteExpedientes()
         {
@@ -89,9 +83,6 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        /// <summary>
-        /// Genera un PDF con el estado de los expedientes.
-        /// </summary>
         [HttpGet("Expedientes/pdf")]
         public async Task<IActionResult> GenerarPdfExpedientes()
         {
@@ -131,9 +122,6 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteExpediente.pdf");
         }
 
-        /// <summary>
-        /// Genera un PDF con la información académica de los empleados.
-        /// </summary>
         [HttpGet("InformacionAcademica/pdf")]
         public async Task<IActionResult> GenerarReporteInformacionAcademicaPdf()
         {
@@ -146,9 +134,6 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteInformacionAcademica.pdf");
         }
 
-        /// <summary>
-        /// Genera un PDF con los ajustes manuales realizados.
-        /// </summary>
         [HttpGet("Ajustes/pdf")]
         public async Task<IActionResult> GenerarReporteAjustesPdf()
         {
@@ -161,9 +146,6 @@ namespace ProyectoNomina.Backend.Controllers
             return File(pdf, "application/pdf", "ReporteAjustes.pdf");
         }
 
-        /// <summary>
-        /// Genera un PDF con el registro de auditoría del sistema.
-        /// </summary>
         [HttpGet("Auditoria/pdf")]
         public async Task<IActionResult> GenerarReporteAuditoriaPdf()
         {
@@ -174,6 +156,42 @@ namespace ProyectoNomina.Backend.Controllers
 
             var pdf = _reporteService.GenerarReporteAuditoria(auditoria);
             return File(pdf, "application/pdf", "ReporteAuditoria.pdf");
+        }
+
+        [HttpGet("PorTipoDocumento")]
+        public async Task<ActionResult<List<ItemDocumentoDto>>> ObtenerReportePorTipoDocumento()
+        {
+            var resultado = await _context.TiposDocumento
+                .Select(td => new ItemDocumentoDto
+                {
+                    Tipo = td.Nombre,
+                    TotalRequeridos = td.DocumentosEmpleados.Count(),
+                    Entregados = td.DocumentosEmpleados.Count(d => d.RutaArchivo != null),
+                    Faltantes = td.DocumentosEmpleados.Count(d => d.RutaArchivo == null)
+                }).ToListAsync();
+
+            return Ok(resultado);
+        }
+
+        [HttpGet("DocumentosPorEmpleado")]
+        public async Task<ActionResult<List<ReporteDocumentosEmpleadoDto>>> ObtenerDocumentosPorEmpleado()
+        {
+            var empleados = await _context.Empleados
+                .Include(e => e.Documentos)
+                .ThenInclude(d => d.TipoDocumento)
+                .ToListAsync();
+
+            var resultado = empleados.Select(e => new ReporteDocumentosEmpleadoDto
+            {
+                NombreEmpleado = e.NombreCompleto,
+                Documentos = e.Documentos.Select(d => new ItemDocumentoResumenDto
+                {
+                    Tipo = d.TipoDocumento.Nombre,
+                    Fecha = d.FechaSubida
+                }).ToList()
+            }).ToList();
+
+            return Ok(resultado);
         }
     }
 }
