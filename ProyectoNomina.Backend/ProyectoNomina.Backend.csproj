@@ -23,4 +23,8 @@
     <ProjectReference Include="..\ProyectoNomina.Shared\ProyectoNomina.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\Documentos\" />
+  </ItemGroup>
+
 </Project>
