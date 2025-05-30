@@ -1,0 +1,40 @@
+﻿@page "/departamentos"
+@inject HttpClient Http
+
+<h3 class="text-xl font-bold mb-3">🏢 Crear Departamento</h3>
+
+<div class="mb-3">
+    <input type="text" @bind="nuevoDepartamento" placeholder="Nombre del Departamento"
+           class="border rounded px-3 py-1 w-64" />
+</div>
+
+<button class="bg-blue-600 text-white px-4 py-1 rounded"
+        @onclick="CrearDepartamentoDto"
+        disabled="@string.IsNullOrWhiteSpace(nuevoDepartamento)">
+    ➕ Guardar
+</button>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <p class="text-green-600 mt-2">@mensaje</p>
+}
+
+@code {
+    private string nuevoDepartamento = "";
+    private string mensaje = "";
+
+    private async Task CrearDepartamentoDto()
+    {
+        var response = await Http.PostAsJsonAsync("api/Departamentos", new { Nombre = nuevoDepartamento });
+
+        if (response.IsSuccessStatusCode)
+        {
+            mensaje = "✅ Departamento creado correctamente.";
+            nuevoDepartamento = "";
+        }
+        else
+        {
+            mensaje = "❌ Error al crear el departamento.";
+        }
+    }
+}

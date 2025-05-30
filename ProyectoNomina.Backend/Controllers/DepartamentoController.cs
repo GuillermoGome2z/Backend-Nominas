@@ -5,7 +5,6 @@ using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
 
-
 namespace ProyectoNomina.Backend.Controllers
 {
     [Authorize(Roles = "Admin,RRHH")]
@@ -22,50 +21,62 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Departamentos
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Departamento>>> GetDepartamentos()
+        public async Task<ActionResult<IEnumerable<DepartamentoDto>>> GetDepartamentos()
         {
-            return await _context.Departamentos.ToListAsync();
+            var lista = await _context.Departamentos
+                .Select(d => new DepartamentoDto
+                {
+                    Id = d.Id,
+                    Nombre = d.Nombre
+                })
+                .ToListAsync();
+
+            return Ok(lista);
         }
 
         // GET: api/Departamentos/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Departamento>> GetDepartamento(int id)
+        public async Task<ActionResult<DepartamentoDto>> GetDepartamento(int id)
         {
             var departamento = await _context.Departamentos.FindAsync(id);
-            if (departamento == null) return NotFound();
-            return departamento;
+
+            if (departamento == null)
+                return NotFound();
+
+            return new DepartamentoDto
+            {
+                Id = departamento.Id,
+                Nombre = departamento.Nombre
+            };
         }
 
         // POST: api/Departamentos
         [HttpPost]
-        public async Task<ActionResult<Departamento>> PostDepartamento(Departamento departamento)
+        public async Task<ActionResult> PostDepartamento([FromBody] DepartamentoDto dto)
         {
-            _context.Departamentos.Add(departamento);
+            var nuevo = new Departamento
+            {
+                Nombre = dto.Nombre
+            };
+
+            _context.Departamentos.Add(nuevo);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetDepartamento), new { id = departamento.Id }, departamento);
+            return Ok();
         }
 
         // PUT: api/Departamentos/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutDepartamento(int id, Departamento departamento)
+        public async Task<IActionResult> PutDepartamento(int id, [FromBody] DepartamentoDto dto)
         {
-            if (id != departamento.Id) return BadRequest();
+            if (id != dto.Id) return BadRequest();
 
-            _context.Entry(departamento).State = EntityState.Modified;
+            var departamento = await _context.Departamentos.FindAsync(id);
+            if (departamento == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Departamentos.Any(d => d.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            departamento.Nombre = dto.Nombre;
 
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
