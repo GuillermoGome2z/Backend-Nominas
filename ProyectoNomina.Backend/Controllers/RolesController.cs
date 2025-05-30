@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [AllowAnonymous]
-    [Authorize(Roles = "Admin")] // ⬅️ protege todo el controlador
+    [Authorize(Roles = "Admin")]
     [ApiController]
     [Route("api/[controller]")]
     public class RolesController : ControllerBase
@@ -21,50 +21,56 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Rol>>> GetRoles()
+        public async Task<ActionResult<IEnumerable<RolDto>>> GetRoles()
         {
-            return await _context.Roles.ToListAsync();
+            var roles = await _context.Roles
+                .Select(r => new RolDto
+                {
+                    Id = r.Id,
+                    Nombre = r.Nombre
+                })
+                .ToListAsync();
+
+            return Ok(roles);
         }
 
         // GET: api/Roles/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Rol>> GetRol(int id)
+        public async Task<ActionResult<RolDto>> GetRol(int id)
         {
             var rol = await _context.Roles.FindAsync(id);
             if (rol == null) return NotFound();
-            return rol;
+
+            return new RolDto
+            {
+                Id = rol.Id,
+                Nombre = rol.Nombre
+            };
         }
 
         // POST: api/Roles
         [HttpPost]
-        public async Task<ActionResult<Rol>> PostRol(Rol rol)
+        public async Task<IActionResult> PostRol([FromBody] RolDto dto)
         {
-            _context.Roles.Add(rol);
+            var nuevo = new Rol { Nombre = dto.Nombre };
+            _context.Roles.Add(nuevo);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRol), new { id = rol.Id }, rol);
+            return Ok();
         }
 
         // PUT: api/Roles/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutRol(int id, Rol rol)
+        public async Task<IActionResult> PutRol(int id, [FromBody] RolDto dto)
         {
-            if (id != rol.Id) return BadRequest();
+            if (id != dto.Id) return BadRequest();
 
-            _context.Entry(rol).State = EntityState.Modified;
+            var rol = await _context.Roles.FindAsync(id);
+            if (rol == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Roles.Any(r => r.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            rol.Nombre = dto.Nombre;
 
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 

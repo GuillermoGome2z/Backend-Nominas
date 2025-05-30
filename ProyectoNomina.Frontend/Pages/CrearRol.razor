@@ -1,0 +1,82 @@
+﻿@page "/roles"
+@inject HttpClient Http
+
+<h3 class="text-xl font-bold mb-3">🔐 Crear Rol</h3>
+
+<div class="mb-3">
+    <input type="text"
+           @bind="nuevoRol"
+           @bind:event="oninput"
+           placeholder="Nombre del Rol (Admin, RRHH, Usuarios)"
+           class="border rounded px-3 py-1 w-64" />
+</div>
+
+<button class="bg-blue-600 text-white px-4 py-1 rounded disabled:opacity-50"
+        @onclick="GuardarRol"
+        disabled="@string.IsNullOrWhiteSpace(nuevoRol)">
+    ➕ Guardar
+</button>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <p class="mt-2 text-green-600">@mensaje</p>
+}
+
+@if (roles.Count > 0)
+{
+    <h4 class="mt-4 font-semibold text-lg">📃 Roles Registrados</h4>
+    <ul class="list-disc pl-6">
+        @foreach (var rol in roles)
+        {
+            <li><strong>ID:</strong> @rol.Id - @rol.Nombre</li>
+        }
+    </ul>
+}
+
+@code {
+    private string nuevoRol = "";
+    private string mensaje = "";
+    private List<RolDto> roles = new();
+
+    private readonly List<string> rolesPermitidos = new() { "Admin", "RRHH", "Usuarios" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRoles();
+    }
+
+    private async Task GuardarRol()
+    {
+        nuevoRol = nuevoRol.Trim(); // 💡 limpieza automática
+
+        if (string.IsNullOrWhiteSpace(nuevoRol))
+        {
+            mensaje = "❌ El nombre del rol no puede estar vacío.";
+            return;
+        }
+
+        if (!rolesPermitidos.Contains(nuevoRol, StringComparer.OrdinalIgnoreCase))
+        {
+            mensaje = "❌ Solo se permiten los roles: Admin, RRHH y Usuarios.";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/Roles", new { Nombre = nuevoRol });
+
+        if (response.IsSuccessStatusCode)
+        {
+            mensaje = "✅ Rol creado correctamente.";
+            nuevoRol = "";
+            await CargarRoles();
+        }
+        else
+        {
+            mensaje = "❌ Error al crear el rol.";
+        }
+    }
+
+    private async Task CargarRoles()
+    {
+        roles = await Http.GetFromJsonAsync<List<RolDto>>("api/Roles") ?? new();
+    }
+}
