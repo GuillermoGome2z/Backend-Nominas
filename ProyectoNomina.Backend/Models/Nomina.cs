@@ -7,6 +7,8 @@ namespace ProyectoNomina.Backend.Models
         public DateTime FechaGeneracion { get; set; }
         public string Descripcion { get; set; }
 
-        public ICollection<DetalleNomina> Detalles { get; set; }
+        public ICollection<DetalleNomina> Detalles { get; set; } = new List<DetalleNomina>();
+
+
     }
 }

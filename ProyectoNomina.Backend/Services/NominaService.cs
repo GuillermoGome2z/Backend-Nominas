@@ -1,5 +1,6 @@
-﻿using ProyectoNomina.Backend.Data;
-using ProyectoNomina.Backend.Models;
+﻿using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Backend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ProyectoNomina.Backend.Services
 {
@@ -14,34 +15,26 @@ namespace ProyectoNomina.Backend.Services
 
         public async Task Calcular(Nomina nomina)
         {
-            var empleados = _context.Empleados.ToList();
+            var empleados = await _context.Empleados.ToListAsync();
 
             foreach (var empleado in empleados)
             {
-                var salarioBruto = empleado.SalarioMensual;
+                var salarioBase = empleado.SalarioMensual;
+                var igss = salarioBase * 0.0483M;
+                var bonificacion = 250M;
+                var salarioNeto = salarioBase - igss + bonificacion;
 
-                // Prestaciones legales
-                var igss = salarioBruto * 0.0483m;
-                var irtra = salarioBruto * 0.01m;
-                var intecap = salarioBruto * 0.01m;
-
-                var totalDeducciones = igss + irtra + intecap;
-
-                // Bonificación incentivo fija (opcional personalizable)
-                var bonificaciones = 250m;
-
-                var salarioNeto = salarioBruto + bonificaciones - totalDeducciones;
-
-                // Registrar detalle de nómina
-                nomina.Detalles.Add(new DetalleNomina
+                var detalle = new DetalleNomina
                 {
                     EmpleadoId = empleado.Id,
-                    SalarioBruto = salarioBruto,
-                    Deducciones = totalDeducciones,
-                    Bonificaciones = bonificaciones,
+                    SalarioBruto = salarioBase,
+                    Deducciones = igss,
+                    Bonificaciones = bonificacion,
                     SalarioNeto = salarioNeto,
-                    DesgloseDeducciones = $"IGSS: {igss:C}, IRTRA: {irtra:C}, INTECAP: {intecap:C}"
-                });
+                    DesgloseDeducciones = $"IGSS: Q{igss:F2}"
+                };
+
+                nomina.Detalles.Add(detalle);
             }
         }
     }

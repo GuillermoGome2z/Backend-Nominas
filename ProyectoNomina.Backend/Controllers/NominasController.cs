@@ -21,7 +21,7 @@ namespace ProyectoNomina.Backend.Controllers
             _nominaService = nominaService;
         }
 
-        // GET: api/Nominas
+        // ✅ Obtener todas las nóminas con sus detalles
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas()
         {
@@ -31,7 +31,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .ToListAsync();
         }
 
-        // GET: api/Nominas/5
+        // ✅ Obtener una nómina específica por ID
         [HttpGet("{id}")]
         public async Task<ActionResult<Nomina>> GetNomina(int id)
         {
@@ -43,9 +43,9 @@ namespace ProyectoNomina.Backend.Controllers
             return nomina == null ? NotFound() : nomina;
         }
 
-        // POST: api/Nominas
+        // ✅ Crear una nueva nómina (sin procesar)
         [HttpPost]
-        public async Task<ActionResult<Nomina>> PostNomina(Nomina nomina)
+        public async Task<ActionResult<Nomina>> PostNomina([FromBody] Nomina nomina)
         {
             nomina.FechaGeneracion = DateTime.Now;
             _context.Nominas.Add(nomina);
@@ -54,32 +54,36 @@ namespace ProyectoNomina.Backend.Controllers
             return CreatedAtAction(nameof(GetNomina), new { id = nomina.Id }, nomina);
         }
 
-        // POST: api/Nominas/procesar
+        // ✅ Procesar y calcular automáticamente una nómina
         [HttpPost("procesar")]
         public async Task<IActionResult> ProcesarNomina([FromBody] string descripcion)
         {
             var empleados = await _context.Empleados.ToListAsync();
             if (!empleados.Any())
-                return BadRequest("No hay empleados para procesar nómina.");
+                return BadRequest("❌ No hay empleados disponibles para procesar la nómina.");
 
             var nomina = new Nomina
             {
                 FechaGeneracion = DateTime.Now,
-                Descripcion = descripcion,
-                Detalles = new List<DetalleNomina>()
+                Descripcion = descripcion
+                // No inicializamos Detalles, lo hace NominaService
             };
 
-            await _nominaService.Calcular(nomina); // ✅ Corrección aquí
+            await _nominaService.Calcular(nomina); // Calcula los detalles y los llena
 
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync();
 
-            return Ok(new { mensaje = "Nómina procesada correctamente", nominaId = nomina.Id });
+            return Ok(new
+            {
+                mensaje = "✅ Nómina procesada correctamente.",
+                nominaId = nomina.Id
+            });
         }
 
-        // PUT: api/Nominas/5
+        // ✅ Editar una nómina existente
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutNomina(int id, Nomina nomina)
+        public async Task<IActionResult> PutNomina(int id, [FromBody] Nomina nomina)
         {
             if (id != nomina.Id) return BadRequest();
 
@@ -100,7 +104,7 @@ namespace ProyectoNomina.Backend.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Nominas/5
+        // ✅ Eliminar una nómina por ID
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteNomina(int id)
         {

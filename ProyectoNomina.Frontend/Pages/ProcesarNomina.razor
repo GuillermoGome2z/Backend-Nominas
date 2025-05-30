@@ -1,0 +1,62 @@
+﻿@page "/procesar-nomina"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,RRHH")]
+
+<h3 class="text-2xl font-bold mb-4">📅 Procesar Nómina</h3>
+
+<div class="mb-4">
+    <label class="block mb-1 font-semibold">Descripción</label>
+    <input @bind="descripcion" class="border px-3 py-1 w-full rounded shadow" placeholder="Ej: Nómina primera quincena de junio" />
+</div>
+
+<button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+        @onclick="Procesar"
+        disabled="@string.IsNullOrWhiteSpace(descripcion)">
+    ✅ Procesar Nómina
+</button>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <p class="mt-4 font-semibold text-green-600">@mensaje</p>
+}
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <p class="mt-4 font-semibold text-red-600">@error</p>
+}
+
+@code {
+    private string descripcion = "";
+    private string mensaje = "";
+    private string error = "";
+
+    private async Task Procesar()
+    {
+        try
+        {
+            // Enviar la descripción como un string plano (lo que espera el backend)
+            var content = new StringContent($"\"{descripcion}\"", System.Text.Encoding.UTF8, "application/json");
+            var response = await Http.PostAsync("api/Nominas/procesar", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resultado = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
+                mensaje = resultado?["mensaje"]?.ToString() ?? "Procesado correctamente.";
+                descripcion = "";
+                error = "";
+            }
+            else
+            {
+                // Leer y mostrar mensaje de error del servidor
+                var serverError = await response.Content.ReadAsStringAsync();
+                error = $"❌ Error al procesar nómina: {serverError}";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"❌ Error: {ex.Message}";
+        }
+    }
+}

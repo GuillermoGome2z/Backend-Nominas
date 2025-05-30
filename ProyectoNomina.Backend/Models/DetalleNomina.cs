@@ -1,10 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
-using ProyectoNomina.Shared.Models.DTOs;
-
 
 namespace ProyectoNomina.Backend.Models
 {
+    [Table("DetalleNominas")] // 👈 Esto corrige el error
     public class DetalleNomina
     {
         public int Id { get; set; }
@@ -17,13 +16,16 @@ namespace ProyectoNomina.Backend.Models
 
         [Precision(18, 2)]
         public decimal SalarioBruto { get; set; }
+
         [Precision(18, 2)]
         public decimal Deducciones { get; set; }
+
         [Precision(18, 2)]
         public decimal Bonificaciones { get; set; }
+
         [Precision(18, 2)]
         public decimal SalarioNeto { get; set; }
-        [Precision(18, 2)]
+
         public string DesgloseDeducciones { get; set; } = string.Empty;
     }
 }

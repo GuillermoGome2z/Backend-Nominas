@@ -39,7 +39,6 @@
                     <span class="btn-icon">🔐</span>
                     Roles
                 </a>
-
             </div>
         </div>
 
@@ -64,7 +63,7 @@
     <p>Administra la información completa de tus empleados de manera sencilla y organizada.</p>
 </div>
 
-<div class="feature-card">
+<div class="feature-card" style="cursor: pointer;" @onclick="IrAProcesarNomina">
     <div class="feature-icon">💳</div>
     <h3>Cálculo de Nóminas</h3>
     <p>Automatiza el cálculo de salarios, deducciones y bonificaciones con precisión.</p>
@@ -114,6 +113,11 @@
     private void IrAReportes()
     {
         NavigationManager.NavigateTo("/reportes");
+    }
+
+    private void IrAProcesarNomina()
+    {
+        NavigationManager.NavigateTo("/procesar-nomina");
     }
 }
 

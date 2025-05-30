@@ -50,7 +50,7 @@ namespace ProyectoNomina.Backend
 
             // 4️⃣ Servicios personalizados
             builder.Services.AddScoped<JwtService>();
-            builder.Services.AddScoped<NominaService>();
+            builder.Services.AddScoped<NominaService>(); // ✅ Servicio de cálculo de nómina
             builder.Services.AddScoped<ReporteService>();
             builder.Services.AddScoped<AuditoriaService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
@@ -99,7 +99,7 @@ namespace ProyectoNomina.Backend
             // 7️⃣ Middleware
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();   
+                app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
@@ -107,7 +107,7 @@ namespace ProyectoNomina.Backend
 
             app.UseStaticFiles();
 
-            app.UseCors("CorsPolicy"); // Permitir acceso del frontend Blazor
+            app.UseCors("CorsPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
@@ -117,3 +117,4 @@ namespace ProyectoNomina.Backend
         }
     }
 }
+
