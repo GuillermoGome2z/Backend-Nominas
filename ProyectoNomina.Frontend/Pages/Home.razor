@@ -9,7 +9,7 @@
             <h1 class="hero-title">
                 <span class="title-main">Bienvenido al</span>
                 <span class="title-accent">Sistema de Nóminas</span>
-                <span class="title-main"> "Suicide Squad"</span>
+                <span class="title-main">"Suicide Squad"</span>
             </h1>
             <p class="hero-description">
                 Gestiona eficientemente los empleados y nóminas de tu empresa con nuestra plataforma moderna e intuitiva.
@@ -19,21 +19,20 @@
                     <span class="btn-icon">➕</span>
                     Crear Empleado
                 </a>
-    <a href="/lista-documentos" class="btn btn-primary">
-        <span class="btn-icon">📁</span>
-        Ver Documentos
-    </a>
-
-                <button class="btn btn-secondary">
+                <a href="/lista-documentos" class="btn btn-primary">
+                    <span class="btn-icon">📁</span>
+                    Ver Documentos
+                </a>
+                <a href="/reportes" class="btn btn-primary">
                     <span class="btn-icon">📊</span>
-                    Ver Reportes
-                </button>
+                    Ver Informes
+                </a>
             </div>
         </div>
+
         <div class="hero-visual">
             <div class="logo-container">
                 <img src="imagenes/logotipoumg.png" alt="Logo UMG" class="company-logo" />
-
                 <div class="logo-glow"></div>
             </div>
             <div class="floating-elements">
@@ -46,7 +45,6 @@
     </div>
 </div>
 
-<!-- 🔗 Cuadro clickeable para ir a empleados -->
 <div class="feature-card" @onclick="IrAListaEmpleados" style="cursor: pointer;">
     <div class="feature-icon">👥</div>
     <h3>Gestión de Empleados</h3>
@@ -58,11 +56,13 @@
     <h3>Cálculo de Nóminas</h3>
     <p>Automatiza el cálculo de salarios, deducciones y bonificaciones con precisión.</p>
 </div>
-<div class="feature-card">
-    <div class="feature-icon">📊</div>
-    <h3>Reportes Detallados</h3>
-    <p>Genera reportes completos para análisis financiero y toma de decisiones.</p>
+
+<div class="feature-card" style="cursor: pointer;" @onclick="IrAReportes">
+    <div class="feature-icon">📈</div>
+    <h3>Informes detallados</h3>
+    <p>Genera informes completos para análisis financiero y toma de decisiones.</p>
 </div>
+
 <div class="feature-card">
     <div class="feature-icon">🔒</div>
     <h3>Seguridad Total</h3>
@@ -97,8 +97,12 @@
     {
         NavigationManager.NavigateTo("/empleados");
     }
-}
 
+    private void IrAReportes()
+    {
+        NavigationManager.NavigateTo("/reportes");
+    }
+}
 
 
 <style>

@@ -1,0 +1,30 @@
+﻿@page "/reportes"
+
+<h2 class="text-3xl font-bold mb-6 flex items-center gap-2">
+    <span>📊</span>
+    Centro de Reportes
+</h2>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Tarjeta: Reporte por Tipo de Documento -->
+    <a href="/reporte-tipo-documento" class="bg-white rounded-2xl shadow-md hover:shadow-lg transition p-6 border border-gray-200 flex items-start gap-4">
+        <div class="text-4xl">📄</div>
+        <div>
+            <h3 class="text-xl font-semibold text-gray-800">Informe por tipo de documento</h3>
+            <p class="text-sm text-gray-600">
+                Visualice los documentos entregados agrupados por tipo.
+            </p>
+        </div>
+    </a>
+
+    <!-- Tarjeta (futura): Reporte por empleado -->
+    <a href="/reporte-por-empleado" class="bg-white rounded-2xl shadow-md hover:shadow-lg transition p-6 border border-gray-200 flex items-start gap-4">
+        <div class="text-4xl">👤</div>
+        <div>
+            <h3 class="text-xl font-semibold text-gray-800">Informe por empleado</h3>
+            <p class="text-sm text-gray-600">
+                Consulte los documentos entregados por cada empleado.
+            </p>
+        </div>
+    </a>
+</div>

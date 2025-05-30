@@ -1,0 +1,50 @@
+﻿@page "/reporte-tipo-documento"
+@inject HttpClient Http
+
+<h3>📄 Reporte por Tipo de Documento</h3>
+
+@if (reporte == null)
+{
+        <p><em>Cargando datos...</em></p>
+}
+else
+{
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Tipo de Documento</th>
+                    <th>Entregados</th>
+                    <th>Total Requeridos</th>
+                    <th>Faltantes</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in reporte)
+            {
+                        <tr>
+                            <td>@item.Tipo</td>
+                            <td>@item.Entregados</td>
+                            <td>@item.TotalRequeridos</td>
+                            <td>@item.Faltantes</td>
+                        </tr>
+            }
+            </tbody>
+        </table>
+}
+
+@code {
+    private List<ItemDocumentoDto> reporte;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reporte = await Http.GetFromJsonAsync<List<ItemDocumentoDto>>("api/Reportes/PorTipoDocumento");
+    }
+
+    public class ItemDocumentoDto
+    {
+        public string Tipo { get; set; } = string.Empty;
+        public int Entregados { get; set; }
+        public int TotalRequeridos { get; set; }
+        public int Faltantes { get; set; }
+    }
+}
