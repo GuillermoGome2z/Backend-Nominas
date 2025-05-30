@@ -9,18 +9,19 @@ namespace ProyectoNomina.Backend.Controllers
 {
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
-    [Route("api/[controller]")]
-    public class DocumentosEmpleadoController : ControllerBase
+    [Route("api/DocumentosEmpleado")] // 🔁 Forzamos la ruta compatible con el frontend
+    public class DocumentoEmpleadoController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
 
-        public DocumentosEmpleadoController(AppDbContext context, IWebHostEnvironment env)
+        public DocumentoEmpleadoController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
             _env = env;
         }
 
+        // POST: Subir documento con archivo
         [HttpPost("Upload")]
         public async Task<IActionResult> UploadDocumento([FromForm] DocumentoSubidaDto dto)
         {
@@ -87,10 +88,11 @@ namespace ProyectoNomina.Backend.Controllers
 
             return documentos;
         }
+     
 
-        // GET: api/DocumentosEmpleado/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<DocumentoEmpleado>> GetDocumento(int id)
+    // GET: api/DocumentosEmpleado/5
+    [HttpGet("{id}")]
+        public async Task<ActionResult<DocumentoEmpleadoDto>> GetDocumento(int id)
         {
             var doc = await _context.DocumentosEmpleado
                 .Include(d => d.Empleado)
@@ -100,10 +102,59 @@ namespace ProyectoNomina.Backend.Controllers
             if (doc == null)
                 return NotFound();
 
-            return doc;
+            return new DocumentoEmpleadoDto
+            {
+                Id = doc.Id,
+                EmpleadoId = doc.EmpleadoId,
+                TipoDocumentoId = doc.TipoDocumentoId,
+                RutaArchivo = doc.RutaArchivo,
+                FechaSubida = doc.FechaSubida,
+                NombreEmpleado = doc.Empleado.NombreCompleto,
+                NombreTipo = doc.TipoDocumento.Nombre
+            };
         }
 
-        // POST sin archivo (por si se desea usar manualmente)
+        // PUT: Actualizar tipo de documento y/o archivo
+        [HttpPut("{id}")]
+        public async Task<IActionResult> ActualizarDocumento(int id)
+        {
+            var documento = await _context.DocumentosEmpleado.FindAsync(id);
+            if (documento == null)
+                return NotFound();
+
+            var form = await Request.ReadFormAsync();
+
+            if (form.TryGetValue("TipoDocumentoId", out var tipoIdValue) &&
+                int.TryParse(tipoIdValue, out var tipoId))
+            {
+                documento.TipoDocumentoId = tipoId;
+            }
+
+            if (form.Files.Count > 0)
+            {
+                var archivo = form.Files[0];
+                var nombreArchivo = $"{Guid.NewGuid()}_{Path.GetFileName(archivo.FileName)}";
+                var rutaCarpeta = Path.Combine(_env.WebRootPath, "documentos");
+
+                if (!Directory.Exists(rutaCarpeta))
+                    Directory.CreateDirectory(rutaCarpeta);
+
+                var rutaCompleta = Path.Combine(rutaCarpeta, nombreArchivo);
+
+                using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                {
+                    await archivo.CopyToAsync(stream);
+                }
+
+                documento.RutaArchivo = $"documentos/{nombreArchivo}";
+                documento.FechaSubida = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // POST sin archivo (no se recomienda usar en producción)
         [HttpPost]
         public async Task<ActionResult<DocumentoEmpleado>> PostDocumento(DocumentoEmpleado doc)
         {
@@ -114,31 +165,7 @@ namespace ProyectoNomina.Backend.Controllers
             return CreatedAtAction(nameof(GetDocumento), new { id = doc.Id }, doc);
         }
 
-        // PUT
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutDocumento(int id, DocumentoEmpleado doc)
-        {
-            if (id != doc.Id)
-                return BadRequest();
-
-            _context.Entry(doc).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.DocumentosEmpleado.Any(d => d.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
-
-            return NoContent();
-        }
-
-        // DELETE
+        // DELETE: Eliminar documento por ID
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocumento(int id)
         {

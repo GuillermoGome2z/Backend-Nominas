@@ -1,12 +1,13 @@
 ﻿@page "/lista-documentos"
 @inject HttpClient Http
 @using ProyectoNomina.Shared.Models.DTOs
+@inject NavigationManager Navigation
 
 <h3 class="mb-4">📚 Lista de Documentos de Empleados</h3>
 
 @if (documentos is null)
 {
-    <p>Cargando documentos...</p>
+    <p class="text-info">⏳ Cargando documentos...</p>
 }
 else if (documentos.Count == 0)
 {
@@ -21,6 +22,7 @@ else
                 <th>Tipo Documento</th>
                 <th>Fecha Subida</th>
                 <th>Archivo</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -35,6 +37,12 @@ else
                             📄 Ver Documento
                         </a>
                     </td>
+                    <td>
+                        <button class="btn btn-sm btn-warning"
+                                @onclick="@(() => Navigation.NavigateTo($"/editar-documento/{doc.Id}"))">
+                            ✏️ Editar
+                        </button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -43,10 +51,18 @@ else
 
 @code {
     private List<DocumentoEmpleadoDto>? documentos;
-    private string BackendUrl = "https://localhost:7187"; // 🔁 Cámbialo si tu backend usa otro puerto
+    private string BackendUrl = "https://localhost:7187"; // Cambiar si el backend usa otro puerto
 
     protected override async Task OnInitializedAsync()
     {
-        documentos = await Http.GetFromJsonAsync<List<DocumentoEmpleadoDto>>("api/DocumentosEmpleado");
+        try
+        {
+            documentos = await Http.GetFromJsonAsync<List<DocumentoEmpleadoDto>>("api/DocumentosEmpleado");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ Error al obtener documentos: " + ex.Message);
+            documentos = new(); // Evita que la vista se rompa
+        }
     }
 }
