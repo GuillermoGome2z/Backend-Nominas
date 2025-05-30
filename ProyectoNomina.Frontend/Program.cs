@@ -8,12 +8,14 @@ using System.Net.Http.Headers;
 
 // ✅ Alias para evitar ambigüedad con AuthorizationMessageHandler
 using LocalAuthHandler = ProyectoNomina.Frontend.Auth.AuthorizationMessageHandler;
+using ProyectoNomina.Frontend.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+builder.Services.AddScoped<DepartamentoService>();
 
 
 // ✅ Registrar Blazored.LocalStorage para manejar JWT
