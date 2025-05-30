@@ -19,9 +19,29 @@
     <p class="text-green-600 mt-2">@mensaje</p>
 }
 
+@if (departamentos.Count > 0)
+{
+    <h4 class="mt-4 font-semibold text-lg mt-4">📋 Departamentos Registrados</h4>
+    <ul class="list-disc pl-6">
+        @foreach (var dep in departamentos)
+        {
+            <li><strong>ID:</strong> @dep.Id - @dep.Nombre</li>
+        }
+    </ul>
+}
+
 @code {
     private string nuevoDepartamento = "";
     private string mensaje = "";
+
+    // ✅ Lista de departamentos
+    private List<DepartamentoDto> departamentos = new();
+
+    // ✅ Cargar al iniciar la vista
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDepartamentos();
+    }
 
     private async Task CrearDepartamentoDto()
     {
@@ -31,10 +51,16 @@
         {
             mensaje = "✅ Departamento creado correctamente.";
             nuevoDepartamento = "";
+            await CargarDepartamentos(); // recargar lista después de guardar
         }
         else
         {
             mensaje = "❌ Error al crear el departamento.";
         }
+    }
+
+    private async Task CargarDepartamentos()
+    {
+        departamentos = await Http.GetFromJsonAsync<List<DepartamentoDto>>("api/Departamentos") ?? new();
     }
 }
