@@ -1,6 +1,6 @@
-﻿@page "/"
-@using Microsoft.AspNetCore.Authorization
+﻿@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
+@page "/"
 <PageTitle>Inicio - Sistema de Nóminas</PageTitle>
 
 <div class="hero-section">
@@ -41,30 +41,27 @@
     </div>
 </div>
 
-<div class="features-section">
-    <h2 class="section-title">Características Principales</h2>
-    <div class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">👥</div>
-            <h3>Gestión de Empleados</h3>
-            <p>Administra la información completa de tus empleados de manera sencilla y organizada.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">💳</div>
-            <h3>Cálculo de Nóminas</h3>
-            <p>Automatiza el cálculo de salarios, deducciones y bonificaciones con precisión.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <h3>Reportes Detallados</h3>
-            <p>Genera reportes completos para análisis financiero y toma de decisiones.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>Seguridad Total</h3>
-            <p>Protección avanzada de datos sensibles con los más altos estándares de seguridad.</p>
-        </div>
-    </div>
+<!-- 🔗 Cuadro clickeable para ir a empleados -->
+<div class="feature-card" @onclick="IrAListaEmpleados" style="cursor: pointer;">
+    <div class="feature-icon">👥</div>
+    <h3>Gestión de Empleados</h3>
+    <p>Administra la información completa de tus empleados de manera sencilla y organizada.</p>
+</div>
+
+<div class="feature-card">
+    <div class="feature-icon">💳</div>
+    <h3>Cálculo de Nóminas</h3>
+    <p>Automatiza el cálculo de salarios, deducciones y bonificaciones con precisión.</p>
+</div>
+<div class="feature-card">
+    <div class="feature-icon">📊</div>
+    <h3>Reportes Detallados</h3>
+    <p>Genera reportes completos para análisis financiero y toma de decisiones.</p>
+</div>
+<div class="feature-card">
+    <div class="feature-icon">🔒</div>
+    <h3>Seguridad Total</h3>
+    <p>Protección avanzada de datos sensibles con los más altos estándares de seguridad.</p>
 </div>
 
 <div class="stats-section">
@@ -87,6 +84,17 @@
         </div>
     </div>
 </div>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private void IrAListaEmpleados()
+    {
+        NavigationManager.NavigateTo("/empleados");
+    }
+}
+
+
 
 <style>
     .hero-section {

@@ -34,6 +34,7 @@ namespace ProyectoNomina.Backend.Controllers
                     Direccion = e.Direccion,
                     Telefono = e.Telefono,
                     FechaContratacion = e.FechaContratacion,
+                    EstadoLaboral = e.EstadoLaboral,
                     SalarioMensual = e.SalarioMensual,
                     DepartamentoId = e.DepartamentoId,
                     PuestoId = e.PuestoId,
@@ -68,7 +69,8 @@ namespace ProyectoNomina.Backend.Controllers
                 DepartamentoId = e.DepartamentoId,
                 PuestoId = e.PuestoId,
                 NombreDepartamento = e.Departamento?.Nombre,
-                NombrePuesto = e.Puesto?.Nombre
+                NombrePuesto = e.Puesto?.Nombre,
+                EstadoLaboral = e.EstadoLaboral,
             };
 
             return Ok(dto);
@@ -87,6 +89,8 @@ namespace ProyectoNomina.Backend.Controllers
                 DepartamentoId = dto.DepartamentoId,
                 PuestoId = dto.PuestoId,
                 FechaContratacion = dto.FechaContratacion,
+                FechaNacimiento = dto.FechaNacimiento,
+                EstadoLaboral = dto.EstadoLaboral,
 
                 // ✅ Estos campos son obligatorios
                 DPI = dto.DPI,
@@ -102,26 +106,33 @@ namespace ProyectoNomina.Backend.Controllers
 
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutEmpleado(int id, EmpleadoDto dto)
+        public async Task<IActionResult> ActualizarEmpleado(int id, EmpleadoDto dto)
         {
-            if (id != dto.Id) return BadRequest();
+            if (id != dto.Id)
+                return BadRequest("ID en la URL no coincide con el del cuerpo.");
 
             var empleado = await _context.Empleados.FindAsync(id);
-            if (empleado == null) return NotFound();
+            if (empleado == null)
+                return NotFound();
 
+            // Actualizar propiedades
             empleado.NombreCompleto = dto.NombreCompleto;
+            empleado.Telefono = dto.Telefono;
+            empleado.Direccion = dto.Direccion;
+            empleado.FechaNacimiento = dto.FechaNacimiento;
+            empleado.FechaContratacion = dto.FechaContratacion;
+            empleado.EstadoLaboral = dto.EstadoLaboral;
             empleado.DPI = dto.DPI;
             empleado.NIT = dto.NIT;
-            empleado.Direccion = dto.Direccion;
-            empleado.Telefono = dto.Telefono;
-            empleado.FechaContratacion = dto.FechaContratacion;
             empleado.SalarioMensual = dto.SalarioMensual;
             empleado.DepartamentoId = dto.DepartamentoId;
             empleado.PuestoId = dto.PuestoId;
 
             await _context.SaveChangesAsync();
+
             return NoContent();
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpleado(int id)

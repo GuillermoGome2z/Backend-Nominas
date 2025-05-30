@@ -16,6 +16,9 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public string Telefono { get; set; } = string.Empty;
         public DateTime FechaContratacion { get; set; }
         public decimal SalarioMensual { get; set; }
+        public DateTime FechaNacimiento { get; set; }
+        public string EstadoLaboral { get; set; }
+
 
         public int DepartamentoId { get; set; }
         public int PuestoId { get; set; }
