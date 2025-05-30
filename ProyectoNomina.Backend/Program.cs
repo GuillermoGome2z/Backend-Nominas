@@ -99,11 +99,13 @@ namespace ProyectoNomina.Backend
             // 7️⃣ Middleware
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();
+                app.UseSwagger();   
                 app.UseSwaggerUI();
             }
 
             app.UseHttpsRedirection();
+
+            app.UseStaticFiles();
 
             app.UseCors("CorsPolicy"); // Permitir acceso del frontend Blazor
 

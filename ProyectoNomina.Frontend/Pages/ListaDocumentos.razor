@@ -1,0 +1,52 @@
+﻿@page "/lista-documentos"
+@inject HttpClient Http
+@using ProyectoNomina.Shared.Models.DTOs
+
+<h3 class="mb-4">📚 Lista de Documentos de Empleados</h3>
+
+@if (documentos is null)
+{
+    <p>Cargando documentos...</p>
+}
+else if (documentos.Count == 0)
+{
+    <div class="alert alert-warning">⚠️ No hay documentos registrados.</div>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Empleado</th>
+                <th>Tipo Documento</th>
+                <th>Fecha Subida</th>
+                <th>Archivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var doc in documentos)
+            {
+                <tr>
+                    <td>@doc.NombreEmpleado</td>
+                    <td>@doc.NombreTipo</td>
+                    <td>@doc.FechaSubida.ToShortDateString()</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-info" target="_blank" href="@($"{BackendUrl}/{doc.RutaArchivo}")">
+                            📄 Ver Documento
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<DocumentoEmpleadoDto>? documentos;
+    private string BackendUrl = "https://localhost:7187"; // 🔁 Cámbialo si tu backend usa otro puerto
+
+    protected override async Task OnInitializedAsync()
+    {
+        documentos = await Http.GetFromJsonAsync<List<DocumentoEmpleadoDto>>("api/DocumentosEmpleado");
+    }
+}

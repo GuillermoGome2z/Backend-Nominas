@@ -8,5 +8,6 @@ public class TipoDocumento
     public bool EsRequerido { get; set; } = true;
     public int? Orden { get; set; }
 
-    public ICollection<DocumentoEmpleado> Documentos { get; set; }
+    public ICollection<DocumentoEmpleado> Documentos { get; set; } = new List<DocumentoEmpleado>();
+
 }

@@ -1,0 +1,76 @@
+﻿@page "/tipos-documento"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@using ProyectoNomina.Shared.Models.DTOs
+
+<h3 class="mb-3">📄 Tipos de Documento</h3>
+
+<a class="btn btn-primary mb-3" href="/agregar-tipo-documento">➕ Agregar Tipo</a>
+
+@if (tiposDocumento == null)
+{
+    <p>Cargando...</p>
+}
+else if (!tiposDocumento.Any())
+{
+    <p>No hay tipos de documento registrados.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Requerido</th>
+                <th>Orden</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var tipo in tiposDocumento)
+            {
+                <tr>
+                    <td>@tipo.Nombre</td>
+                    <td>@tipo.Descripcion</td>
+                    <td>@(tipo.EsRequerido ? "Sí" : "No")</td>
+                    <td>@tipo.Orden</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => EliminarTipo(tipo.Id)">🗑️ Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TipoDocumentoDto>? tiposDocumento;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTipos();
+    }
+
+    private async Task CargarTipos()
+    {
+        tiposDocumento = await Http.GetFromJsonAsync<List<TipoDocumentoDto>>("api/TipoDocumento");
+    }
+
+    private async Task EliminarTipo(int id)
+    {
+        bool confirmado = await JS.InvokeAsync<bool>("confirm", "¿Está seguro que desea eliminar este tipo de documento?");
+        if (!confirmado) return;
+
+        var response = await Http.DeleteAsync($"api/TipoDocumento/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await CargarTipos(); // Refrescar la lista
+        }
+        else
+        {
+            Console.WriteLine("❌ Error al eliminar tipo de documento");
+        }
+    }
+}

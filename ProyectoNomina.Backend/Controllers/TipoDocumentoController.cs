@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
     [Authorize(Roles = "Admin,RRHH")]
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class TipoDocumentoController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,54 +21,80 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/TipoDocumento
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TipoDocumento>>> GetTipos()
+        public async Task<ActionResult<IEnumerable<TipoDocumentoDto>>> GetTipos()
         {
-            return await _context.TiposDocumento.ToListAsync();
+            var tipos = await _context.TiposDocumento
+                .Select(t => new TipoDocumentoDto
+                {
+                    Id = t.Id,
+                    Nombre = t.Nombre,
+                    Descripcion = t.Descripcion,
+                    EsRequerido = t.EsRequerido,
+                    Orden = t.Orden
+                })
+                .ToListAsync();
+
+            return tipos;
         }
 
         // GET: api/TipoDocumento/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<TipoDocumento>> GetTipoDocumento(int id)
+        public async Task<ActionResult<TipoDocumentoDto>> GetTipoDocumento(int id)
         {
             var tipo = await _context.TiposDocumento.FindAsync(id);
             if (tipo == null) return NotFound();
-            return tipo;
+
+            var dto = new TipoDocumentoDto
+            {
+                Id = tipo.Id,
+                Nombre = tipo.Nombre,
+                Descripcion = tipo.Descripcion,
+                EsRequerido = tipo.EsRequerido,
+                Orden = tipo.Orden
+            };
+
+            return dto;
         }
 
-        // POST: api/TipoDocumento
+        // ✅ POST usando DTO
         [HttpPost]
-        public async Task<ActionResult<TipoDocumento>> PostTipoDocumento(TipoDocumento tipo)
+        public async Task<ActionResult<TipoDocumentoDto>> PostTipoDocumento(TipoDocumentoDto dto)
         {
+            var tipo = new TipoDocumento
+            {
+                Nombre = dto.Nombre,
+                Descripcion = dto.Descripcion,
+                EsRequerido = dto.EsRequerido,
+                Orden = dto.Orden
+            };
+
             _context.TiposDocumento.Add(tipo);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetTipoDocumento), new { id = tipo.Id }, tipo);
+            dto.Id = tipo.Id;
+            return CreatedAtAction(nameof(GetTipoDocumento), new { id = tipo.Id }, dto);
         }
 
-        // PUT: api/TipoDocumento/5
+
+        // PUT
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTipoDocumento(int id, TipoDocumento tipo)
+        public async Task<IActionResult> PutTipoDocumento(int id, TipoDocumentoDto dto)
         {
-            if (id != tipo.Id) return BadRequest();
+            if (id != dto.Id) return BadRequest();
 
-            _context.Entry(tipo).State = EntityState.Modified;
+            var tipo = await _context.TiposDocumento.FindAsync(id);
+            if (tipo == null) return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.TiposDocumento.Any(t => t.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            tipo.Nombre = dto.Nombre;
+            tipo.Descripcion = dto.Descripcion;
+            tipo.EsRequerido = dto.EsRequerido;
+            tipo.Orden = dto.Orden;
 
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // DELETE: api/TipoDocumento/5
+        // DELETE
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTipoDocumento(int id)
         {
