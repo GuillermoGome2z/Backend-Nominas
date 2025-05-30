@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrador,RRHH")]
+    [Authorize(Roles = "Admin,RRHH")]
     public class InformacionAcademicaController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,52 +21,81 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/InformacionAcademica
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<InformacionAcademica>>> GetInformacionAcademica()
+        public async Task<ActionResult<IEnumerable<InformacionAcademicaDto>>> GetInformacionAcademica()
         {
-            return await _context.InformacionAcademica.Include(i => i.Empleado).ToListAsync();
+            var lista = await _context.InformacionAcademica
+                .Include(i => i.Empleado)
+                .Select(i => new InformacionAcademicaDto
+                {
+                    Id = i.Id,
+                    EmpleadoId = i.EmpleadoId,
+                    Titulo = i.Titulo,
+                    Institucion = i.Institucion,
+                    FechaGraduacion = i.FechaGraduacion
+                })
+                .ToListAsync();
+
+            return Ok(lista);
         }
 
         // GET: api/InformacionAcademica/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<InformacionAcademica>> GetInformacion(int id)
+        public async Task<ActionResult<InformacionAcademicaDto>> GetInformacion(int id)
         {
             var info = await _context.InformacionAcademica.FindAsync(id);
 
             if (info == null)
                 return NotFound();
 
-            return info;
+            var dto = new InformacionAcademicaDto
+            {
+                Id = info.Id,
+                EmpleadoId = info.EmpleadoId,
+                Titulo = info.Titulo,
+                Institucion = info.Institucion,
+                FechaGraduacion = info.FechaGraduacion
+            };
+
+            return Ok(dto);
         }
 
         // POST: api/InformacionAcademica
         [HttpPost]
-        public async Task<ActionResult<InformacionAcademica>> PostInformacion(InformacionAcademica info)
+        public async Task<ActionResult<InformacionAcademicaDto>> PostInformacion(InformacionAcademicaDto dto)
         {
+            var info = new InformacionAcademica
+            {
+                EmpleadoId = dto.EmpleadoId,
+                Titulo = dto.Titulo,
+                Institucion = dto.Institucion,
+                FechaGraduacion = dto.FechaGraduacion,
+                TipoCertificacion = "General" // puede venir luego como parte del DTO si se necesita
+            };
+
             _context.InformacionAcademica.Add(info);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetInformacion), new { id = info.Id }, info);
+
+            dto.Id = info.Id; // devolver el ID generado
+            return CreatedAtAction(nameof(GetInformacion), new { id = info.Id }, dto);
         }
 
         // PUT: api/InformacionAcademica/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutInformacion(int id, InformacionAcademica info)
+        public async Task<IActionResult> PutInformacion(int id, InformacionAcademicaDto dto)
         {
-            if (id != info.Id)
+            if (id != dto.Id)
                 return BadRequest();
 
-            _context.Entry(info).State = EntityState.Modified;
+            var info = await _context.InformacionAcademica.FindAsync(id);
+            if (info == null)
+                return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.InformacionAcademica.Any(e => e.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            info.Titulo = dto.Titulo;
+            info.Institucion = dto.Institucion;
+            info.FechaGraduacion = dto.FechaGraduacion;
+            info.EmpleadoId = dto.EmpleadoId;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }

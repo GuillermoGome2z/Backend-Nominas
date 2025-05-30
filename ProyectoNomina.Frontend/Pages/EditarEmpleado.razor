@@ -1,0 +1,126 @@
+﻿@page "/editar-empleado/{id:int}"
+@using ProyectoNomina.Shared.Models.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<h3 class="text-center my-4">✏️ Editar Empleado</h3>
+
+@if (empleado == null)
+{
+    <p>Cargando datos del empleado...</p>
+}
+else
+{
+    <EditForm Model="empleado" OnValidSubmit="GuardarCambios">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group mb-3">
+            <label for="nombre">Nombre Completo:</label>
+            <InputText id="nombre" class="form-control" @bind-Value="empleado.NombreCompleto" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="telefono">Teléfono:</label>
+            <InputText id="telefono" class="form-control" @bind-Value="empleado.Telefono" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="direccion">Dirección:</label>
+            <InputText id="direccion" class="form-control" @bind-Value="empleado.Direccion" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="fechaNacimiento">Fecha de Nacimiento:</label>
+            <InputDate id="fechaNacimiento" class="form-control" @bind-Value="empleado.FechaNacimiento" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="fechaContratacion">Fecha de Contratación:</label>
+            <InputDate id="fechaContratacion" class="form-control" @bind-Value="empleado.FechaContratacion" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="estadoLaboral">Estado Laboral:</label>
+            <InputSelect id="estadoLaboral" class="form-control" @bind-Value="empleado.EstadoLaboral">
+                <option value="Activo">Activo</option>
+                <option value="Suspendido">Suspendido</option>
+                <option value="Retirado">Retirado</option>
+            </InputSelect>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="dpi">DPI:</label>
+            <InputText id="dpi" class="form-control" @bind-Value="empleado.DPI" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="nit">NIT:</label>
+            <InputText id="nit" class="form-control" @bind-Value="empleado.NIT" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="salario">Salario Mensual:</label>
+            <InputNumber id="salario" class="form-control" @bind-Value="empleado.SalarioMensual" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="departamentoId">Departamento ID:</label>
+            <InputNumber id="departamentoId" class="form-control" @bind-Value="empleado.DepartamentoId" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="puestoId">Puesto ID:</label>
+            <InputNumber id="puestoId" class="form-control" @bind-Value="empleado.PuestoId" />
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-success me-2">💾 Guardar Cambios</button>
+            <button type="button" class="btn btn-secondary" @onclick="Volver">↩️ Cancelar</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private EmpleadoDto? empleado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            empleado = await Http.GetFromJsonAsync<EmpleadoDto>($"api/Empleados/{id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ Error al cargar el empleado: " + ex.Message);
+        }
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/Empleados/{empleado!.Id}", empleado);
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/empleados");
+            }
+            else
+            {
+                Console.WriteLine($"❌ Error al actualizar: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Excepción al guardar: {ex.Message}");
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/empleados");
+    }
+}
+

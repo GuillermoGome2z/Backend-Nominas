@@ -7,6 +7,8 @@ namespace ProyectoNomina.Backend.Models
 {
     public class Empleado
     {
+        public DateTime FechaNacimiento { get; set; }
+        public string EstadoLaboral { get; set; } = "Activo";
         public int Id { get; set; }
         public string Correo { get; set; }
         public string NombreCompleto { get; set; } = null!;

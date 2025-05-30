@@ -1,0 +1,116 @@
+﻿@page "/empleados"
+@using ProyectoNomina.Shared.Models.DTOs
+
+<h3 class="text-center my-4">📋 Lista de Empleados</h3>
+
+<!-- 🔘 Botón para crear nuevo empleado -->
+<NavLink class="btn btn-primary mb-3" href="/crear-empleado">➕ Nuevo Empleado</NavLink>
+
+@if (empleados == null)
+{
+    <p>Cargando empleados...</p>
+}
+else if (empleados.Count == 0)
+{
+    <p>No hay empleados registrados.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Nombre</th>
+                <th>NIT</th>
+                <th>DPI</th>
+                <th>Departamento</th>
+                <th>Puesto</th>
+                <th>Salario</th>
+                <th>Fecha Contratación</th>
+                <th>Estado Laboral</th>
+                <th>Fecha Nacimiento</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in empleados)
+            {
+                <tr>
+                    <td>@e.NombreCompleto</td>
+                    <th>@e.NIT</th>
+                    <td>@e.DPI</td>
+                    <td>@e.NombreDepartamento</td>
+                    <td>@e.NombrePuesto</td>
+                    <td>Q @e.SalarioMensual.ToString("F2")</td>
+                    <td>@e.FechaContratacion.ToShortDateString()</td>
+                    <td>@e.EstadoLaboral</td>
+                    <td>@e.FechaNacimiento.ToShortDateString()</td>
+                    
+                    <td>
+                        <button class="btn btn-sm btn-warning me-1" @onclick="() => EditarEmpleado(e.Id)">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarEmpleado(e.Id)">
+                            🗑️ Eliminar
+                        </button>
+                        <button class="btn btn-sm btn-info" @onclick="() => VerAcademica(e.Id)">
+                            🎓 Académica
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<EmpleadoDto>? empleados;
+
+    [Inject] private HttpClient Http { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            empleados = await Http.GetFromJsonAsync<List<EmpleadoDto>>("api/Empleados");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ Error al cargar empleados: " + ex.Message);
+        }
+    }
+
+    private void EditarEmpleado(int id)
+    {
+        Navigation.NavigateTo($"/editar-empleado/{id}");
+    }
+
+    private async Task EliminarEmpleado(int id)
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro que desea eliminar al empleado con ID {id}?");
+        if (!confirm) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Empleados/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                empleados = empleados?.Where(e => e.Id != id).ToList();
+            }
+            else
+            {
+                Console.WriteLine($"❌ Error al eliminar empleado: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Excepción al eliminar empleado: {ex.Message}");
+        }
+    }
+
+    private void VerAcademica(int id)
+    {
+        Navigation.NavigateTo($"/lista-informacion-academica/{id}");
+    }
+}

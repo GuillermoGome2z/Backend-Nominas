@@ -19,5 +19,7 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public DateTime FechaContratacion { get; set; }
         public string DPI { get; set; }
         public string NIT{ get; set;}
+        public DateTime FechaNacimiento { get; set; }
+        public string EstadoLaboral { get; set; } = string.Empty;
     }
 }

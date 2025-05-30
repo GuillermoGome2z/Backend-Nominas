@@ -9,7 +9,7 @@ namespace ProyectoNomina.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrador,RRHH")]
+    [Authorize(Roles = "Admin,RRHH")]
     public class ReportesController : ControllerBase
     {
         private readonly AppDbContext _context;

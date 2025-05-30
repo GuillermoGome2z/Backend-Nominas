@@ -13,6 +13,6 @@ namespace ProyectoNomina.Backend.Models
         public string Titulo { get; set; } = null!;
         public string Institucion { get; set; } = null!;
         public DateTime FechaGraduacion { get; set; }
-        public string TipoCertificacion { get; set; } = null!;
+        public string TipoCertificacion { get; set; } = "General";
     }
 }

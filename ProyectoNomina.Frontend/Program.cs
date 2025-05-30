@@ -12,6 +12,9 @@ using LocalAuthHandler = ProyectoNomina.Frontend.Auth.AuthorizationMessageHandle
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+
 
 // ✅ Registrar Blazored.LocalStorage para manejar JWT
 builder.Services.AddBlazoredLocalStorage();
