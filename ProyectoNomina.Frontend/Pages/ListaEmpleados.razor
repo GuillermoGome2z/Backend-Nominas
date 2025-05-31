@@ -3,12 +3,10 @@
 
 <h3 class="text-center my-4">📋 Lista de Empleados</h3>
 
-<!-- 🔘 Botón para crear nuevo empleado -->
 <div class="d-flex gap-2 mb-3">
     <a class="btn btn-primary" href="/crear-empleado">➕ Nuevo Empleado</a>
     <a class="btn btn-outline-primary" href="/agregar-tipo-documento">➕ Tipo Documento</a>
 </div>
-
 
 @if (empleados == null)
 {
@@ -36,11 +34,11 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var e in empleados)
+            @foreach (var e in empleados.Skip((paginaActual - 1) * itemsPorPagina).Take(itemsPorPagina))
             {
                 <tr>
                     <td>@e.NombreCompleto</td>
-                    <th>@e.NIT</th>
+                    <td>@e.NIT</td>
                     <td>@e.DPI</td>
                     <td>@e.NombreDepartamento</td>
                     <td>@e.NombrePuesto</td>
@@ -48,7 +46,6 @@ else
                     <td>@e.FechaContratacion.ToShortDateString()</td>
                     <td>@e.EstadoLaboral</td>
                     <td>@e.FechaNacimiento.ToShortDateString()</td>
-                    
                     <td>
                         <button class="btn btn-sm btn-warning me-1" @onclick="() => EditarEmpleado(e.Id)">
                             ✏️ Editar
@@ -62,16 +59,26 @@ else
                         <NavLink href="/subir-documento" class="btn btn-outline-primary">
                             📤 Subir Documento
                         </NavLink>
-                        
                     </td>
                 </tr>
             }
         </tbody>
     </table>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <button class="btn btn-outline-primary" @onclick="PaginaAnterior" disabled="@(!PuedeRetroceder)">⬅ Anterior</button>
+        <span>Página @paginaActual de @totalPaginas</span>
+        <button class="btn btn-outline-primary" @onclick="PaginaSiguiente" disabled="@(!PuedeAvanzar)">Siguiente ➡</button>
+    </div>
 }
 
 @code {
     private List<EmpleadoDto>? empleados;
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int totalPaginas => empleados is null ? 1 : (int)Math.Ceiling(empleados.Count / (double)itemsPorPagina);
+    private bool PuedeAvanzar => paginaActual < totalPaginas;
+    private bool PuedeRetroceder => paginaActual > 1;
 
     [Inject] private HttpClient Http { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
@@ -87,6 +94,16 @@ else
         {
             Console.WriteLine("❌ Error al cargar empleados: " + ex.Message);
         }
+    }
+
+    private void PaginaSiguiente()
+    {
+        if (PuedeAvanzar) paginaActual++;
+    }
+
+    private void PaginaAnterior()
+    {
+        if (PuedeRetroceder) paginaActual--;
     }
 
     private void EditarEmpleado(int id)
