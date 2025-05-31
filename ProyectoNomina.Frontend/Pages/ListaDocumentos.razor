@@ -1,9 +1,15 @@
 ﻿@page "/lista-documentos"
 @inject HttpClient Http
-@using ProyectoNomina.Shared.Models.DTOs
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using ProyectoNomina.Shared.Models.DTOs
 
 <h3 class="mb-4">📚 Lista de Documentos de Empleados</h3>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert @mensajeCssClass">@mensaje</div>
+}
 
 @if (documentos is null)
 {
@@ -38,9 +44,14 @@ else
                         </a>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-warning"
+                        <button class="btn btn-sm btn-warning me-1"
                                 @onclick="@(() => Navigation.NavigateTo($"/editar-documento/{doc.Id}"))">
                             ✏️ Editar
+                        </button>
+
+                        <button class="btn btn-danger btn-sm"
+                                @onclick="() => EliminarDocumento(doc.Id)">
+                            🗑️ Eliminar
                         </button>
                     </td>
                 </tr>
@@ -66,6 +77,9 @@ else
     private bool PuedeAvanzar => paginaActual < totalPaginas;
     private bool PuedeRetroceder => paginaActual > 1;
 
+    private string? mensaje;
+    private string mensajeCssClass = "alert-info";
+
     private void PaginaSiguiente()
     {
         if (PuedeAvanzar)
@@ -80,14 +94,41 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarDocumentos();
+    }
+
+    private async Task CargarDocumentos()
+    {
         try
         {
             documentos = await Http.GetFromJsonAsync<List<DocumentoEmpleadoDto>>("api/DocumentosEmpleado");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("❌ Error al obtener documentos: " + ex.Message);
+            mensaje = $"❌ Error al cargar documentos: {ex.Message}";
+            mensajeCssClass = "alert-danger";
             documentos = new();
+        }
+    }
+
+    private async Task EliminarDocumento(int id)
+    {
+        bool confirmado = await JS.InvokeAsync<bool>("confirm", "¿Deseas eliminar este documento?");
+        if (!confirmado)
+            return;
+
+        var response = await Http.DeleteAsync($"api/DocumentosEmpleado/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            documentos = documentos!.Where(d => d.Id != id).ToList();
+            mensaje = "✅ Documento eliminado correctamente.";
+            mensajeCssClass = "alert-success";
+        }
+        else
+        {
+            mensaje = "❌ Error al eliminar el documento.";
+            mensajeCssClass = "alert-danger";
         }
     }
 }

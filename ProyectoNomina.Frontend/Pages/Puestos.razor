@@ -1,0 +1,88 @@
+﻿@page "/puestos"
+@inject HttpClient Http
+
+<h3 class="mb-4">Gestión de Puestos</h3>
+
+<div class="card p-4 mb-4 shadow-sm">
+    <h5>Crear nuevo puesto</h5>
+    <EditForm Model="nuevoPuesto" OnValidSubmit="CrearPuesto">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Nombre del Puesto</label>
+            <InputText class="form-control" @bind-Value="nuevoPuesto.Nombre" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Salario Base</label>
+            <InputNumber class="form-control" @bind-Value="nuevoPuesto.SalarioBase" />
+        </div>
+        <button type="submit" class="btn btn-success">Guardar</button>
+    </EditForm>
+</div>
+
+@if (puestos is null)
+{
+    <p>Cargando puestos...</p>
+}
+else if (puestos.Count == 0)
+{
+    <p>No hay puestos registrados.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Salario Base</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var puesto in puestos)
+            {
+                <tr>
+                    <td>@puesto.Nombre</td>
+                    <td>@puesto.SalarioBase.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<PuestoDto> puestos;
+    private PuestoDto nuevoPuesto = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarPuestos();
+    }
+
+    private async Task CargarPuestos()
+    {
+        puestos = await Http.GetFromJsonAsync<List<PuestoDto>>("api/puestos");
+    }
+
+    private async Task CrearPuesto()
+    {
+        var response = await Http.PostAsJsonAsync("api/puestos", nuevoPuesto);
+        if (response.IsSuccessStatusCode)
+        {
+            nuevoPuesto = new();
+            await CargarPuestos();
+        }
+        else
+        {
+            // Manejo de error si falla la creación
+            Console.Error.WriteLine("Error al crear el puesto.");
+        }
+    }
+
+    public class PuestoDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public decimal SalarioBase { get; set; }
+    }
+}

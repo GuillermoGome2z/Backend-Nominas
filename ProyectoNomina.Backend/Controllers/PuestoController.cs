@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -20,49 +21,72 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Puestos
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Puesto>>> GetPuestos()
+        public async Task<ActionResult<IEnumerable<PuestoDto>>> GetPuestos()
         {
-            return await _context.Puestos.ToListAsync();
+            var puestos = await _context.Puestos
+                .Select(p => new PuestoDto
+                {
+                    Id = p.Id,
+                    Nombre = p.Nombre,
+                    SalarioBase = p.SalarioBase
+                })
+                .ToListAsync();
+
+            return Ok(puestos);
         }
 
         // GET: api/Puestos/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Puesto>> GetPuesto(int id)
+        public async Task<ActionResult<PuestoDto>> GetPuesto(int id)
         {
             var puesto = await _context.Puestos.FindAsync(id);
-            if (puesto == null) return NotFound();
-            return puesto;
+
+            if (puesto == null)
+                return NotFound();
+
+            var dto = new PuestoDto
+            {
+                Id = puesto.Id,
+                Nombre = puesto.Nombre,
+                SalarioBase = puesto.SalarioBase
+            };
+
+            return Ok(dto);
         }
 
         // POST: api/Puestos
         [HttpPost]
-        public async Task<ActionResult<Puesto>> PostPuesto(Puesto puesto)
+        public async Task<ActionResult<PuestoDto>> PostPuesto(PuestoDto dto)
         {
+            var puesto = new Puesto
+            {
+                Nombre = dto.Nombre,
+                SalarioBase = dto.SalarioBase
+            };
+
             _context.Puestos.Add(puesto);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetPuesto), new { id = puesto.Id }, puesto);
+            dto.Id = puesto.Id;
+
+            return CreatedAtAction(nameof(GetPuesto), new { id = dto.Id }, dto);
         }
 
         // PUT: api/Puestos/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPuesto(int id, Puesto puesto)
+        public async Task<IActionResult> PutPuesto(int id, PuestoDto dto)
         {
-            if (id != puesto.Id) return BadRequest();
+            if (id != dto.Id)
+                return BadRequest();
 
-            _context.Entry(puesto).State = EntityState.Modified;
+            var puesto = await _context.Puestos.FindAsync(id);
+            if (puesto == null)
+                return NotFound();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Puestos.Any(p => p.Id == id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            puesto.Nombre = dto.Nombre;
+            puesto.SalarioBase = dto.SalarioBase;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -72,7 +96,8 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<IActionResult> DeletePuesto(int id)
         {
             var puesto = await _context.Puestos.FindAsync(id);
-            if (puesto == null) return NotFound();
+            if (puesto == null)
+                return NotFound();
 
             _context.Puestos.Remove(puesto);
             await _context.SaveChangesAsync();
@@ -81,3 +106,4 @@ namespace ProyectoNomina.Backend.Controllers
         }
     }
 }
+

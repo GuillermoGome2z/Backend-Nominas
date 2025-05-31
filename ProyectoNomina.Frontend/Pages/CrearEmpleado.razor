@@ -36,10 +36,20 @@
                     <InputText id="direccion" @bind-Value="nuevoEmpleado.Direccion" class="form-control" />
                 </div>
 
+                <div class="form-group mb-3">
+                    <label for="puestoId" class="form-label">Puesto:</label>
+                    <InputSelect class="form-control" @bind-Value="selectedPuestoId">
+                        <option value="">-- Selecciona un puesto --</option>
+                        @foreach (var puesto in puestos)
+                        {
+                            <option value="@puesto.Id">@puesto.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
 
                 <div class="form-group mb-3">
-                    <label for="salario" class="form-label">Salario Base:</label>
-                    <InputNumber id="salario" @bind-Value="nuevoEmpleado.SalarioBase" class="form-control" />
+                    <label class="form-label">Salario Base:</label>
+                    <InputNumber class="form-control" @bind-Value="nuevoEmpleado.SalarioBase" readonly />
                 </div>
 
                 <div class="form-group mb-3">
@@ -48,8 +58,14 @@
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="departamentoId" class="form-label">Departamento ID:</label>
-                    <InputNumber id="departamentoId" @bind-Value="nuevoEmpleado.DepartamentoId" class="form-control" />
+                    <label for="departamentoId" class="form-label">Departamento:</label>
+                    <InputSelect id="departamentoId" @bind-Value="nuevoEmpleado.DepartamentoId" class="form-control">
+                        <option value="">-- Selecciona un departamento --</option>
+                        @foreach (var depto in departamentos)
+                        {
+                            <option value="@depto.Id">@depto.Nombre</option>
+                        }
+                    </InputSelect>
                 </div>
 
                 <div class="form-group mb-3">
@@ -62,11 +78,6 @@
                     <label for="dpi" class="form-label">DPI:</label>
                     <InputText id="dpi" @bind-Value="nuevoEmpleado.DPI" class="form-control" />
                     <ValidationMessage For="@(() => nuevoEmpleado.DPI)" />
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="puestoId" class="form-label">Puesto ID:</label>
-                    <InputNumber id="puestoId" @bind-Value="nuevoEmpleado.PuestoId" class="form-control" />
                 </div>
 
                 <div class="form-group mb-3">
@@ -87,9 +98,6 @@
                     <button type="submit" class="btn btn-success me-2">💾 Guardar</button>
                     <button type="button" class="btn btn-secondary" @onclick="Volver">↩️ Volver</button>
                 </div>
-
-               
-
             </EditForm>
 
             @if (!string.IsNullOrEmpty(mensaje))
@@ -104,6 +112,30 @@
     private EmpleadoCreacionDto nuevoEmpleado = new();
     private string? mensaje;
     private string mensajeCssClass = "alert-info";
+
+    private List<PuestoDto> puestos = new();
+    private List<DepartamentoDto> departamentos = new();
+
+    // propiedad auxiliar para detectar cambio en puesto y asignar salario
+    private int selectedPuestoId
+    {
+        get => nuevoEmpleado.PuestoId;
+        set
+        {
+            nuevoEmpleado.PuestoId = value;
+            var puesto = puestos.FirstOrDefault(p => p.Id == value);
+            if (puesto is not null)
+            {
+                nuevoEmpleado.SalarioBase = puesto.SalarioBase;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        puestos = await Http.GetFromJsonAsync<List<PuestoDto>>("api/puestos");
+        departamentos = await Http.GetFromJsonAsync<List<DepartamentoDto>>("api/departamentos");
+    }
 
     private async Task CrearEmpleadoAsync()
     {
