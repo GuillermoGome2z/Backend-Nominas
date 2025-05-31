@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -42,6 +43,23 @@ namespace ProyectoNomina.Backend.Controllers
 
             return nomina == null ? NotFound() : nomina;
         }
+
+        [HttpGet("listado")]
+        public async Task<IActionResult> ObtenerNominas()
+        {
+            var nominas = await _context.Nominas
+                .OrderByDescending(n => n.FechaGeneracion)
+                .Select(n => new NominaDto
+                {
+                    Id = n.Id,
+                    Descripcion = n.Descripcion,
+                    FechaGeneracion = n.FechaGeneracion
+                })
+                .ToListAsync();
+
+            return Ok(nominas);
+        }
+
 
         // ✅ Crear una nueva nómina (sin procesar)
         [HttpPost]
