@@ -1,15 +1,13 @@
-﻿<CascadingAuthenticationState>
+﻿@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <LayoutView Layout="@typeof(Shared.LoginLayout)">
-                        <RedirectToLogin />
-                    </LayoutView>
+                    <RedirectToLogin />
                 </NotAuthorized>
-                <Authorizing>
-                    <p>Verificando autorización...</p>
-                </Authorizing>
             </AuthorizeRouteView>
         </Found>
         <NotFound>
@@ -20,3 +18,24 @@
     </Router>
 </CascadingAuthenticationState>
 
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
+
+            // Solo redirigir si NO está ya en /registrar-usuario
+            if (!existe && !Navigation.Uri.EndsWith("/registrar-usuario"))
+            {
+                Navigation.NavigateTo("/registrar-usuario", forceLoad: true);
+            }
+        }
+        catch
+        {
+            // Error silencioso (API caída, etc.)
+        }
+    }
+}
+
+}

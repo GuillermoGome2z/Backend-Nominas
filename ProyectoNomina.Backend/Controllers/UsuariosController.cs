@@ -23,23 +23,24 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ✅ REGISTRO
-        [HttpPost("registro")]
+        [HttpPost("registrar")]
         [AllowAnonymous]
-        public async Task<ActionResult> RegistrarUsuario([FromBody] UsuarioRegistroDto dto)
+        public async Task<ActionResult> RegistrarUsuario([FromBody] RegistrarUsuarioDto dto)
         {
             if (await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo))
                 return BadRequest("Ya existe un usuario con este correo.");
 
             var usuario = new Usuario
             {
-                NombreCompleto = dto.Nombre,
+                NombreCompleto = dto.NombreCompleto,
                 Correo = dto.Correo,
-                ClaveHash = BCrypt.Net.BCrypt.HashPassword(dto.Contraseña)
+                ClaveHash = BCrypt.Net.BCrypt.HashPassword(dto.Clave)
             };
 
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
 
+            // Asignar un solo rol
             _context.UsuarioRoles.Add(new UsuarioRol
             {
                 UsuarioId = usuario.Id,
@@ -49,6 +50,14 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok("Usuario registrado correctamente.");
+        }
+
+        [HttpGet("existe-usuario")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExisteUsuario()
+        {
+            bool existe = await _context.Usuarios.AnyAsync();
+            return Ok(existe);
         }
 
         // ✅ LOGIN
