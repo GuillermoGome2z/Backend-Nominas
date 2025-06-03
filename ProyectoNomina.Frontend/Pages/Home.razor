@@ -1,5 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Security.Claims
 @page "/"
 <PageTitle>Inicio - Sistema de Nóminas</PageTitle>
 

@@ -18,6 +18,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>
 builder.Services.AddScoped<DepartamentoService>();
 
 
+
 // ✅ Registrar Blazored.LocalStorage para manejar JWT
 builder.Services.AddBlazoredLocalStorage();
 

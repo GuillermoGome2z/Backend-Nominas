@@ -7,7 +7,6 @@ using ProyectoNomina.Shared.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [Authorize(Roles = "Admin")]
     [ApiController]
     [Route("api/[controller]")]
     public class RolesController : ControllerBase
@@ -19,8 +18,9 @@ namespace ProyectoNomina.Backend.Controllers
             _context = context;
         }
 
-        // GET: api/Roles
+        // ✅ GET: api/Roles (Permitir acceso anónimo para registro inicial)
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RolDto>>> GetRoles()
         {
             var roles = await _context.Roles

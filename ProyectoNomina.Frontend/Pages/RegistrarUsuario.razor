@@ -1,0 +1,101 @@
+﻿@page "/registrar-usuario"
+@using ProyectoNomina.Shared.Models.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3 class="text-2xl font-bold mb-4">👤 Registrar Nuevo Usuario</h3>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="p-2 rounded text-white mb-3"
+         style="background-color: @(mensaje.StartsWith("Error") ? "tomato" : "seagreen")">
+        @mensaje
+    </div>
+}
+
+@if (mostrarFormulario)
+{
+    <EditForm Model="usuario" OnValidSubmit="RegistrarNuevoUsuario">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Nombre completo</label>
+            <InputText class="form-control" @bind-Value="usuario.NombreCompleto" />
+        </div>
+
+        <div class="mb-3">
+            <label>Correo</label>
+            <InputText class="form-control" @bind-Value="usuario.Correo" />
+        </div>
+
+        <div class="mb-3">
+            <label>Contraseña</label>
+            <InputText type="password" class="form-control" @bind-Value="usuario.Clave" />
+        </div>
+
+        <div class="mb-3">
+            <label>Rol</label>
+            <select class="form-control" @bind="usuario.RolId">
+                <option disabled value="0">-- Seleccione un rol --</option>
+                @foreach (var rol in rolesDisponibles)
+                {
+                    <option value="@rol.Id">@rol.Nombre</option>
+                }
+            </select>
+        </div>
+
+        <button class="btn btn-success">Registrar Usuario</button>
+    </EditForm>
+}
+else
+{
+    <p class="text-gray-600">Redirigiendo al inicio de sesión...</p>
+}
+
+@code {
+    private RegistrarUsuarioDto usuario = new();
+    private List<RolDto> rolesDisponibles = new();
+    private string mensaje = string.Empty;
+    private bool mostrarFormulario = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
+
+            if (!existe)
+            {
+                mostrarFormulario = true;
+                rolesDisponibles = await Http.GetFromJsonAsync<List<RolDto>>("api/roles") ?? new();
+            }
+            else
+            {
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+        }
+        catch
+        {
+            mensaje = "Error al cargar la vista de registro.";
+        }
+    }
+
+    private async Task RegistrarNuevoUsuario()
+    {
+        var response = await Http.PostAsJsonAsync("api/usuarios/registrar", usuario);
+        if (response.IsSuccessStatusCode)
+        {
+            mensaje = "Usuario registrado correctamente.";
+            usuario = new();
+            await Task.Delay(2000);
+            Navigation.NavigateTo("/login");
+        }
+        else
+        {
+            mensaje = "Error: " + await response.Content.ReadAsStringAsync();
+        }
+    }
+}
+

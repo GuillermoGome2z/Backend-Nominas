@@ -30,6 +30,10 @@ namespace ProyectoNomina.Backend.Data
         // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Usuario>()
+        .HasIndex(u => u.Correo)
+        .IsUnique();
+
             modelBuilder.Entity<UsuarioRol>()
                 .HasKey(ur => new { ur.UsuarioId, ur.RolId });
 
