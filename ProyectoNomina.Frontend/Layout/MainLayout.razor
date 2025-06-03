@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
 <div class="main-layout">
     <header class="modern-header">
         <div class="header-content">
@@ -12,23 +14,37 @@
                 </div>
                 <h1 class="logo-text">Proyecto Nóminas</h1>
             </div>
+
             <nav class="modern-nav">
                 <ul class="nav-list">
-                    <li class="nav-item">
-                        <NavLink href="/" Match="NavLinkMatch.All" class="nav-link">
-                            <span class="nav-icon">🏠</span>
-                            <span class="nav-text">Inicio</span>
-                        </NavLink>
-                    </li>
-                    <li class="nav-item">
-                        <NavLink href="/crear-empleado" class="nav-link">
-                            <span class="nav-icon">👤</span>
-                            <span class="nav-text">Crear Empleado</span>
-                        </NavLink>
-                    </li>
+                    @if (EsPaginaRegistro)
+                    {
+                        <li class="nav-item">
+                            <NavLink href="/login" class="nav-link">
+                                <span class="nav-icon">🔐</span>
+                                <span class="nav-text">Iniciar sesión</span>
+                            </NavLink>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link">
+                                <span class="nav-icon">🏠</span>
+                                <span class="nav-text">Inicio</span>
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink href="/crear-empleado" class="nav-link">
+                                <span class="nav-icon">👤</span>
+                                <span class="nav-text">Crear Empleado</span>
+                            </NavLink>
+                        </li>
+                    }
                 </ul>
             </nav>
         </div>
+
         <div class="header-bg-decoration"></div>
     </header>
 
@@ -52,6 +68,11 @@
         </div>
     </footer>
 </div>
+
+@code {
+    private bool EsPaginaRegistro => Navigation.Uri.Contains("/registrar-usuario");
+}
+
 
 <style>
     * {
