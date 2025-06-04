@@ -2,15 +2,13 @@
 @using ProyectoNomina.Shared.Models.DTOs
 @inject HttpClient Http
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
-<h3 class="text-2xl font-bold mb-4">👤 Registrar Nuevo Usuario</h3>
+<h3 class="text-2xl font-bold mb-4">👤 Registrarse Nuevo Usuario</h3>
 
-@if (!string.IsNullOrEmpty(mensaje))
+@if (!string.IsNullOrEmpty(mensajeExito))
 {
-    <div class="p-2 rounded text-white mb-3"
-         style="background-color: @(mensaje.StartsWith("Error") ? "tomato" : "seagreen")">
-        @mensaje
+    <div class="p-2 rounded text-white mb-3" style="background-color: seagreen">
+        @mensajeExito
     </div>
 }
 
@@ -18,21 +16,23 @@
 {
     <EditForm Model="usuario" OnValidSubmit="RegistrarNuevoUsuario">
         <DataAnnotationsValidator />
-        <ValidationSummary />
 
         <div class="mb-3">
             <label>Nombre completo</label>
             <InputText class="form-control" @bind-Value="usuario.NombreCompleto" />
+            <ValidationMessage For="@(() => usuario.NombreCompleto)" />
         </div>
 
         <div class="mb-3">
             <label>Correo</label>
             <InputText class="form-control" @bind-Value="usuario.Correo" />
+            <ValidationMessage For="@(() => usuario.Correo)" />
         </div>
 
         <div class="mb-3">
             <label>Contraseña</label>
             <InputText type="password" class="form-control" @bind-Value="usuario.Clave" />
+            <ValidationMessage For="@(() => usuario.Clave)" />
         </div>
 
         <div class="mb-3">
@@ -44,9 +44,10 @@
                     <option value="@rol.Id">@rol.Nombre</option>
                 }
             </select>
+            <ValidationMessage For="@(() => usuario.RolId)" />
         </div>
 
-        <button class="btn btn-success">Registrar Usuario</button>
+        <button class="btn btn-success">Crear usuario</button>
     </EditForm>
 }
 else
@@ -57,7 +58,7 @@ else
 @code {
     private RegistrarUsuarioDto usuario = new();
     private List<RolDto> rolesDisponibles = new();
-    private string mensaje = string.Empty;
+    private string mensajeExito = string.Empty;
     private bool mostrarFormulario = false;
 
     protected override async Task OnInitializedAsync()
@@ -65,20 +66,12 @@ else
         try
         {
             var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
-
-            if (!existe)
-            {
-                mostrarFormulario = true;
-                rolesDisponibles = await Http.GetFromJsonAsync<List<RolDto>>("api/roles") ?? new();
-            }
-            else
-            {
-                Navigation.NavigateTo("/login", forceLoad: true);
-            }
+            mostrarFormulario = true;
+            rolesDisponibles = await Http.GetFromJsonAsync<List<RolDto>>("api/roles") ?? new();
         }
         catch
         {
-            mensaje = "Error al cargar la vista de registro.";
+            mensajeExito = "❌ Error al cargar la vista de registro.";
         }
     }
 
@@ -87,15 +80,15 @@ else
         var response = await Http.PostAsJsonAsync("api/usuarios/registrar", usuario);
         if (response.IsSuccessStatusCode)
         {
-            mensaje = "Usuario registrado correctamente.";
+            mensajeExito = "✅ Usuario creado correctamente.";
             usuario = new();
             await Task.Delay(2000);
-            Navigation.NavigateTo("/login");
+            mensajeExito = string.Empty;
+            StateHasChanged();
         }
         else
         {
-            mensaje = "Error: " + await response.Content.ReadAsStringAsync();
+            mensajeExito = "❌ Error: " + await response.Content.ReadAsStringAsync();
         }
     }
 }
-
