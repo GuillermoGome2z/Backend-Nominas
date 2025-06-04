@@ -47,19 +47,25 @@ else
                     <td>@e.EstadoLaboral</td>
                     <td>@e.FechaNacimiento.ToShortDateString()</td>
                     <td>
-                        <button class="btn btn-sm btn-warning me-1" @onclick="() => EditarEmpleado(e.Id)">
-                            ✏️ Editar
-                        </button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarEmpleado(e.Id)">
-                            🗑️ Eliminar
-                        </button>
-                        <button class="btn btn-sm btn-info" @onclick="() => VerAcademica(e.Id)">
-                            🎓 Académica
-                        </button>
-                        <NavLink href="/subir-documento" class="btn btn-outline-primary">
-                            📤 Subir Documento
-                        </NavLink>
+                        <div class="d-flex flex-wrap gap-1">
+                            <button class="btn btn-sm btn-warning" @onclick="() => EditarEmpleado(e.Id)" title="Editar empleado">
+                                ✏️ Editar
+                            </button>
+
+                            <button class="btn btn-sm btn-danger" @onclick="() => EliminarEmpleado(e.Id)" title="Eliminar empleado">
+                                🗑️ Eliminar
+                            </button>
+
+                            <button class="btn btn-sm btn-info" @onclick="() => VerAcademica(e.Id)" title="Ver información académica">
+                                🎓 Académica
+                            </button>
+
+                            <NavLink href="/subir-documento" class="btn btn-sm btn-outline-primary" title="Subir documento">
+                                📤 Subir Documento
+                            </NavLink>
+                        </div>
                     </td>
+
                 </tr>
             }
         </tbody>

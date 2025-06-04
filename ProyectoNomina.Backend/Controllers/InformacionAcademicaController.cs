@@ -75,16 +75,16 @@ namespace ProyectoNomina.Backend.Controllers
             _context.InformacionAcademica.Add(info);
             await _context.SaveChangesAsync();
 
-            dto.Id = info.Id; // devolver el ID generado
+            dto.Id = info.Id;
             return CreatedAtAction(nameof(GetInformacion), new { id = info.Id }, dto);
         }
 
-        // PUT: api/InformacionAcademica/5
+        // ✅ PUT: api/InformacionAcademica/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutInformacion(int id, InformacionAcademicaDto dto)
         {
             if (id != dto.Id)
-                return BadRequest();
+                return BadRequest("ID de la URL no coincide con el del cuerpo.");
 
             var info = await _context.InformacionAcademica.FindAsync(id);
             if (info == null)
@@ -95,6 +95,7 @@ namespace ProyectoNomina.Backend.Controllers
             info.FechaGraduacion = dto.FechaGraduacion;
             info.EmpleadoId = dto.EmpleadoId;
 
+            _context.InformacionAcademica.Update(info);
             await _context.SaveChangesAsync();
 
             return NoContent();

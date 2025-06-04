@@ -19,21 +19,25 @@
                 <div class="form-group mb-3">
                     <label for="nombre" class="form-label">Nombre Completo:</label>
                     <InputText id="nombre" @bind-Value="nuevoEmpleado.NombreCompleto" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.NombreCompleto)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="correo" class="form-label">Correo:</label>
-                    <InputText id="correo" @bind-Value="nuevoEmpleado.Correo" class="form-control" />
+                    <InputText id="correo" @bind-Value="nuevoEmpleado.Correo" class="form-control" @oninput="LimpiarMensaje" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.Correo)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="telefono" class="form-label">Teléfono:</label>
-                    <InputText id="telefono" @bind-Value="nuevoEmpleado.Telefono" class="form-control" />
+                    <InputText id="telefono" @bind-Value="nuevoEmpleado.Telefono" class="form-control" @oninput="LimpiarMensaje" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.Telefono)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="direccion" class="form-label">Dirección:</label>
                     <InputText id="direccion" @bind-Value="nuevoEmpleado.Direccion" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.Direccion)" />
                 </div>
 
                 <div class="form-group mb-3">
@@ -45,6 +49,7 @@
                             <option value="@puesto.Id">@puesto.Nombre</option>
                         }
                     </InputSelect>
+                    <ValidationMessage For="@(() => nuevoEmpleado.PuestoId)" />
                 </div>
 
                 <div class="form-group mb-3">
@@ -55,6 +60,7 @@
                 <div class="form-group mb-3">
                     <label for="fecha" class="form-label">Fecha de Contratación:</label>
                     <InputDate id="fecha" @bind-Value="nuevoEmpleado.FechaContratacion" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.FechaContratacion)" />
                 </div>
 
                 <div class="form-group mb-3">
@@ -66,23 +72,25 @@
                             <option value="@depto.Id">@depto.Nombre</option>
                         }
                     </InputSelect>
+                    <ValidationMessage For="@(() => nuevoEmpleado.DepartamentoId)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="nit" class="form-label">NIT:</label>
-                    <InputText id="nit" @bind-Value="nuevoEmpleado.NIT" class="form-control" />
+                    <InputText id="nit" @bind-Value="nuevoEmpleado.NIT" class="form-control" @oninput="LimpiarMensaje" />
                     <ValidationMessage For="@(() => nuevoEmpleado.NIT)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="dpi" class="form-label">DPI:</label>
-                    <InputText id="dpi" @bind-Value="nuevoEmpleado.DPI" class="form-control" />
+                    <InputText id="dpi" @bind-Value="nuevoEmpleado.DPI" class="form-control" @oninput="LimpiarMensaje" />
                     <ValidationMessage For="@(() => nuevoEmpleado.DPI)" />
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="fechaNacimiento" class="form-label">Fecha de Nacimiento:</label>
                     <InputDate id="fechaNacimiento" @bind-Value="nuevoEmpleado.FechaNacimiento" class="form-control" />
+                    <ValidationMessage For="@(() => nuevoEmpleado.FechaNacimiento)" />
                 </div>
 
                 <div class="form-group mb-3">
@@ -92,6 +100,7 @@
                         <option value="Suspendido">Suspendido</option>
                         <option value="Retirado">Retirado</option>
                     </InputSelect>
+                    <ValidationMessage For="@(() => nuevoEmpleado.EstadoLaboral)" />
                 </div>
 
                 <div class="text-center">
@@ -109,14 +118,18 @@
 </div>
 
 @code {
-    private EmpleadoCreacionDto nuevoEmpleado = new();
+    private EmpleadoCreacionDto nuevoEmpleado = new()
+        {
+            FechaNacimiento = DateTime.Today,
+            FechaContratacion = DateTime.Today
+        };
+
     private string? mensaje;
     private string mensajeCssClass = "alert-info";
 
     private List<PuestoDto> puestos = new();
     private List<DepartamentoDto> departamentos = new();
 
-    // propiedad auxiliar para detectar cambio en puesto y asignar salario
     private int selectedPuestoId
     {
         get => nuevoEmpleado.PuestoId;
@@ -147,12 +160,25 @@
             {
                 mensaje = "✅ Empleado creado con éxito.";
                 mensajeCssClass = "alert-success";
-                nuevoEmpleado = new(); // Limpiar formulario
+                nuevoEmpleado = new()
+                    {
+                        FechaNacimiento = DateTime.Today,
+                        FechaContratacion = DateTime.Today
+                    };
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                mensaje = $"❌ Error al crear empleado: {error}";
+
+                if (error.Contains("DPI"))
+                    mensaje = "❌ Validación: Ya existe un empleado con ese DPI.";
+                else if (error.Contains("NIT"))
+                    mensaje = "❌ Validación: Ya existe un empleado con ese NIT.";
+                else if (error.Contains("correo", StringComparison.OrdinalIgnoreCase))
+                    mensaje = "❌ Validación: Ya existe un empleado con ese correo.";
+                else
+                    mensaje = $"❌ Error al crear empleado: {error}";
+
                 mensajeCssClass = "alert-danger";
             }
         }
@@ -166,5 +192,10 @@
     private void Volver()
     {
         Navigation.NavigateTo("/");
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje = null;
     }
 }

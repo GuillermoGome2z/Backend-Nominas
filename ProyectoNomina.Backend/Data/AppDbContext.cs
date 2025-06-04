@@ -38,6 +38,11 @@ namespace ProyectoNomina.Backend.Data
                 .HasKey(ur => new { ur.UsuarioId, ur.RolId });
 
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<Empleado>()
+       .HasOne(e => e.Departamento)
+       .WithMany()
+       .HasForeignKey(e => e.DepartamentoId)
+       .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }
