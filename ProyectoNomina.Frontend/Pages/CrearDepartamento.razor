@@ -1,5 +1,6 @@
 ﻿@page "/departamentos"
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <h3 class="text-xl font-bold mb-3">🏢 Crear Departamento</h3>
 
@@ -9,23 +10,33 @@
 </div>
 
 <button class="bg-blue-600 text-white px-4 py-1 rounded"
-        @onclick="CrearDepartamentoDto"
+        @onclick="GuardarDepartamento"
         disabled="@string.IsNullOrWhiteSpace(nuevoDepartamento)">
-    ➕ Guardar
+    @(editando ? "✏️ Actualizar" : "➕ Guardar")
 </button>
 
 @if (!string.IsNullOrEmpty(mensaje))
 {
-    <p class="text-green-600 mt-2">@mensaje</p>
+    <p class="mt-2 text-@(mensajeCss)">@mensaje</p>
 }
 
 @if (departamentos.Count > 0)
 {
-    <h4 class="mt-4 font-semibold text-lg mt-4">📋 Departamentos Registrados</h4>
-    <ul class="list-disc pl-6">
-        @foreach (var dep in departamentos)
+    <h5 class="mt-4">📋 Departamentos Registrados</h5>
+    <ul class="list-unstyled">
+        @foreach (var depto in departamentos)
         {
-            <li><strong>ID:</strong> @dep.Id - @dep.Nombre</li>
+            <li class="mb-2">
+                <strong>ID:</strong> @depto.Id - @depto.Nombre
+                <div class="btn-group ms-2">
+                    <button class="btn btn-sm btn-warning" @onclick="() => EditarDepartamento(depto)">
+                        ✏️ Editar
+                    </button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => EliminarDepartamento(depto.Id)">
+                        🗑 Eliminar
+                    </button>
+                </div>
+            </li>
         }
     </ul>
 }
@@ -33,34 +44,77 @@
 @code {
     private string nuevoDepartamento = "";
     private string mensaje = "";
+    private string mensajeCss = "text-green-600";
 
-    // ✅ Lista de departamentos
     private List<DepartamentoDto> departamentos = new();
 
-    // ✅ Cargar al iniciar la vista
+    private bool editando = false;
+    private int departamentoEditandoId = 0;
+
     protected override async Task OnInitializedAsync()
     {
         await CargarDepartamentos();
     }
 
-    private async Task CrearDepartamentoDto()
+    private async Task GuardarDepartamento()
     {
-        var response = await Http.PostAsJsonAsync("api/Departamentos", new { Nombre = nuevoDepartamento });
+        HttpResponseMessage response;
 
-        if (response.IsSuccessStatusCode)
+        if (editando)
         {
-            mensaje = "✅ Departamento creado correctamente.";
-            nuevoDepartamento = "";
-            await CargarDepartamentos(); // recargar lista después de guardar
+            response = await Http.PutAsJsonAsync($"api/Departamentos/{departamentoEditandoId}", new { Nombre = nuevoDepartamento });
         }
         else
         {
-            mensaje = "❌ Error al crear el departamento.";
+            response = await Http.PostAsJsonAsync("api/Departamentos", new { Nombre = nuevoDepartamento });
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            mensaje = editando ? "✅ Departamento actualizado." : "✅ Departamento creado correctamente.";
+            mensajeCss = "text-green-600";
+            nuevoDepartamento = "";
+            editando = false;
+            departamentoEditandoId = 0;
+            await CargarDepartamentos();
+        }
+        else
+        {
+            mensaje = "❌ Error al guardar el departamento.";
+            mensajeCss = "text-red-600";
         }
     }
 
     private async Task CargarDepartamentos()
     {
         departamentos = await Http.GetFromJsonAsync<List<DepartamentoDto>>("api/Departamentos") ?? new();
+    }
+
+    private void EditarDepartamento(DepartamentoDto depto)
+    {
+        nuevoDepartamento = depto.Nombre;
+        departamentoEditandoId = depto.Id;
+        editando = true;
+        mensaje = "";
+    }
+
+    private async Task EliminarDepartamento(int id)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Está seguro que desea eliminar el departamento ID {id}?");
+        if (!confirmar)
+            return;
+
+        var response = await Http.DeleteAsync($"api/Departamentos/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            mensaje = "🗑 Departamento eliminado.";
+            mensajeCss = "text-green-600";
+            await CargarDepartamentos();
+        }
+        else
+        {
+            mensaje = "❌ Error al eliminar el departamento.";
+            mensajeCss = "text-red-600";
+        }
     }
 }

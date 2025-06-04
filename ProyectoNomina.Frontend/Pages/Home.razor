@@ -1,6 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 @using System.Security.Claims
 @page "/"
 <PageTitle>Inicio - Sistema de Nóminas</PageTitle>
@@ -118,6 +119,8 @@
         NavigationManager.NavigateTo("/empleados");
     }
 
+
+
     private void IrAReportes()
     {
         NavigationManager.NavigateTo("/reportes");
@@ -150,16 +153,6 @@
             background: radial-gradient(circle, rgba(255,107,107,0.05) 0%, transparent 50%);
             animation: rotate 20s linear infinite;
         }
-
-    @@keyframes rotate {
-        from {
-            transform: rotate(0deg);
-        }
-
-        to {
-            transform: rotate(360deg);
-        }
-    }
 
     .hero-content {
         display: grid;

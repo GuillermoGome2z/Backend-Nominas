@@ -17,27 +17,38 @@ else
 
         <div class="form-group mb-3">
             <label for="nombre">Nombre Completo:</label>
-            <InputText id="nombre" class="form-control" @bind-Value="empleado.NombreCompleto" />
+            <InputText id="nombre" class="form-control" @bind-Value="empleado.NombreCompleto" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.NombreCompleto)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="correo">Correo:</label>
+            <InputText id="correo" class="form-control" @bind-Value="empleado.Correo" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.Correo)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="telefono">Teléfono:</label>
-            <InputText id="telefono" class="form-control" @bind-Value="empleado.Telefono" />
+            <InputText id="telefono" class="form-control" @bind-Value="empleado.Telefono" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.Telefono)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="direccion">Dirección:</label>
-            <InputText id="direccion" class="form-control" @bind-Value="empleado.Direccion" />
+            <InputText id="direccion" class="form-control" @bind-Value="empleado.Direccion" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.Direccion)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="fechaNacimiento">Fecha de Nacimiento:</label>
             <InputDate id="fechaNacimiento" class="form-control" @bind-Value="empleado.FechaNacimiento" />
+            <ValidationMessage For="@(() => empleado.FechaNacimiento)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="fechaContratacion">Fecha de Contratación:</label>
             <InputDate id="fechaContratacion" class="form-control" @bind-Value="empleado.FechaContratacion" />
+            <ValidationMessage For="@(() => empleado.FechaContratacion)" />
         </div>
 
         <div class="form-group mb-3">
@@ -47,37 +58,60 @@ else
                 <option value="Suspendido">Suspendido</option>
                 <option value="Retirado">Retirado</option>
             </InputSelect>
+            <ValidationMessage For="@(() => empleado.EstadoLaboral)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="dpi">DPI:</label>
-            <InputText id="dpi" class="form-control" @bind-Value="empleado.DPI" />
+            <InputText id="dpi" class="form-control" @bind-Value="empleado.DPI" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.DPI)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="nit">NIT:</label>
-            <InputText id="nit" class="form-control" @bind-Value="empleado.NIT" />
+            <InputText id="nit" class="form-control" @bind-Value="empleado.NIT" @oninput="LimpiarMensaje" />
+            <ValidationMessage For="@(() => empleado.NIT)" />
         </div>
 
         <div class="form-group mb-3">
             <label for="salario">Salario Mensual:</label>
             <InputNumber id="salario" class="form-control" @bind-Value="empleado.SalarioMensual" />
+            <ValidationMessage For="@(() => empleado.SalarioMensual)" />
         </div>
 
         <div class="form-group mb-3">
-            <label for="departamentoId">Departamento ID:</label>
-            <InputNumber id="departamentoId" class="form-control" @bind-Value="empleado.DepartamentoId" />
+            <label for="departamentoId">Departamento:</label>
+            <InputSelect id="departamentoId" class="form-control" @bind-Value="empleado.DepartamentoId">
+                <option value="">-- Selecciona un departamento --</option>
+                @foreach (var depto in departamentos)
+                {
+                    <option value="@depto.Id">@depto.Nombre</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => empleado.DepartamentoId)" />
         </div>
 
         <div class="form-group mb-3">
-            <label for="puestoId">Puesto ID:</label>
-            <InputNumber id="puestoId" class="form-control" @bind-Value="empleado.PuestoId" />
+            <label for="puestoId">Puesto:</label>
+            <InputSelect id="puestoId" class="form-control" @bind-Value="empleado.PuestoId">
+                <option value="">-- Selecciona un puesto --</option>
+                @foreach (var puesto in puestos)
+                {
+                    <option value="@puesto.Id">@puesto.Nombre</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => empleado.PuestoId)" />
         </div>
 
         <div class="text-center">
             <button type="submit" class="btn btn-success me-2">💾 Guardar Cambios</button>
             <button type="button" class="btn btn-secondary" @onclick="Volver">↩️ Cancelar</button>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="alert @mensajeCssClass mt-3">@mensaje</div>
+        }
     </EditForm>
 }
 
@@ -85,16 +119,23 @@ else
     [Parameter] public int id { get; set; }
 
     private EmpleadoDto? empleado;
+    private List<DepartamentoDto> departamentos = new();
+    private List<PuestoDto> puestos = new();
+    private string? mensaje;
+    private string mensajeCssClass = "alert-info";
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            departamentos = await Http.GetFromJsonAsync<List<DepartamentoDto>>("api/Departamentos") ?? new();
+            puestos = await Http.GetFromJsonAsync<List<PuestoDto>>("api/Puestos") ?? new();
             empleado = await Http.GetFromJsonAsync<EmpleadoDto>($"api/Empleados/{id}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("❌ Error al cargar el empleado: " + ex.Message);
+            mensaje = $"❌ Error al cargar empleado: {ex.Message}";
+            mensajeCssClass = "alert-danger";
         }
     }
 
@@ -103,18 +144,31 @@ else
         try
         {
             var response = await Http.PutAsJsonAsync($"api/Empleados/{empleado!.Id}", empleado);
+
             if (response.IsSuccessStatusCode)
             {
                 Navigation.NavigateTo("/empleados");
             }
             else
             {
-                Console.WriteLine($"❌ Error al actualizar: {response.StatusCode}");
+                var error = await response.Content.ReadAsStringAsync();
+
+                if (error.Contains("DPI"))
+                    mensaje = "❌ Validación: Ya existe otro empleado con el mismo DPI.";
+                else if (error.Contains("NIT"))
+                    mensaje = "❌ Validación: Ya existe otro empleado con el mismo NIT.";
+                else if (error.Contains("correo", StringComparison.OrdinalIgnoreCase))
+                    mensaje = "❌ Validación: Ya existe otro empleado con el mismo correo.";
+                else
+                    mensaje = $"❌ Error al actualizar empleado: {error}";
+
+                mensajeCssClass = "alert-danger";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Excepción al guardar: {ex.Message}");
+            mensaje = $"⚠️ Error inesperado: {ex.Message}";
+            mensajeCssClass = "alert-danger";
         }
     }
 
@@ -122,5 +176,9 @@ else
     {
         Navigation.NavigateTo("/empleados");
     }
-}
 
+    private void LimpiarMensaje()
+    {
+        mensaje = null;
+    }
+}
