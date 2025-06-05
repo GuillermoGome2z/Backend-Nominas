@@ -11,5 +11,6 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public int Id { get; set; }
         public DateTime FechaGeneracion { get; set; }
         public string Descripcion { get; set; } = string.Empty;
+        public List<DetalleNominaDto> Detalles { get; set; } = new();
     }
 }

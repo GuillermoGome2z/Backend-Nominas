@@ -16,5 +16,9 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public decimal Bonificaciones { get; set; }
         public decimal SalarioNeto { get; set; }
         public string DesgloseDeducciones { get; set; } = string.Empty;
+        public string NombreEmpleado { get; set; } = string.Empty;
+       
+     
+
     }
 }

@@ -63,5 +63,10 @@ namespace ProyectoNomina.Backend.Models
 
         [JsonIgnore]
         public ICollection<InformacionAcademica>? Estudios { get; set; }
+
+        public ICollection<Deduccion> Deducciones { get; set; } = new List<Deduccion>();
+        public ICollection<Bonificacion> Bonificaciones { get; set; } = new List<Bonificacion>();
+        
+
     }
 }
