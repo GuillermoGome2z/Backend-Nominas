@@ -44,6 +44,36 @@ namespace ProyectoNomina.Backend.Controllers
             return nomina == null ? NotFound() : nomina;
         }
 
+        // ✅ Obtener DTO con detalles incluidos para visualización completa
+        [HttpGet("completa")]
+        public async Task<ActionResult<IEnumerable<NominaDto>>> ObtenerNominasCompletas()
+        {
+            var nominas = await _context.Nominas
+                .Include(n => n.Detalles)
+                .ThenInclude(d => d.Empleado)
+                .OrderByDescending(n => n.FechaGeneracion)
+                .ToListAsync();
+
+            var resultado = nominas.Select(n => new NominaDto
+            {
+                Id = n.Id,
+                Descripcion = n.Descripcion,
+                FechaGeneracion = n.FechaGeneracion,
+                Detalles = n.Detalles.Select(d => new DetalleNominaDto
+                {
+                    EmpleadoId = d.EmpleadoId,
+                    NombreEmpleado = d.Empleado?.NombreCompleto ?? "",
+                    SalarioBruto = d.SalarioBruto,
+                    Deducciones = d.Deducciones,
+                    Bonificaciones = d.Bonificaciones,
+                    SalarioNeto = d.SalarioNeto,
+                    DesgloseDeducciones = d.DesgloseDeducciones
+                }).ToList()
+            });
+
+            return Ok(resultado);
+        }
+
         [HttpGet("listado")]
         public async Task<IActionResult> ObtenerNominas()
         {
@@ -60,12 +90,16 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(nominas);
         }
 
-
-        // ✅ Crear una nueva nómina (sin procesar)
+        // ✅ Crear una nueva nómina (vacía, sin detalles)
         [HttpPost]
-        public async Task<ActionResult<Nomina>> PostNomina([FromBody] Nomina nomina)
+        public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto)
         {
-            nomina.FechaGeneracion = DateTime.Now;
+            var nomina = new Nomina
+            {
+                Descripcion = dto.Descripcion,
+                FechaGeneracion = DateTime.Now
+            };
+
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync();
 
@@ -73,24 +107,20 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ✅ Procesar y calcular automáticamente una nómina
-        [HttpPost("procesar")]
-        public async Task<IActionResult> ProcesarNomina([FromBody] string descripcion)
+        [HttpPost("procesar/{id}")]
+        public async Task<IActionResult> ProcesarNominaExistente(int id)
         {
-            var empleados = await _context.Empleados.ToListAsync();
-            if (!empleados.Any())
-                return BadRequest("❌ No hay empleados disponibles para procesar la nómina.");
+            var nomina = await _context.Nominas
+                .Include(n => n.Detalles)
+                .FirstOrDefaultAsync(n => n.Id == id);
 
-            var nomina = new Nomina
-            {
-                FechaGeneracion = DateTime.Now,
-                Descripcion = descripcion
-                // No inicializamos Detalles, lo hace NominaService
-            };
+            if (nomina == null)
+                return NotFound("❌ Nómina no encontrada.");
 
-            await _nominaService.Calcular(nomina); // Calcula los detalles y los llena
+            // Limpiar detalles anteriores si existen
+            _context.DetallesNomina.RemoveRange(nomina.Detalles);
 
-            _context.Nominas.Add(nomina);
-            await _context.SaveChangesAsync();
+            await _nominaService.Calcular(nomina);
 
             return Ok(new
             {
