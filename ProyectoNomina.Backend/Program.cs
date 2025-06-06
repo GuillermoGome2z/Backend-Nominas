@@ -5,6 +5,7 @@ using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
+using QuestPDF.Infrastructure;
 
 namespace ProyectoNomina.Backend
 {
@@ -13,6 +14,8 @@ namespace ProyectoNomina.Backend
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            QuestPDF.Settings.License = LicenseType.Community;
 
             // 1️⃣ Conexión a Base de Datos
             builder.Services.AddDbContext<AppDbContext>(options =>

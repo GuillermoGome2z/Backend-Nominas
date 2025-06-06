@@ -129,6 +129,46 @@ namespace ProyectoNomina.Backend.Controllers
             });
         }
 
+        [HttpGet("GenerarPdf/{id}")]
+        public async Task<IActionResult> GenerarPdf(int id, [FromServices] ReporteService reporteService)
+        {
+            try
+            {
+                var nomina = await _context.Nominas
+                    .Include(n => n.Detalles)
+                    .ThenInclude(d => d.Empleado)
+                    .FirstOrDefaultAsync(n => n.Id == id);
+
+                if (nomina == null)
+                    return NotFound("No se encontró la nómina.");
+
+                var pdfBytes = reporteService.GenerarReporteNominaPdf(nomina);
+
+                return File(pdfBytes, "application/pdf", $"Nomina_{id}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"⚠️ Error al generar PDF: {ex.Message}");
+            }
+        }
+
+        [HttpGet("GenerarExcel/{id}")]
+        public async Task<IActionResult> GenerarExcel(int id, [FromServices] ReporteService reporteService)
+        {
+            var nomina = await _context.Nominas
+                .Include(n => n.Detalles)
+                .ThenInclude(d => d.Empleado)
+                .FirstOrDefaultAsync(n => n.Id == id);
+
+            if (nomina == null)
+                return NotFound("Nómina no encontrada.");
+
+            var excelBytes = reporteService.GenerarReporteNominaExcel(nomina);
+
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Nomina_{id}.xlsx");
+        }
+
+
         // ✅ Editar una nómina existente
         [HttpPut("{id}")]
         public async Task<IActionResult> PutNomina(int id, [FromBody] Nomina nomina)
