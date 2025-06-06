@@ -163,16 +163,7 @@ else
         }
     }
 
-    private async Task DescargarPdf(int nominaId)
-    {
-        await JSRuntime.InvokeVoidAsync("alert", $"Descarga PDF simulada para la nómina #{nominaId}.");
-    }
-
-    private async Task DescargarExcel(int nominaId)
-    {
-        await JSRuntime.InvokeVoidAsync("alert", $"Descarga Excel simulada para la nómina #{nominaId}.");
-    }
-
+   
     private async Task EliminarNomina(int nominaId)
     {
         bool confirmar = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta nómina?");
@@ -223,4 +214,50 @@ else
             paginaActual++;
         }
     }
+
+    private async Task DescargarPdf(int nominaId)
+    {
+        try
+        {
+            var pdfBytes = await Http.GetByteArrayAsync($"api/Nominas/GenerarPdf/{nominaId}");
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", $"Nomina_{nominaId}.pdf", streamRef);
+        }
+        catch (HttpRequestException httpEx)
+        {
+            var response = await Http.GetAsync($"api/Nominas/GenerarPdf/{nominaId}");
+            var error = await response.Content.ReadAsStringAsync();
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Error al generar PDF: {error}");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Error inesperado: {ex.Message}");
+        }
+    }
+
+    private async Task DescargarExcel(int nominaId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/Nominas/GenerarExcel/{nominaId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"❌ Error al generar Excel: {error}");
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", $"Nomina_{nominaId}.xlsx", streamRef);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Error inesperado: {ex.Message}");
+        }
+    }
+
 }

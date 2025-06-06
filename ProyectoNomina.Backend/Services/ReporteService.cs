@@ -3,6 +3,8 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
+using ClosedXML.Excel;
+using System.IO;
 
 namespace ProyectoNomina.Backend.Services
 {
@@ -18,12 +20,12 @@ namespace ProyectoNomina.Backend.Services
                     page.Margin(30);
                     page.Header().Text("Reporte de Nómina").FontSize(20).Bold().AlignCenter();
 
-                    page.Content().Element(e =>
+                    page.Content().Column(col =>
                     {
-                        e.Text($"Fecha de generación: {nomina.FechaGeneracion:dd/MM/yyyy}").FontSize(12);
-                        e.Text($"Descripción: {nomina.Descripcion}").FontSize(12);
+                        col.Item().Text($"Fecha de generación: {nomina.FechaGeneracion:dd/MM/yyyy}").FontSize(12);
+                        col.Item().Text($"Descripción: {nomina.Descripcion}").FontSize(12);
 
-                        e.Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -71,9 +73,9 @@ namespace ProyectoNomina.Backend.Services
                     page.Margin(30);
                     page.Header().Text("Reporte de Estado de Expedientes").FontSize(20).Bold().AlignCenter();
 
-                    page.Content().Element(e =>
+                    page.Content().Column(col =>
                     {
-                        e.Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -121,9 +123,9 @@ namespace ProyectoNomina.Backend.Services
                     page.Margin(30);
                     page.Header().Text("Reporte de Información Académica").FontSize(20).Bold().AlignCenter();
 
-                    page.Content().Element(e =>
+                    page.Content().Column(col =>
                     {
-                        e.Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -171,9 +173,9 @@ namespace ProyectoNomina.Backend.Services
                     page.Margin(30);
                     page.Header().Text("Reporte de Ajustes Manuales").FontSize(20).Bold().AlignCenter();
 
-                    page.Content().Element(e =>
+                    page.Content().Column(col =>
                     {
-                        e.Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -218,9 +220,9 @@ namespace ProyectoNomina.Backend.Services
                     page.Margin(30);
                     page.Header().Text("Reporte de Auditoría").FontSize(20).Bold().AlignCenter();
 
-                    page.Content().Element(e =>
+                    page.Content().Column(col =>
                     {
-                        e.Table(table =>
+                        col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -255,6 +257,34 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
+        public byte[] GenerarReporteNominaExcel(Nomina nomina)
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Nómina");
+
+            worksheet.Cell(1, 1).Value = "Empleado";
+            worksheet.Cell(1, 2).Value = "Salario Bruto";
+            worksheet.Cell(1, 3).Value = "Deducciones";
+            worksheet.Cell(1, 4).Value = "Bonificaciones";
+            worksheet.Cell(1, 5).Value = "Salario Neto";
+
+            int row = 2;
+
+            foreach (var detalle in nomina.Detalles)
+            {
+                worksheet.Cell(row, 1).Value = detalle.Empleado.NombreCompleto;
+                worksheet.Cell(row, 2).Value = detalle.SalarioBruto;
+                worksheet.Cell(row, 3).Value = detalle.Deducciones;
+                worksheet.Cell(row, 4).Value = detalle.Bonificaciones;
+                worksheet.Cell(row, 5).Value = detalle.SalarioNeto;
+                row++;
+            }
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return stream.ToArray();
+        }
+
         // 🔁 Estilo común de celdas
         private static IContainer CellStyle(IContainer container)
         {
@@ -267,4 +297,3 @@ namespace ProyectoNomina.Backend.Services
         }
     }
 }
-
