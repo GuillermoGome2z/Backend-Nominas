@@ -62,7 +62,8 @@ namespace ProyectoNomina.Backend
             // 5️⃣ Filtro global de auditoría
             builder.Services.AddControllers(options =>
             {
-                options.Filters.Add<AuditoriaActionFilter>();
+                options.Filters.AddService<AuditoriaActionFilter>(); 
+
             });
 
             // 6️⃣ Swagger con JWT

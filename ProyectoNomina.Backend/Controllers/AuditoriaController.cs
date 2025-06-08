@@ -2,15 +2,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
-using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
-
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [Authorize(Roles = "Admin")]
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Admin")]
     public class AuditoriaController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,46 +18,24 @@ namespace ProyectoNomina.Backend.Controllers
             _context = context;
         }
 
-        // GET: api/Auditoria
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Auditoria>>> GetAuditorias()
+        public async Task<ActionResult<IEnumerable<AuditoriaDto>>> GetAuditoria()
         {
-            return await _context.Auditorias
+            var auditoria = await _context.Auditoria
                 .OrderByDescending(a => a.Fecha)
+                .Select(a => new AuditoriaDto
+                {
+                    Id = a.Id,
+                    Usuario = a.Usuario,
+                    Accion = a.Accion,
+                    Fecha = a.Fecha,
+                    Detalles = a.Detalles,
+                    Endpoint = a.Endpoint,
+                    Metodo = a.Metodo
+                })
                 .ToListAsync();
-        }
 
-        // GET: api/Auditoria/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Auditoria>> GetAuditoria(int id)
-        {
-            var auditoria = await _context.Auditorias.FindAsync(id);
-            if (auditoria == null) return NotFound();
-            return auditoria;
-        }
-
-        // POST: api/Auditoria
-        [HttpPost]
-        public async Task<ActionResult<Auditoria>> PostAuditoria(Auditoria auditoria)
-        {
-            auditoria.Fecha = DateTime.Now;
-            _context.Auditorias.Add(auditoria);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAuditoria), new { id = auditoria.Id }, auditoria);
-        }
-
-        // DELETE: api/Auditoria/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAuditoria(int id)
-        {
-            var auditoria = await _context.Auditorias.FindAsync(id);
-            if (auditoria == null) return NotFound();
-
-            _context.Auditorias.Remove(auditoria);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(auditoria);
         }
     }
 }

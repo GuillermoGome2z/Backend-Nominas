@@ -149,7 +149,7 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet("Auditoria/pdf")]
         public async Task<IActionResult> GenerarReporteAuditoriaPdf()
         {
-            var auditoria = await _context.Auditorias.ToListAsync();
+            var auditoria = await _context.Auditoria.ToListAsync();
 
             if (!auditoria.Any())
                 return NotFound("No hay registros de auditoría.");

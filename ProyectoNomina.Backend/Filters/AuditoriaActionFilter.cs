@@ -20,7 +20,17 @@ namespace ProyectoNomina.Backend.Filters
         public void OnActionExecuting(ActionExecutingContext context)
         {
             // Se ejecuta antes de que el controlador procese la solicitud
-            var usuario = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anónimo";
+            var userId = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            string nombreUsuario = "Anónimo";
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var usuarioDb = _context.Usuarios.FirstOrDefault(u => u.Id.ToString() == userId);
+                if (usuarioDb != null)
+                {
+                    nombreUsuario = usuarioDb.NombreCompleto;
+                }
+            }
             var endpoint = context.HttpContext.Request.Path;
             var metodo = context.HttpContext.Request.Method;
 
@@ -29,13 +39,14 @@ namespace ProyectoNomina.Backend.Filters
             var auditoria = new Auditoria
             {
                 Accion = metodo,
-                Usuario = usuario,
+                Usuario = nombreUsuario,
                 Fecha = DateTime.Now,
                 Detalles = detalles,
-                Endpoint = endpoint
+                Endpoint = endpoint,
+                Metodo = metodo
             };
 
-            _context.Auditorias.Add(auditoria);
+            _context.Auditoria.Add(auditoria);
             _context.SaveChanges();
         }
 

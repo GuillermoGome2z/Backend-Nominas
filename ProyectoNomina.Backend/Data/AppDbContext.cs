@@ -17,7 +17,7 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Nomina> Nominas { get; set; }
         public DbSet<DetalleNomina> DetalleNominas { get; set; }
         public DbSet<DocumentoEmpleado> DocumentosEmpleado { get; set; }
-        public DbSet<Auditoria> Auditorias { get; set; }
+        public DbSet<Auditoria> Auditoria { get; set; }
         public DbSet<Bonificacion> Bonificaciones { get; set; }
         public DbSet<Deduccion> Deducciones { get; set; }
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
@@ -25,6 +25,8 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<AjusteManual> AjustesManuales { get; set; }
         public DbSet<Auditoria> AuditoriaLogs { get; set; }
         public DbSet<DetalleNomina> DetallesNomina { get; set; }
+  
+
 
 
         // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA
