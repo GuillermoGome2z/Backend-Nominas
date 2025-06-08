@@ -24,7 +24,7 @@ public class AuditoriaService
             Fecha = DateTime.Now
         };
 
-        _context.Auditorias.Add(auditoria);
+        _context.Auditoria.Add(auditoria);
         await _context.SaveChangesAsync();
     }
 }

@@ -14,5 +14,6 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public DateTime Fecha { get; set; }
         public string Detalles { get; set; } = string.Empty;
         public string Endpoint { get; set; } = string.Empty;
+        public string Metodo { get; set; } = string.Empty;
     }
 }
