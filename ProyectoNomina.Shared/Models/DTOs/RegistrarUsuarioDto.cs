@@ -18,8 +18,5 @@ namespace ProyectoNomina.Shared.Models.DTOs
 
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
         public string Clave { get; set; } = string.Empty;
-
-        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un rol.")]
-        public int RolId { get; set; }
     }
 }

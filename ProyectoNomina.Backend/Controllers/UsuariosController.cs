@@ -34,19 +34,11 @@ namespace ProyectoNomina.Backend.Controllers
             {
                 NombreCompleto = dto.NombreCompleto,
                 Correo = dto.Correo,
-                ClaveHash = BCrypt.Net.BCrypt.HashPassword(dto.Clave)
+                ClaveHash = BCrypt.Net.BCrypt.HashPassword(dto.Clave),
+                Rol = "Usuario"
             };
 
             _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
-
-            // Asignar un solo rol
-            _context.UsuarioRoles.Add(new UsuarioRol
-            {
-                UsuarioId = usuario.Id,
-                RolId = dto.RolId
-            });
-
             await _context.SaveChangesAsync();
 
             return Ok("Usuario registrado correctamente.");
@@ -66,21 +58,18 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto credenciales)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.UsuarioRoles)
-                .ThenInclude(ur => ur.Rol)
                 .FirstOrDefaultAsync(u => u.Correo == credenciales.Correo);
 
             if (usuario == null || !BCrypt.Net.BCrypt.Verify(credenciales.Contraseña, usuario.ClaveHash))
                 return Unauthorized("Credenciales inválidas.");
 
-            var roles = usuario.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList();
-            var token = _jwtService.GenerarToken(usuario, roles);
+            var token = _jwtService.GenerarToken(usuario);
 
             return Ok(new LoginResponseDto
             {
                 Token = token,
                 NombreUsuario = usuario.NombreCompleto,
-                Rol = string.Join(", ", roles)
+                Rol = usuario.Rol
             });
         }
 
@@ -89,8 +78,6 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
         {
             return await _context.Usuarios
-                .Include(u => u.UsuarioRoles)
-                .ThenInclude(ur => ur.Rol)
                 .ToListAsync();
         }
 
@@ -99,8 +86,6 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<ActionResult<Usuario>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.UsuarioRoles)
-                .ThenInclude(ur => ur.Rol)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             return usuario == null ? NotFound() : usuario;
@@ -117,6 +102,21 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+
+        //Actializa los roles de los usuarios
+        [HttpPut("{id}/actualizar-rol")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ActualizarRol(int id, [FromBody] ActualizarRolDto dto)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null) return NotFound("Usuario no encontrado.");
+
+            usuario.Rol = dto.Rol;
+            await _context.SaveChangesAsync();
+
+            return Ok("Rol actualizado correctamente.");
         }
     }
 }

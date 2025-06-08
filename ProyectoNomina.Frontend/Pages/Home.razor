@@ -48,6 +48,14 @@
                     Puestos
                 </a>
 
+                <!-- Botón Usuarios solo para Admin -->
+                <AuthorizeView Roles="Admin">
+                    <a href="/asignacion-roles" class="btn btn-primary">
+                        <span class="btn-icon">👥</span>
+                        Usuarios
+                    </a>
+                </AuthorizeView>
+
             </div>
         </div>
 

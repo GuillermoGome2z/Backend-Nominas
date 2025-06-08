@@ -35,17 +35,6 @@
             <ValidationMessage For="@(() => usuario.Clave)" />
         </div>
 
-        <div class="mb-3">
-            <label>Rol</label>
-            <select class="form-control" @bind="usuario.RolId">
-                <option disabled value="0">-- Seleccione un rol --</option>
-                @foreach (var rol in rolesDisponibles)
-                {
-                    <option value="@rol.Id">@rol.Nombre</option>
-                }
-            </select>
-            <ValidationMessage For="@(() => usuario.RolId)" />
-        </div>
 
         <button class="btn btn-success">Crear usuario</button>
     </EditForm>
@@ -57,7 +46,6 @@ else
 
 @code {
     private RegistrarUsuarioDto usuario = new();
-    private List<RolDto> rolesDisponibles = new();
     private string mensajeExito = string.Empty;
     private bool mostrarFormulario = false;
 
@@ -67,7 +55,7 @@ else
         {
             var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
             mostrarFormulario = true;
-            rolesDisponibles = await Http.GetFromJsonAsync<List<RolDto>>("api/roles") ?? new();
+
         }
         catch
         {
