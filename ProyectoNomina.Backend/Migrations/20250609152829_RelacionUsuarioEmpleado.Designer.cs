@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProyectoNomina.Backend.Data;
 
@@ -11,9 +12,11 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250609152829_RelacionUsuarioEmpleado")]
+    partial class RelacionUsuarioEmpleado
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -574,8 +577,7 @@ namespace ProyectoNomina.Backend.Migrations
                 {
                     b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
                         .WithOne("Usuario")
-                        .HasForeignKey("ProyectoNomina.Backend.Models.Usuario", "EmpleadoId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .HasForeignKey("ProyectoNomina.Backend.Models.Usuario", "EmpleadoId");
 
                     b.Navigation("Empleado");
                 });

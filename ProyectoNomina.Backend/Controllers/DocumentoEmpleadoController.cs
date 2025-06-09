@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
+using System.Security.Claims;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -155,15 +156,34 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // POST sin archivo (no se recomienda usar en producción)
-        [HttpPost]
-        public async Task<ActionResult<DocumentoEmpleado>> PostDocumento(DocumentoEmpleado doc)
+        [HttpPost("subir")]
+        [Authorize]
+        public async Task<IActionResult> SubirDocumento([FromBody] DocumentoEmpleadoCreateDto dto)
         {
-            doc.FechaSubida = DateTime.Now;
-            _context.DocumentosEmpleado.Add(doc);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null) return Unauthorized("Usuario no autenticado.");
+
+            var usuario = await _context.Usuarios
+                .Include(u => u.Empleado)
+                .FirstOrDefaultAsync(u => u.Id == int.Parse(userIdClaim));
+
+            if (usuario == null || usuario.EmpleadoId == null)
+                return BadRequest("No se pudo identificar al empleado asociado.");
+
+            var documento = new DocumentoEmpleado
+            {
+                EmpleadoId = usuario.EmpleadoId.Value,
+                TipoDocumentoId = dto.TipoDocumentoId,
+                RutaArchivo = dto.RutaArchivo,
+                FechaSubida = DateTime.Now
+            };
+
+            _context.DocumentosEmpleado.Add(documento);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetDocumento), new { id = doc.Id }, doc);
+            return Ok("Documento guardado.");
         }
+
 
         // DELETE: Eliminar documento por ID
         [HttpDelete("{id}")]

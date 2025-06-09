@@ -15,5 +15,7 @@ namespace ProyectoNomina.Backend.Models
         [Required]
         public string Rol { get; set; } = "Usuario";
 
+        public int? EmpleadoId { get; set; }
+        public Empleado? Empleado { get; set; }
     }
 }

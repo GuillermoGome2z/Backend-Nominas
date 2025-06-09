@@ -14,7 +14,7 @@
 }
 else if (!tiposDocumento.Any())
 {
-    <p>No hay tipos de documento registrados.</p>
+    <div class="alert alert-info">No hay tipos de documento registrados.</div>
 }
 else
 {
@@ -34,7 +34,7 @@ else
                 <tr>
                     <td>@tipo.Nombre</td>
                     <td>@tipo.Descripcion</td>
-                    <td>@(tipo.EsRequerido ? "Sí" : "No")</td>
+                    <td>@(tipo.EsRequerido ? "✅" : "❌")</td>
                     <td>@tipo.Orden</td>
                     <td>
                         <button class="btn btn-danger btn-sm" @onclick="() => EliminarTipo(tipo.Id)">🗑️ Eliminar</button>
@@ -66,11 +66,11 @@ else
         var response = await Http.DeleteAsync($"api/TipoDocumento/{id}");
         if (response.IsSuccessStatusCode)
         {
-            await CargarTipos(); // Refrescar la lista
+            await CargarTipos();
         }
         else
         {
-            Console.WriteLine("❌ Error al eliminar tipo de documento");
+            await JS.InvokeVoidAsync("alert", "❌ Error al eliminar tipo de documento.");
         }
     }
 }

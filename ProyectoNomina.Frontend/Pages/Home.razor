@@ -38,6 +38,11 @@
                     Departamentos
                 </a>
 
+                <a href="/mi-informacion" class="btn btn-primary">
+                    <span class="btn-icon">👤</span>
+                    Mi Informacion
+                </a>
+
                 <a href="/puestos" class="btn btn-primary">
                     <span class="btn-icon">💼</span>
                     Puestos
@@ -48,6 +53,13 @@
                     <a href="/asignacion-roles" class="btn btn-primary">
                         <span class="btn-icon">👥</span>
                         Usuarios
+                    </a>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="Admin,RRHH">
+                    <a href="/asignar-empleado" class="btn btn-primary">
+                        <span class="btn-icon">🧑‍🤝‍🧑</span>
+                        Asignar Empleado a Usuario
                     </a>
                 </AuthorizeView>
 

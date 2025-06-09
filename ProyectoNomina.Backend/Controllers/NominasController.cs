@@ -118,7 +118,7 @@ namespace ProyectoNomina.Backend.Controllers
                 return NotFound("❌ Nómina no encontrada.");
 
             // Limpiar detalles anteriores si existen
-            _context.DetallesNomina.RemoveRange(nomina.Detalles);
+            _context.DetalleNominas.RemoveRange(nomina.Detalles);
 
             await _nominaService.Calcular(nomina);
 

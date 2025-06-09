@@ -2,8 +2,9 @@
 @layout LoginLayout
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
 @using ProyectoNomina.Shared.Models
-
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>Iniciar Sesión</PageTitle>
 
@@ -40,8 +41,6 @@
             </div>
         </EditForm>
     </div>
-
-
 </div>
 
 @code {
@@ -53,6 +52,28 @@
         try
         {
             await AuthService.Login(loginModel.Correo!, loginModel.Contraseña!);
+
+            // ✅ Obtener estado de autenticación y rol del usuario
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity is not null && user.Identity.IsAuthenticated)
+            {
+                var rol = user.FindFirst(c => c.Type == "role")?.Value;
+
+                // ✅ Redirigir según el rol
+                Navigation.NavigateTo(rol switch
+                {
+                    "Admin" => "/dashboard-admin",
+                    "RRHH" => "/dashboard-rrhh",
+                    "Usuario" => "/dashboard",
+                    _ => "/"
+                });
+            }
+            else
+            {
+                error = "No se pudo obtener la información del usuario.";
+            }
         }
         catch (Exception ex)
         {

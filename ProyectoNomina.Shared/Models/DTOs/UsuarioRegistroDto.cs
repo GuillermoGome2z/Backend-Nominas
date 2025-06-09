@@ -14,5 +14,7 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public string Contraseña { get; set; }
         [Required]
         public string Rol { get; set; } = "Usuario";
+
+        public int? EmpleadoId { get; set; }
     }
 }

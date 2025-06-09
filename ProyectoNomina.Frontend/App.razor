@@ -1,4 +1,5 @@
-﻿@inject HttpClient Http
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
 @inject NavigationManager Navigation
 
 <CascadingAuthenticationState>
@@ -12,7 +13,7 @@
         </Found>
         <NotFound>
             <LayoutView Layout="@typeof(MainLayout)">
-                <p>Página no encontrada.</p>
+                <p class="text-danger">🚫 Página no encontrada.</p>
             </LayoutView>
         </NotFound>
     </Router>
@@ -21,21 +22,24 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        try
+        // ✅ Solo hacer esta verificación cuando estés en /registrar-usuario
+        if (Navigation.Uri.Contains("/registrar-usuario"))
         {
-            var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
-
-            // Solo redirigir si NO está ya en /registrar-usuario
-            if (!existe && !Navigation.Uri.EndsWith("/registrar-usuario"))
+            try
             {
-                Navigation.NavigateTo("/registrar-usuario", forceLoad: true);
+                var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
+
+                // Si ya existe un usuario registrado, redirige al login
+                if (existe)
+                {
+                    Navigation.NavigateTo("/login", forceLoad: true);
+                }
+            }
+            catch
+            {
+                // No redirigir en caso de error de API para permitir acceso a la vista
+                Console.WriteLine("⚠️ Error al verificar existencia de usuario. Continuando sin redirección.");
             }
         }
-        catch
-        {
-            // Error silencioso (API caída, etc.)
-        }
     }
-}
-
 }
