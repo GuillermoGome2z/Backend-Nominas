@@ -41,10 +41,10 @@ namespace ProyectoNomina.Backend.Data
 
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<Empleado>()
-       .HasOne(e => e.Departamento)
-       .WithMany()
-       .HasForeignKey(e => e.DepartamentoId)
-       .OnDelete(DeleteBehavior.SetNull);
+    .HasOne(e => e.Departamento)
+    .WithMany(d => d.Empleados) 
+    .HasForeignKey(e => e.DepartamentoId)
+    .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -41,7 +41,7 @@ namespace ProyectoNomina.Backend.Controllers
             var departamento = await _context.Departamentos.FindAsync(id);
 
             if (departamento == null)
-                return NotFound();
+                return NotFound(new { mensaje = "Departamento no encontrado." });
 
             return new DepartamentoDto
             {
@@ -54,6 +54,13 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpPost]
         public async Task<ActionResult> PostDepartamento([FromBody] DepartamentoDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.Nombre))
+                return BadRequest(new { mensaje = "El nombre del departamento es obligatorio." });
+
+            var existe = await _context.Departamentos.AnyAsync(d => d.Nombre == dto.Nombre);
+            if (existe)
+                return BadRequest(new { mensaje = "Ya existe un departamento con ese nombre." });
+
             var nuevo = new Departamento
             {
                 Nombre = dto.Nombre
@@ -69,23 +76,35 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutDepartamento(int id, [FromBody] DepartamentoDto dto)
         {
-            if (id != dto.Id) return BadRequest();
+            if (id != dto.Id)
+                return BadRequest(new { mensaje = "ID de departamento no válido." });
 
             var departamento = await _context.Departamentos.FindAsync(id);
-            if (departamento == null) return NotFound();
+            if (departamento == null)
+                return NotFound(new { mensaje = "Departamento no encontrado." });
+
+            if (string.IsNullOrWhiteSpace(dto.Nombre))
+                return BadRequest(new { mensaje = "El nombre del departamento es obligatorio." });
 
             departamento.Nombre = dto.Nombre;
-
             await _context.SaveChangesAsync();
-            return NoContent();
+
+            return Ok();
         }
 
         // DELETE: api/Departamentos/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDepartamento(int id)
         {
-            var departamento = await _context.Departamentos.FindAsync(id);
-            if (departamento == null) return NotFound();
+            var departamento = await _context.Departamentos
+                                             .Include(d => d.Empleados)
+                                             .FirstOrDefaultAsync(d => d.Id == id);
+
+            if (departamento == null)
+                return NotFound(new { mensaje = "Departamento no encontrado." });
+
+            if (departamento.Empleados.Any())
+                return BadRequest(new { mensaje = "El departamento no se puede eliminar porque tiene empleados asociados." });
 
             _context.Departamentos.Remove(departamento);
             await _context.SaveChangesAsync();

@@ -5,8 +5,8 @@ using ProyectoNomina.Shared.Models.DTOs;
 public class Departamento
 {
     public int Id { get; set; }
-    public string Nombre { get; set; }
+    public string Nombre { get; set; } = string.Empty;
 
-    //[JsonIgnore] // Evita la validación del campo Empleados al crear
-    //public ICollection<Empleado> Empleados { get; set; }
+    [JsonIgnore]
+    public ICollection<Empleado> Empleados { get; set; } = new List<Empleado>();
 }
