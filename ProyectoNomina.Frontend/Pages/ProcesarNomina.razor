@@ -163,7 +163,7 @@ else
         }
     }
 
-   
+
     private async Task EliminarNomina(int nominaId)
     {
         bool confirmar = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta nómina?");

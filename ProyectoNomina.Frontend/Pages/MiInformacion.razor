@@ -1,0 +1,53 @@
+﻿@page "/mi-informacion"
+@inject HttpClient Http
+
+<h3 class="text-xl font-semibold mb-4">📄 Mi información</h3>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (empleado == null)
+{
+    <p>Cargando datos...</p>
+}
+else
+{
+    <div class="p-4 bg-white rounded shadow-md">
+        <p><strong>Nombre:</strong> @empleado.NombreCompleto</p>
+        <p><strong>Correo:</strong> @empleado.Correo</p>
+        <p><strong>DPI:</strong> @empleado.DPI</p>
+        <p><strong>NIT:</strong> @empleado.NIT</p>
+        <p><strong>Departamento:</strong> @empleado.NombreDepartamento</p>
+        <p><strong>Puesto:</strong> @empleado.NombrePuesto</p>
+        <p><strong>Estado:</strong> @empleado.EstadoLaboral</p>
+    </div>
+}
+
+@code {
+    private EmpleadoDto? empleado;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            empleado = await Http.GetFromJsonAsync<EmpleadoDto>("api/empleados/mi-informacion");
+        }
+        catch (Exception ex)
+        {
+            error = $"❌ Error al cargar los datos: {ex.Message}";
+        }
+    }
+
+    public class EmpleadoDto
+    {
+        public string NombreCompleto { get; set; } = "";
+        public string Correo { get; set; } = "";
+        public string DPI { get; set; } = "";
+        public string NIT { get; set; } = "";
+        public string EstadoLaboral { get; set; } = "";
+        public string? NombreDepartamento { get; set; }
+        public string? NombrePuesto { get; set; }
+    }
+}

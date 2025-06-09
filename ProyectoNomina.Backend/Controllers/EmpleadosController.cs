@@ -4,10 +4,11 @@ using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ProyectoNomina.Backend.Controllers
 {
-    [Authorize(Roles = "Admin,RRHH")]
+    [Authorize(Roles = "Admin,RRHH,Usuario")]
     [ApiController]
     [Route("api/[controller]")]
     public class EmpleadosController : ControllerBase
@@ -86,6 +87,12 @@ namespace ProyectoNomina.Backend.Controllers
             if (dto.FechaNacimiento == DateTime.MinValue)
                 return BadRequest("La fecha de nacimiento es inválida.");
 
+            if (!await _context.Departamentos.AnyAsync(d => d.Id == dto.DepartamentoId))
+                return BadRequest("El departamento seleccionado no existe.");
+
+            if (!await _context.Puestos.AnyAsync(p => p.Id == dto.PuestoId))
+                return BadRequest("El puesto seleccionado no existe.");
+
             var dpiExiste = await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
             var nitExiste = await _context.Empleados.AnyAsync(e => e.NIT == dto.NIT);
             var correoExiste = await _context.Empleados.AnyAsync(e => e.Correo == dto.Correo);
@@ -113,7 +120,11 @@ namespace ProyectoNomina.Backend.Controllers
             _context.Empleados.Add(nuevo);
             await _context.SaveChangesAsync();
 
-            return Ok(new { mensaje = "Empleado creado correctamente", id = nuevo.Id });
+            return CreatedAtAction(nameof(GetEmpleado), new { id = nuevo.Id }, new
+            {
+                mensaje = "Empleado creado correctamente",
+                empleadoId = nuevo.Id
+            });
         }
 
         [HttpPut("{id}")]
@@ -171,15 +182,91 @@ namespace ProyectoNomina.Backend.Controllers
             });
         }
 
+        [HttpGet("sin-usuario")]
+        [Authorize(Roles = "Admin,RRHH")]
+        public async Task<IActionResult> ObtenerEmpleadosSinUsuario()
+        {
+            var empleados = await _context.Empleados
+                .Where(e => e.Usuario == null)
+                .Select(e => new EmpleadoAsignacionDto
+                {
+                    Id = e.Id,
+                    NombreCompleto = e.NombreCompleto
+                })
+                .ToListAsync();
+
+            return Ok(empleados);
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpleado(int id)
         {
-            var empleado = await _context.Empleados.FindAsync(id);
+            var empleado = await _context.Empleados
+                .Include(e => e.Usuario)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
             if (empleado == null) return NotFound();
+
+            if (empleado.Usuario != null)
+                return BadRequest("❌ No se puede eliminar el empleado porque está asignado a un usuario.");
 
             _context.Empleados.Remove(empleado);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+    
+        [HttpGet("mi-informacion")]
+        [Authorize(Roles = "Usuario")]
+        public async Task<ActionResult<EmpleadoDto>> ObtenerMiInformacion()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("No se pudo identificar el usuario.");
+
+            var usuario = await _context.Usuarios
+                .Include(u => u.Empleado)
+                .FirstOrDefaultAsync(u => u.Id == int.Parse(userId));
+
+            if (usuario?.Empleado == null)
+                return NotFound("No se ha asignado un empleado a este usuario.");
+
+            var empleado = usuario.Empleado;
+
+            return Ok(new EmpleadoDto
+            {
+                Id = empleado.Id,
+                NombreCompleto = empleado.NombreCompleto,
+                FechaNacimiento = empleado.FechaNacimiento,
+                NIT = empleado.NIT,
+                DPI = empleado.DPI,
+                Correo = empleado.Correo,
+                DepartamentoId = empleado.DepartamentoId.GetValueOrDefault(),
+                PuestoId = empleado.PuestoId,
+                EstadoLaboral = empleado.EstadoLaboral
+            });
+        }
+
+        [HttpGet("empleado-actual")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerEmpleadoActual()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized("No se pudo identificar al usuario.");
+
+            int usuarioId = int.Parse(userIdClaim.Value);
+
+            var empleadoId = await _context.Usuarios
+                .Where(u => u.Id == usuarioId)
+                .Select(u => u.EmpleadoId)
+                .FirstOrDefaultAsync();
+
+            if (empleadoId == null)
+                return NotFound("El usuario no tiene un empleado asignado.");
+
+            return Ok(empleadoId);
         }
     }
 }

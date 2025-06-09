@@ -11,13 +11,16 @@ namespace ProyectoNomina.Shared.Models.DTOs
     {
         [Required(ErrorMessage = "El nombre completo es obligatorio.")]
         [RegularExpression(@"^[a-zA-ZÁÉÍÓÚáéíóúñÑ\s]+$", ErrorMessage = "El nombre solo debe contener letras y espacios.")]
-        public string NombreCompleto { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El correo es obligatorio.")]
         [EmailAddress(ErrorMessage = "Correo inválido.")]
         public string Correo { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
-        public string Clave { get; set; } = string.Empty;
+        public string Contraseña { get; set; } = string.Empty;
+
+        public int? EmpleadoId { get; set; }
+        public string Rol { get; set; } = "Usuario";
     }
 }

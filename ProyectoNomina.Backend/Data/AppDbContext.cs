@@ -10,7 +10,6 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<Rol> Roles { get; set; }
         public DbSet<UsuarioRol> UsuarioRoles { get; set; }
-
         public DbSet<Empleado> Empleados { get; set; }
         public DbSet<Puesto> Puestos { get; set; }
         public DbSet<Departamento> Departamentos { get; set; }
@@ -23,28 +22,34 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
         public DbSet<InformacionAcademica> InformacionAcademica { get; set; }
         public DbSet<AjusteManual> AjustesManuales { get; set; }
-        public DbSet<Auditoria> AuditoriaLogs { get; set; }
-        public DbSet<DetalleNomina> DetallesNomina { get; set; }
-  
 
-
-
-        // 🔑 CONFIGURACIÓN DE CLAVE COMPUESTA
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Índice único para correo de Usuario
             modelBuilder.Entity<Usuario>()
-        .HasIndex(u => u.Correo)
-        .IsUnique();
+                .HasIndex(u => u.Correo)
+                .IsUnique();
 
+            // Clave compuesta para UsuarioRol
             modelBuilder.Entity<UsuarioRol>()
                 .HasKey(ur => new { ur.UsuarioId, ur.RolId });
 
-            base.OnModelCreating(modelBuilder);
+            // Relación 1:N entre Departamento y Empleado
             modelBuilder.Entity<Empleado>()
-    .HasOne(e => e.Departamento)
-    .WithMany(d => d.Empleados) 
-    .HasForeignKey(e => e.DepartamentoId)
-    .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(e => e.Departamento)
+                .WithMany(d => d.Empleados)
+                .HasForeignKey(e => e.DepartamentoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relación 1:1 entre Usuario y Empleado
+            modelBuilder.Entity<Usuario>()
+                .HasOne(u => u.Empleado)
+                .WithOne(e => e.Usuario)
+                .HasForeignKey<Usuario>(u => u.EmpleadoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            base.OnModelCreating(modelBuilder);
         }
     }
 }

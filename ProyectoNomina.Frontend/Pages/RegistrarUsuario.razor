@@ -5,10 +5,10 @@
 
 <h3 class="text-2xl font-bold mb-4">👤 Registrarse Nuevo Usuario</h3>
 
-@if (!string.IsNullOrEmpty(mensajeExito))
+@if (!string.IsNullOrEmpty(mensaje))
 {
-    <div class="p-2 rounded text-white mb-3" style="background-color: seagreen">
-        @mensajeExito
+    <div class="alert @(esExito ? "alert-success" : "alert-danger")">
+        @mensaje
     </div>
 }
 
@@ -16,11 +16,12 @@
 {
     <EditForm Model="usuario" OnValidSubmit="RegistrarNuevoUsuario">
         <DataAnnotationsValidator />
+        <ValidationSummary />
 
         <div class="mb-3">
             <label>Nombre completo</label>
-            <InputText class="form-control" @bind-Value="usuario.NombreCompleto" />
-            <ValidationMessage For="@(() => usuario.NombreCompleto)" />
+            <InputText class="form-control" @bind-Value="usuario.Nombre" />
+            <ValidationMessage For="@(() => usuario.Nombre)" />
         </div>
 
         <div class="mb-3">
@@ -31,52 +32,48 @@
 
         <div class="mb-3">
             <label>Contraseña</label>
-            <InputText type="password" class="form-control" @bind-Value="usuario.Clave" />
-            <ValidationMessage For="@(() => usuario.Clave)" />
+            <InputText type="password" class="form-control" @bind-Value="usuario.Contraseña" />
+            <ValidationMessage For="@(() => usuario.Contraseña)" />
         </div>
-
 
         <button class="btn btn-success">Crear usuario</button>
     </EditForm>
 }
 else
 {
-    <p class="text-gray-600">Redirigiendo al inicio de sesión...</p>
+    <div class="alert alert-danger">❌ No se pudo cargar el formulario.</div>
 }
 
 @code {
     private RegistrarUsuarioDto usuario = new();
-    private string mensajeExito = string.Empty;
-    private bool mostrarFormulario = false;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var existe = await Http.GetFromJsonAsync<bool>("api/usuarios/existe-usuario");
-            mostrarFormulario = true;
-
-        }
-        catch
-        {
-            mensajeExito = "❌ Error al cargar la vista de registro.";
-        }
-    }
+    private string mensaje = string.Empty;
+    private bool esExito = false;
+    private bool mostrarFormulario = true;
 
     private async Task RegistrarNuevoUsuario()
     {
-        var response = await Http.PostAsJsonAsync("api/usuarios/registrar", usuario);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            mensajeExito = "✅ Usuario creado correctamente.";
-            usuario = new();
-            await Task.Delay(2000);
-            mensajeExito = string.Empty;
-            StateHasChanged();
+            var response = await Http.PostAsJsonAsync("api/usuarios/registrar", usuario);
+
+            if (response.IsSuccessStatusCode)
+            {
+                esExito = true;
+                mensaje = "✅ Usuario creado correctamente. Redirigiendo...";
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+            else
+            {
+                esExito = false;
+                var error = await response.Content.ReadAsStringAsync();
+                mensaje = $"❌ Error: {error}";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            mensajeExito = "❌ Error: " + await response.Content.ReadAsStringAsync();
+            esExito = false;
+            mensaje = $"❌ Error de red: {ex.Message}";
         }
     }
 }

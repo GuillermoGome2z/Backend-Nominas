@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProyectoNomina.Backend.Data;
 
@@ -11,9 +12,11 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250609164735_AddEmpleadoIdToUsuario")]
+    partial class AddEmpleadoIdToUsuario
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -409,6 +412,9 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Property<int?>("EmpleadoId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("EmpleadoId1")
+                        .HasColumnType("int");
+
                     b.Property<string>("NombreCompleto")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -425,6 +431,10 @@ namespace ProyectoNomina.Backend.Migrations
                     b.HasIndex("EmpleadoId")
                         .IsUnique()
                         .HasFilter("[EmpleadoId] IS NOT NULL");
+
+                    b.HasIndex("EmpleadoId1")
+                        .IsUnique()
+                        .HasFilter("[EmpleadoId1] IS NOT NULL");
 
                     b.ToTable("Usuarios");
                 });
@@ -573,9 +583,13 @@ namespace ProyectoNomina.Backend.Migrations
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
                 {
                     b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
-                        .WithOne("Usuario")
+                        .WithOne()
                         .HasForeignKey("ProyectoNomina.Backend.Models.Usuario", "EmpleadoId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ProyectoNomina.Backend.Models.Empleado", null)
+                        .WithOne("Usuario")
+                        .HasForeignKey("ProyectoNomina.Backend.Models.Usuario", "EmpleadoId1");
 
                     b.Navigation("Empleado");
                 });

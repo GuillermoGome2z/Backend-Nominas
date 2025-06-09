@@ -1,0 +1,22 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (tieneAcceso)
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public string Rol { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool tieneAcceso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var usuario = authState.User;
+
+        tieneAcceso = usuario.Identity?.IsAuthenticated == true && usuario.IsInRole(Rol);
+    }
+}

@@ -10,20 +10,9 @@
     <div class="alert @mensajeCss">@mensaje</div>
 }
 
-<EditForm Model="@modelo" OnValidSubmit="HandleSubmit">
+<EditForm OnValidSubmit="HandleSubmit">
     <DataAnnotationsValidator />
     <ValidationSummary />
-
-    <div class="mb-3">
-        <label>Empleado</label>
-        <select class="form-control" @bind="modelo.EmpleadoId">
-            <option value="0">-- Seleccione un empleado --</option>
-            @foreach (var emp in empleados)
-            {
-                <option value="@emp.Id">@emp.NombreCompleto</option>
-            }
-        </select>
-    </div>
 
     <div class="mb-3">
         <label>Tipo de Documento</label>
@@ -65,8 +54,7 @@
 </EditForm>
 
 @code {
-    private DocumentoEmpleadoDto modelo = new();
-    private List<EmpleadoDto> empleados = new();
+    private DocumentoEmpleadoCreateDto modelo = new();
     private List<TipoDocumentoDto> tiposDocumento = new();
 
     private IBrowserFile? archivoSeleccionado;
@@ -78,8 +66,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        empleados = await Http.GetFromJsonAsync<List<EmpleadoDto>>("api/Empleados") ?? new();
         tiposDocumento = await Http.GetFromJsonAsync<List<TipoDocumentoDto>>("api/TipoDocumento") ?? new();
+
+        // ✅ Obtener el EmpleadoId del usuario autenticado
+        try
+        {
+            modelo.EmpleadoId = await Http.GetFromJsonAsync<int>("api/usuarios/empleado-actual");
+        }
+        catch
+        {
+            mensaje = "⚠️ No se pudo identificar al empleado actual.";
+            mensajeCss = "alert-danger";
+        }
     }
 
     private async Task MostrarVistaPrevia(InputFileChangeEventArgs e)
@@ -95,7 +93,7 @@
 
         tipoMime = archivoSeleccionado.ContentType;
 
-        using var stream = archivoSeleccionado.OpenReadStream(5 * 1024 * 1024); // hasta 5MB
+        using var stream = archivoSeleccionado.OpenReadStream(5 * 1024 * 1024);
         var buffer = new byte[archivoSeleccionado.Size];
         await stream.ReadAsync(buffer);
         vistaPreviaBase64 = $"data:{tipoMime};base64,{Convert.ToBase64String(buffer)}";
@@ -103,9 +101,9 @@
 
     private async Task HandleSubmit()
     {
-        if (modelo.EmpleadoId == 0 || modelo.TipoDocumentoId == 0)
+        if (modelo.TipoDocumentoId == 0)
         {
-            mensaje = "⚠️ Debe seleccionar todos los campos.";
+            mensaje = "⚠️ Debe seleccionar el tipo de documento.";
             mensajeCss = "alert-warning";
             return;
         }
@@ -119,16 +117,13 @@
 
         try
         {
-            using var content = new MultipartFormDataContent();
-            var stream = archivoSeleccionado.OpenReadStream(10_000_000); // 10MB max
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(archivoSeleccionado.ContentType);
+            var nombreArchivo = archivoSeleccionado.Name;
+            var rutaSimulada = $"documentos/{nombreArchivo}";
 
-            content.Add(fileContent, "archivo", archivoSeleccionado.Name);
-            content.Add(new StringContent(modelo.EmpleadoId.ToString()), "EmpleadoId");
-            content.Add(new StringContent(modelo.TipoDocumentoId.ToString()), "TipoDocumentoId");
+            modelo.RutaArchivo = rutaSimulada;
 
-            var response = await Http.PostAsync("api/DocumentosEmpleado/upload", content);
+            var response = await Http.PostAsJsonAsync("api/DocumentoEmpleado/subir", modelo);
+
             if (response.IsSuccessStatusCode)
             {
                 mensaje = "✅ Documento subido correctamente.";
@@ -137,7 +132,8 @@
             }
             else
             {
-                mensaje = "❌ Error al subir el documento.";
+                var error = await response.Content.ReadAsStringAsync();
+                mensaje = $"❌ Error: {error}";
                 mensajeCss = "alert-danger";
             }
         }
@@ -146,5 +142,12 @@
             mensaje = $"❌ Excepción: {ex.Message}";
             mensajeCss = "alert-danger";
         }
+    }
+
+    private class DocumentoEmpleadoCreateDto
+    {
+        public int TipoDocumentoId { get; set; }
+        public string RutaArchivo { get; set; } = string.Empty;
+        public int EmpleadoId { get; set; } // ✅ Usado por backend
     }
 }
