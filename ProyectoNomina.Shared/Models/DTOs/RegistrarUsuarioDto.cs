@@ -10,6 +10,7 @@ namespace ProyectoNomina.Shared.Models.DTOs
     public class RegistrarUsuarioDto
     {
         [Required(ErrorMessage = "El nombre completo es obligatorio.")]
+        [RegularExpression(@"^[a-zA-ZÁÉÍÓÚáéíóúñÑ\s]+$", ErrorMessage = "El nombre solo debe contener letras y espacios.")]
         public string NombreCompleto { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El correo es obligatorio.")]
