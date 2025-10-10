@@ -137,12 +137,14 @@ JwtSettings:Audience	Audiencia del token
 ConnectionStrings:DefaultConnection	Cadena de conexión SQL Server
 
 ## 📚 Endpoints principales
-Endpoint	Método	Descripción
-/api/auth/login	POST	Inicia sesión y devuelve token JWT
-/api/empleados	GET/POST/PUT/DELETE	CRUD de empleados
-/api/expedientes	GET/POST	Administración de documentos
-/api/nominas	GET/POST	Procesamiento de nóminas
-/api/reportes	GET	Exportación PDF/Excel
+| Endpoint | Método | Descripción |
+|-----------|---------|-------------|
+| `/api/auth/login` | **POST** | Inicia sesión y devuelve token JWT |
+| `/api/empleados` | **GET / POST / PUT / DELETE** | CRUD de empleados |
+| `/api/expedientes` | **GET / POST** | Administración de documentos |
+| `/api/nominas` | **GET / POST** | Procesamiento de nóminas |
+| `/api/reportes` | **GET** | Exportación PDF / Excel |
+
 
 ## 🧩 Estructura de respuestas y manejo de errores
 
