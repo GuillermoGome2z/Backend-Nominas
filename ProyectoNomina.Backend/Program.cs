@@ -6,6 +6,7 @@ using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
+using Microsoft.OpenApi.Models;
 
 namespace ProyectoNomina.Backend
 {
@@ -17,13 +18,13 @@ namespace ProyectoNomina.Backend
 
             QuestPDF.Settings.License = LicenseType.Community;
 
-            // 1️⃣ Conexión a Base de Datos
+            // 1) DB
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2️⃣ Configuración de JWT
+            // 2) JWT
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"];
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey no configurado");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -36,60 +37,64 @@ namespace ProyectoNomina.Backend
                         ValidateIssuerSigningKey = true,
                         ValidIssuer = jwtSettings["Issuer"],
                         ValidAudience = jwtSettings["Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
                     };
                 });
 
-            // 3️⃣ Agregar CORS
+            // 3) CORS (leer orígenes desde appsettings)
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+                                 ?? new[] { "http://localhost:5173" }; // Vite por defecto
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("CorsPolicy", policy =>
                 {
-                    policy.WithOrigins("https://localhost:7057") // Blazor WebAssembly
+                    policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
-                          .AllowAnyMethod();
+                          .AllowAnyMethod()
+                          // Exponer cabeceras útiles (descargas, paginación, etc.)
+                          .WithExposedHeaders("Content-Disposition")
+                          // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
+                          ;
                 });
             });
 
-            // 4️⃣ Servicios personalizados
+            // 4) Servicios
             builder.Services.AddScoped<JwtService>();
-            builder.Services.AddScoped<NominaService>(); // ✅ Servicio de cálculo de nómina
+            builder.Services.AddScoped<NominaService>();
             builder.Services.AddScoped<ReporteService>();
             builder.Services.AddScoped<AuditoriaService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
 
-            // 5️⃣ Filtro global de auditoría
+            // 5) MVC + filtro global
             builder.Services.AddControllers(options =>
             {
-                options.Filters.AddService<AuditoriaActionFilter>(); 
-
+                options.Filters.AddService<AuditoriaActionFilter>();
             });
 
-            // 6️⃣ Swagger con JWT
+            // 6) Swagger con JWT
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
-                options.SwaggerDoc("v1", new() { Title = "ProyectoNomina", Version = "v1" });
-
-                options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = "ProyectoNomina", Version = "v1" });
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
-                    Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                    Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
-                    In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                    In = ParameterLocation.Header,
                     Description = "Escribe: Bearer {tu token JWT}"
                 });
-
-                options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
-                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        new OpenApiSecurityScheme
                         {
-                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                            Reference = new OpenApiReference
                             {
-                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                                Type = ReferenceType.SecurityScheme,
                                 Id = "Bearer"
                             }
                         },
@@ -100,25 +105,28 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // 7️⃣ Middleware
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+            // 7) Middleware
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
             app.UseHttpsRedirection();
 
-            app.UseStaticFiles();
+            // (Opcional) Solo si realmente sirves archivos estáticos desde la API:
+            // app.UseStaticFiles();
 
             app.UseCors("CorsPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // 8) Endpoints básicos
             app.MapControllers();
+
+            // Health y redirección a swagger
+            app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
+            app.MapGet("/", () => Results.Redirect("/swagger"));
+
             app.Run();
         }
     }
 }
-
