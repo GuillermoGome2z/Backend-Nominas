@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class LoginRequestDto
+    public class PuestoDto
     {
-        public string Correo { get; set; } = string.Empty;
-        public string Contrasena { get; set; } = string.Empty;
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public decimal SalarioBase { get; set; }
     }
 }

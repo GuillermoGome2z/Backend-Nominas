@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class LoginRequestDto
+    public class ItemDocumentoResumenDto
     {
-        public string Correo { get; set; } = string.Empty;
-        public string Contrasena { get; set; } = string.Empty;
+        public string Tipo { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
     }
 }

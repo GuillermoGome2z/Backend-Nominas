@@ -18,7 +18,7 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public string Correo { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
-        public string Contrasena { get; set; } = string.Empty;
+        public string Contraseña { get; set; } = string.Empty;
 
         public int? EmpleadoId { get; set; }
         public string Rol { get; set; } = "Usuario";
