@@ -22,6 +22,7 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<TipoDocumento> TiposDocumento { get; set; }
         public DbSet<InformacionAcademica> InformacionAcademica { get; set; }
         public DbSet<AjusteManual> AjustesManuales { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,6 +49,26 @@ namespace ProyectoNomina.Backend.Data
                 .HasForeignKey<Usuario>(u => u.EmpleadoId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // ✅ NUEVO: Configuración mínima para RefreshToken
+            modelBuilder.Entity<RefreshToken>(et =>
+            {
+                et.Property(p => p.Token)
+                  .IsRequired()
+                  .HasMaxLength(512); // base64 de 64 bytes cabe bien
+
+                et.Property(p => p.Expira)
+                  .IsRequired();
+
+                et.HasIndex(p => p.Token)
+                  .IsUnique();
+
+                // Relación con Usuario (1:N). No necesitas navegación en Usuario.
+                et.HasOne<Usuario>()
+                  .WithMany()
+                  .HasForeignKey(p => p.UsuarioId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            });
 
             base.OnModelCreating(modelBuilder);
         }
