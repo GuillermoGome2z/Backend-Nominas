@@ -50,7 +50,7 @@ namespace ProyectoNomina.Backend.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // ✅ NUEVO: Configuración mínima para RefreshToken
+            //  Configuración mínima para RefreshToken
             modelBuilder.Entity<RefreshToken>(et =>
             {
                 et.Property(p => p.Token)

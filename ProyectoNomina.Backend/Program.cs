@@ -4,12 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
-using System.Text;
+            using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using ProyectoNomina.Backend.Middleware; // ✅ Import necesario para el middleware
+using ProyectoNomina.Backend.Middleware; 
 
 namespace ProyectoNomina.Backend
 {
@@ -55,8 +55,8 @@ namespace ProyectoNomina.Backend
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          // Exponer cabeceras útiles (descargas, paginación, etc.)
-                          .WithExposedHeaders("Content-Disposition");
+                          // Exponer cabeceras útiles (descargas, paginación, refresh token)
+                          .WithExposedHeaders("Content-Disposition", "X-Refresh-Token");
                     // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
                 });
             });
@@ -75,7 +75,7 @@ namespace ProyectoNomina.Backend
                 options.Filters.AddService<AuditoriaActionFilter>();
             });
 
-            // ✅ NUEVO: Forzar 422 en errores de validación (requisito #4)
+            //  Forzar 422 en errores de validación 
             builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>
@@ -124,7 +124,7 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // --- NUEVO: Forwarded Headers (útil en producción detrás de proxy) ---
+            // ---Forwarded Headers (útil en producción detrás de proxy) ---
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
@@ -133,13 +133,13 @@ namespace ProyectoNomina.Backend
 
             // 7) Middleware
 
-            // ✅ NUEVO: Middleware global de manejo de errores (debe ir antes de Swagger y Controllers)
+            // Middleware global de manejo de errores 
             app.UseGlobalErrorHandler();
 
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            // --- NUEVO: HSTS solo fuera de Development ---
+            // --- HSTS solo fuera de Development ---
             if (!app.Environment.IsDevelopment())
             {
                 app.UseHsts();
@@ -148,7 +148,7 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
 
-            // (Opcional) Solo si realmente sirves archivos estáticos desde la API:
+            
             // app.UseStaticFiles();
 
             app.UseCors("CorsPolicy");
@@ -162,6 +162,13 @@ namespace ProyectoNomina.Backend
             // Health y redirección a swagger
             app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
             app.MapGet("/", () => Results.Redirect("/swagger"));
+
+            // Ejecutar seed runner en runtime 
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                ProyectoNomina.Backend.Data.DataSeeder.SeedAsync(db).GetAwaiter().GetResult();
+            }
 
             app.Run();
         }

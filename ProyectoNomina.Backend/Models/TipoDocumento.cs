@@ -1,13 +1,20 @@
-﻿using ProyectoNomina.Backend.Models;
-using ProyectoNomina.Shared.Models.DTOs;
-public class TipoDocumento
+﻿namespace ProyectoNomina.Backend.Models
 {
-    public int Id { get; set; }
-    public string Nombre { get; set; }
-    public string? Descripcion { get; set; }
-    public bool EsRequerido { get; set; } = true;
-    public int? Orden { get; set; }
+    public class TipoDocumento
+    {
+        public int Id { get; set; }
 
-    public ICollection<DocumentoEmpleado> DocumentosEmpleados { get; set; } = new List<DocumentoEmpleado>();
+        // Inicializado para evitar CS8618 y mantener no-nullable
+        public string Nombre { get; set; } = string.Empty;
 
+        public string? Descripcion { get; set; }
+
+        // Valor por defecto útil hoy y a futuro
+        public bool EsRequerido { get; set; } = true;
+
+        public int? Orden { get; set; }
+
+        // Navegación: lista inicializada para evitar nulls
+        public ICollection<DocumentoEmpleado> DocumentosEmpleados { get; set; } = new List<DocumentoEmpleado>();
+    }
 }
