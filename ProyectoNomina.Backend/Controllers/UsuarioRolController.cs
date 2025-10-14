@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
@@ -7,6 +9,8 @@ namespace ProyectoNomina.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public class UsuarioRolController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,16 +22,23 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/UsuarioRol
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<UsuarioRol>>> GetAsignaciones()
         {
-            return await _context.UsuarioRoles
+            var asignaciones = await _context.UsuarioRoles
                 .Include(ur => ur.Usuario)
                 .Include(ur => ur.Rol)
                 .ToListAsync();
+
+            return Ok(asignaciones);
         }
 
-        // GET: api/UsuarioRol/5
+        // GET: api/UsuarioRol/{usuarioId}/{rolId}
         [HttpGet("{usuarioId}/{rolId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<UsuarioRol>> GetAsignacion(int usuarioId, int rolId)
         {
             var asignacion = await _context.UsuarioRoles
@@ -35,12 +46,18 @@ namespace ProyectoNomina.Backend.Controllers
                 .Include(ur => ur.Rol)
                 .FirstOrDefaultAsync(ur => ur.UsuarioId == usuarioId && ur.RolId == rolId);
 
-            return asignacion == null ? NotFound() : asignacion;
+            if (asignacion == null)
+                return NotFound();
+
+            return Ok(asignacion);
         }
 
         // POST: api/UsuarioRol
         [HttpPost]
-        public async Task<ActionResult<UsuarioRol>> AsignarRol(UsuarioRol usuarioRol)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<ActionResult<UsuarioRol>> AsignarRol([FromBody] UsuarioRol usuarioRol)
         {
             var existe = await _context.UsuarioRoles
                 .AnyAsync(ur => ur.UsuarioId == usuarioRol.UsuarioId && ur.RolId == usuarioRol.RolId);
@@ -51,11 +68,16 @@ namespace ProyectoNomina.Backend.Controllers
             _context.UsuarioRoles.Add(usuarioRol);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetAsignacion), new { usuarioId = usuarioRol.UsuarioId, rolId = usuarioRol.RolId }, usuarioRol);
+            return CreatedAtAction(nameof(GetAsignacion),
+                new { usuarioId = usuarioRol.UsuarioId, rolId = usuarioRol.RolId },
+                usuarioRol);
         }
 
-        // DELETE: api/UsuarioRol/5/3
+        // DELETE: api/UsuarioRol/{usuarioId}/{rolId}
         [HttpDelete("{usuarioId}/{rolId}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> EliminarAsignacion(int usuarioId, int rolId)
         {
             var asignacion = await _context.UsuarioRoles

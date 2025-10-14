@@ -9,6 +9,9 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    // Por tener [Authorize], documentamos 401 y 403 a nivel de clase
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class DetalleNominasController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,6 +23,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/DetalleNominas
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<DetalleNomina>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<DetalleNomina>>> GetDetalles()
         {
             return await _context.DetalleNominas
@@ -30,6 +36,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/DetalleNominas/5
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(DetalleNomina), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<DetalleNomina>> GetDetalle(int id)
         {
             var detalle = await _context.DetalleNominas
@@ -42,6 +52,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/DetalleNominas
         [HttpPost]
+        [ProducesResponseType(typeof(DetalleNomina), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<DetalleNomina>> PostDetalle([FromBody] DetalleNomina detalle)
         {
             if (!_context.Empleados.Any(e => e.Id == detalle.EmpleadoId) ||
@@ -60,6 +74,11 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/DetalleNominas/5
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutDetalle(int id, [FromBody] DetalleNomina detalle)
         {
             if (id != detalle.Id)
@@ -86,6 +105,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // DELETE: api/DetalleNominas/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteDetalle(int id)
         {
             var detalle = await _context.DetalleNominas.FindAsync(id);

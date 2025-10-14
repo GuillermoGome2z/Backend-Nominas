@@ -19,6 +19,12 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpPost("login")]
+        // Documentación de respuestas requeridas: 200 / 400 / 401 / 422 / 500
+        [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public ActionResult<LoginResponseDto> Login([FromBody] LoginRequestDto request)
         {
             // Usuario fijo para pruebas
@@ -60,4 +66,3 @@ namespace ProyectoNomina.Backend.Controllers
         }
     }
 }
-

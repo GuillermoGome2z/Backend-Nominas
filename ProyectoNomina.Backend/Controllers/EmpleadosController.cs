@@ -11,6 +11,9 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH,Usuario")]
     [ApiController]
     [Route("api/[controller]")]
+    // Por [Authorize] en la clase, documentamos 401 y 403 globales
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class EmpleadosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,6 +24,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<EmpleadoDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados()
         {
             var empleados = await _context.Empleados
@@ -50,6 +56,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(EmpleadoDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<EmpleadoDto>> GetEmpleado(int id)
         {
             var e = await _context.Empleados
@@ -82,6 +92,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpPost]
+        [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PostEmpleado([FromBody] EmpleadoCreacionDto dto)
         {
             if (dto.FechaNacimiento == DateTime.MinValue)
@@ -128,6 +142,11 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ActualizarEmpleado(int id, EmpleadoDto dto)
         {
             if (id != dto.Id)
@@ -168,6 +187,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpPost("validar-duplicados")]
         [AllowAnonymous]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ValidarDuplicados([FromBody] EmpleadoCreacionDto dto)
         {
             var dpiExiste = await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
@@ -184,6 +206,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpGet("sin-usuario")]
         [Authorize(Roles = "Admin,RRHH")]
+        [ProducesResponseType(typeof(IEnumerable<EmpleadoAsignacionDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerEmpleadosSinUsuario()
         {
             var empleados = await _context.Empleados
@@ -199,6 +224,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteEmpleado(int id)
         {
             var empleado = await _context.Empleados
@@ -215,9 +244,12 @@ namespace ProyectoNomina.Backend.Controllers
             return NoContent();
         }
 
-    
         [HttpGet("mi-informacion")]
         [Authorize(Roles = "Usuario")]
+        [ProducesResponseType(typeof(EmpleadoDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<EmpleadoDto>> ObtenerMiInformacion()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -250,6 +282,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpGet("empleado-actual")]
         [Authorize]
+        [ProducesResponseType(typeof(int?), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerEmpleadoActual()
         {
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);

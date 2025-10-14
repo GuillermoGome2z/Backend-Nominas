@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
@@ -13,6 +14,10 @@ namespace ProyectoNomina.Backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class UsuariosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -26,6 +31,12 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpPut("asignar-empleado")]
         [Authorize(Roles = "Admin,RRHH")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         public async Task<IActionResult> AsignarEmpleadoAUsuario(int usuarioId, int empleadoId)
         {
             var usuario = await _context.Usuarios.FindAsync(usuarioId);
@@ -43,6 +54,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpGet("sin-empleado")]
         [Authorize(Roles = "Admin,RRHH")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<List<UsuarioDto>>> ObtenerUsuariosSinEmpleado()
         {
             var usuarios = await _context.Usuarios
@@ -61,6 +76,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpPost("registrar")]
         [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         public async Task<IActionResult> Registrar(UsuarioRegistroDto dto)
         {
             if (await _context.Usuarios.AnyAsync(u => u.Correo == dto.Correo))
@@ -90,6 +109,8 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpGet("existe-usuario")]
         [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ExisteUsuario()
         {
             bool existe = await _context.Usuarios.AnyAsync();
@@ -98,6 +119,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto credenciales)
         {
             var usuario = await _context.Usuarios
@@ -117,12 +142,21 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
         {
             return await _context.Usuarios.ToListAsync();
         }
 
         [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<Usuario>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -130,6 +164,11 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -143,6 +182,12 @@ namespace ProyectoNomina.Backend.Controllers
 
         [HttpPut("{id}/actualizar-rol")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         public async Task<IActionResult> ActualizarRol(int id, [FromBody] ActualizarRolDto dto)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -157,6 +202,10 @@ namespace ProyectoNomina.Backend.Controllers
         // ✅ NUEVO: Obtener el EmpleadoId del usuario autenticado
         [HttpGet("empleado-actual")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<int>> ObtenerEmpleadoActual()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

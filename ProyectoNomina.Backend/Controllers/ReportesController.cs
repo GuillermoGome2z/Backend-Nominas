@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
@@ -10,6 +11,10 @@ namespace ProyectoNomina.Backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin,RRHH")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class ReportesController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -22,6 +27,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("Nominas")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<IEnumerable<ReporteNominaDto>>> ObtenerReporteNominas()
         {
             var nominas = await _context.Nominas
@@ -46,6 +54,8 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("Expedientes")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<ReporteExpedienteDto>>> ObtenerReporteExpedientes()
         {
             var empleados = await _context.Empleados.ToListAsync();
@@ -84,6 +94,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("Expedientes/pdf")]
+        [Produces("application/pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GenerarPdfExpedientes()
         {
             var empleados = await _context.Empleados.ToListAsync();
@@ -123,6 +136,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("InformacionAcademica/pdf")]
+        [Produces("application/pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GenerarReporteInformacionAcademicaPdf()
         {
             var datos = await _context.InformacionAcademica.Include(i => i.Empleado).ToListAsync();
@@ -135,6 +152,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("Ajustes/pdf")]
+        [Produces("application/pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GenerarReporteAjustesPdf()
         {
             var ajustes = await _context.AjustesManuales.Include(a => a.Empleado).ToListAsync();
@@ -147,6 +168,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("Auditoria/pdf")]
+        [Produces("application/pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GenerarReporteAuditoriaPdf()
         {
             var auditoria = await _context.Auditoria.ToListAsync();
@@ -159,6 +184,8 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("PorTipoDocumento")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<List<ItemDocumentoDto>>> ObtenerReportePorTipoDocumento()
         {
             var resultado = await _context.TiposDocumento
@@ -174,6 +201,8 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("DocumentosPorEmpleado")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<List<ReporteDocumentosEmpleadoDto>>> ObtenerDocumentosPorEmpleado()
         {
             var empleados = await _context.Empleados

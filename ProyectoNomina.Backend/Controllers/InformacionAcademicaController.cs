@@ -10,6 +10,9 @@ namespace ProyectoNomina.Backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin,RRHH")]
+    // Por [Authorize], documentamos 401 y 403 a nivel de clase
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class InformacionAcademicaController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,6 +24,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/InformacionAcademica
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<InformacionAcademicaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<InformacionAcademicaDto>>> GetInformacionAcademica()
         {
             var lista = await _context.InformacionAcademica
@@ -40,6 +46,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/InformacionAcademica/5
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(InformacionAcademicaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<InformacionAcademicaDto>> GetInformacion(int id)
         {
             var info = await _context.InformacionAcademica.FindAsync(id);
@@ -61,6 +71,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/InformacionAcademica
         [HttpPost]
+        [ProducesResponseType(typeof(InformacionAcademicaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<InformacionAcademicaDto>> PostInformacion(InformacionAcademicaDto dto)
         {
             var info = new InformacionAcademica
@@ -79,8 +93,13 @@ namespace ProyectoNomina.Backend.Controllers
             return CreatedAtAction(nameof(GetInformacion), new { id = info.Id }, dto);
         }
 
-        // ✅ PUT: api/InformacionAcademica/5
+        // PUT: api/InformacionAcademica/5
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutInformacion(int id, InformacionAcademicaDto dto)
         {
             if (id != dto.Id)
@@ -103,6 +122,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // DELETE: api/InformacionAcademica/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteInformacion(int id)
         {
             var info = await _context.InformacionAcademica.FindAsync(id);

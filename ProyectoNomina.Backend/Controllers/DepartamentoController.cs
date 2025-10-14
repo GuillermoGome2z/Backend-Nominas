@@ -10,6 +10,9 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    // Por tener [Authorize], documentamos 401 y 403 a nivel de clase
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class DepartamentosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,6 +24,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Departamentos
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<DepartamentoDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<DepartamentoDto>>> GetDepartamentos()
         {
             var lista = await _context.Departamentos
@@ -36,6 +42,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Departamentos/5
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(DepartamentoDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<DepartamentoDto>> GetDepartamento(int id)
         {
             var departamento = await _context.Departamentos.FindAsync(id);
@@ -52,6 +62,13 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/Departamentos
         [HttpPost]
+        // Cubrimos 200 (tu retorno actual), y documentamos 201/204/400/422/500
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(DepartamentoDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> PostDepartamento([FromBody] DepartamentoDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Nombre))
@@ -74,6 +91,13 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/Departamentos/5
         [HttpPut("{id}")]
+        // Cubrimos 200 (tu retorno actual), y también 204/400/404/422/500
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutDepartamento(int id, [FromBody] DepartamentoDto dto)
         {
             if (id != dto.Id)
@@ -94,6 +118,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // DELETE: api/Departamentos/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteDepartamento(int id)
         {
             var departamento = await _context.Departamentos

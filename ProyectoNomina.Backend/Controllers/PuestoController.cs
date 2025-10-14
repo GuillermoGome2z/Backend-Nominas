@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
@@ -10,6 +11,10 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class PuestosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,6 +26,8 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Puestos
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<PuestoDto>>> GetPuestos()
         {
             var puestos = await _context.Puestos
@@ -37,6 +44,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Puestos/5
         [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<PuestoDto>> GetPuesto(int id)
         {
             var puesto = await _context.Puestos.FindAsync(id);
@@ -56,7 +66,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/Puestos
         [HttpPost]
-        public async Task<ActionResult<PuestoDto>> PostPuesto(PuestoDto dto)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<ActionResult<PuestoDto>> PostPuesto([FromBody] PuestoDto dto)
         {
             var puesto = new Puesto
             {
@@ -74,7 +87,12 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/Puestos/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPuesto(int id, PuestoDto dto)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status200OK)] // si en algún momento devuelves contenido
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> PutPuesto(int id, [FromBody] PuestoDto dto)
         {
             if (id != dto.Id)
                 return BadRequest();
@@ -93,6 +111,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // DELETE: api/Puestos/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeletePuesto(int id)
         {
             var puesto = await _context.Puestos.FindAsync(id);
@@ -106,4 +127,3 @@ namespace ProyectoNomina.Backend.Controllers
         }
     }
 }
-

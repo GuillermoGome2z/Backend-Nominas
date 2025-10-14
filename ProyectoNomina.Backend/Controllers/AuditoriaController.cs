@@ -9,6 +9,9 @@ namespace ProyectoNomina.Backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin")]
+    // Por [Authorize] a nivel de clase, documentamos 401 y 403:
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class AuditoriaController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -19,6 +22,10 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet]
+        // Códigos para este GET (no-CRUD): 200 / 400 / 500
+        [ProducesResponseType(typeof(IEnumerable<AuditoriaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<AuditoriaDto>>> GetAuditoria()
         {
             var auditoria = await _context.Auditoria

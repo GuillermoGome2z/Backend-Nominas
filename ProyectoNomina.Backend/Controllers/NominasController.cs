@@ -11,6 +11,9 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    // Por [Authorize], documentamos 401 y 403 a nivel de clase
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class NominasController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -24,6 +27,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Obtener todas las nóminas con sus detalles
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<Nomina>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas()
         {
             return await _context.Nominas
@@ -34,6 +40,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Obtener una nómina específica por ID
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(Nomina), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<Nomina>> GetNomina(int id)
         {
             var nomina = await _context.Nominas
@@ -46,6 +56,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Obtener DTO con detalles incluidos para visualización completa
         [HttpGet("completa")]
+        [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<NominaDto>>> ObtenerNominasCompletas()
         {
             var nominas = await _context.Nominas
@@ -75,6 +88,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("listado")]
+        [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerNominas()
         {
             var nominas = await _context.Nominas
@@ -92,6 +108,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Crear una nueva nómina (vacía, sin detalles)
         [HttpPost]
+        [ProducesResponseType(typeof(Nomina), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto)
         {
             var nomina = new Nomina
@@ -108,6 +128,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Procesar y calcular automáticamente una nómina
         [HttpPost("procesar/{id}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ProcesarNominaExistente(int id)
         {
             var nomina = await _context.Nominas
@@ -130,6 +153,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("GenerarPdf/{id}")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GenerarPdf(int id, [FromServices] ReporteService reporteService)
         {
             try
@@ -153,6 +179,9 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpGet("GenerarExcel/{id}")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GenerarExcel(int id, [FromServices] ReporteService reporteService)
         {
             var nomina = await _context.Nominas
@@ -168,9 +197,13 @@ namespace ProyectoNomina.Backend.Controllers
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Nomina_{id}.xlsx");
         }
 
-
         // ✅ Editar una nómina existente
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutNomina(int id, [FromBody] Nomina nomina)
         {
             if (id != nomina.Id) return BadRequest();
@@ -194,6 +227,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ✅ Eliminar una nómina por ID
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteNomina(int id)
         {
             var nomina = await _context.Nominas.FindAsync(id);

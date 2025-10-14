@@ -5,12 +5,14 @@ using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
 
-
 namespace ProyectoNomina.Backend.Controllers
 {
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    // Por tener [Authorize], documentamos 401 y 403 a nivel de clase
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class BonificacionesController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -22,6 +24,9 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Bonificaciones
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<Bonificacion>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<Bonificacion>>> GetBonificaciones()
         {
             return await _context.Bonificaciones.ToListAsync();
@@ -29,6 +34,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // GET: api/Bonificaciones/5
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(Bonificacion), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<Bonificacion>> GetBonificacion(int id)
         {
             var bono = await _context.Bonificaciones.FindAsync(id);
@@ -38,6 +47,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/Bonificaciones
         [HttpPost]
+        [ProducesResponseType(typeof(Bonificacion), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<Bonificacion>> PostBonificacion(Bonificacion bono)
         {
             _context.Bonificaciones.Add(bono);
@@ -48,6 +61,11 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/Bonificaciones/5
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutBonificacion(int id, Bonificacion bono)
         {
             if (id != bono.Id) return BadRequest();
@@ -71,6 +89,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // DELETE: api/Bonificaciones/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteBonificacion(int id)
         {
             var bono = await _context.Bonificaciones.FindAsync(id);
