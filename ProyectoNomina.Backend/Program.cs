@@ -7,7 +7,8 @@ using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.HttpOverrides; // NUEVO
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc; // ✅ NUEVO
 
 namespace ProyectoNomina.Backend
 {
@@ -71,6 +72,23 @@ namespace ProyectoNomina.Backend
             builder.Services.AddControllers(options =>
             {
                 options.Filters.AddService<AuditoriaActionFilter>();
+            });
+
+            // ✅ NUEVO: Forzar 422 en errores de validación (requisito #4)
+            builder.Services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    var problemDetails = new ValidationProblemDetails(context.ModelState)
+                    {
+                        Status = StatusCodes.Status422UnprocessableEntity,
+                        Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.2",
+                        Title = "La solicitud no pudo ser procesada por errores de validación.",
+                        Detail = "Revisa los errores por campo."
+                    };
+
+                    return new UnprocessableEntityObjectResult(problemDetails);
+                };
             });
 
             // 6) Swagger con JWT
