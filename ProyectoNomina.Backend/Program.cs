@@ -1,0 +1,132 @@
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using ProyectoNomina.Backend.Data;
+using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Backend.Filters;
+using System.Text;
+using QuestPDF.Infrastructure;
+using Microsoft.OpenApi.Models;
+
+namespace ProyectoNomina.Backend
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            // 1) DB
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // 2) JWT
+            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey no configurado");
+
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = jwtSettings["Issuer"],
+                        ValidAudience = jwtSettings["Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                    };
+                });
+
+            // 3) CORS (leer orígenes desde appsettings)
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+                                 ?? new[] { "http://localhost:5173" }; // Vite por defecto
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          // Exponer cabeceras útiles (descargas, paginación, etc.)
+                          .WithExposedHeaders("Content-Disposition")
+                          // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
+                          ;
+                });
+            });
+
+            // 4) Servicios
+            builder.Services.AddScoped<JwtService>();
+            builder.Services.AddScoped<NominaService>();
+            builder.Services.AddScoped<ReporteService>();
+            builder.Services.AddScoped<AuditoriaService>();
+            builder.Services.AddScoped<AuditoriaActionFilter>();
+            builder.Services.AddHttpContextAccessor();
+
+            // 5) MVC + filtro global
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.AddService<AuditoriaActionFilter>();
+            });
+
+            // 6) Swagger con JWT
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = "ProyectoNomina", Version = "v1" });
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Escribe: Bearer {tu token JWT}"
+                });
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
+
+            var app = builder.Build();
+
+            // 7) Middleware
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
+            app.UseHttpsRedirection();
+
+            // (Opcional) Solo si realmente sirves archivos estáticos desde la API:
+            // app.UseStaticFiles();
+
+            app.UseCors("CorsPolicy");
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            // 8) Endpoints básicos
+            app.MapControllers();
+
+            // Health y redirección a swagger
+            app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
+            app.MapGet("/", () => Results.Redirect("/swagger"));
+
+            app.Run();
+        }
+    }
+}
