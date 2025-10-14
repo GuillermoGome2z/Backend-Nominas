@@ -7,6 +7,7 @@ using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.HttpOverrides; // NUEVO
 
 namespace ProyectoNomina.Backend
 {
@@ -53,9 +54,8 @@ namespace ProyectoNomina.Backend
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           // Exponer cabeceras útiles (descargas, paginación, etc.)
-                          .WithExposedHeaders("Content-Disposition")
-                          // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
-                          ;
+                          .WithExposedHeaders("Content-Disposition");
+                    // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
                 });
             });
 
@@ -105,9 +105,23 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
+            // --- NUEVO: Forwarded Headers (útil en producción detrás de proxy) ---
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+            });
+            // ---------------------------------------------------------------------
+
             // 7) Middleware
             app.UseSwagger();
             app.UseSwaggerUI();
+
+            // --- NUEVO: HSTS solo fuera de Development ---
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHsts();
+            }
+            // ---------------------------------------------
 
             app.UseHttpsRedirection();
 
