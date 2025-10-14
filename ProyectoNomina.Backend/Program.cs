@@ -8,7 +8,8 @@ using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc; // ✅ NUEVO
+using Microsoft.AspNetCore.Mvc;
+using ProyectoNomina.Backend.Middleware; // ✅ Import necesario para el middleware
 
 namespace ProyectoNomina.Backend
 {
@@ -131,6 +132,10 @@ namespace ProyectoNomina.Backend
             // ---------------------------------------------------------------------
 
             // 7) Middleware
+
+            // ✅ NUEVO: Middleware global de manejo de errores (debe ir antes de Swagger y Controllers)
+            app.UseGlobalErrorHandler();
+
             app.UseSwagger();
             app.UseSwaggerUI();
 

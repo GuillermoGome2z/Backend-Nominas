@@ -62,6 +62,7 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<EmpleadoDto>> GetEmpleado(int id)
         {
+
             var e = await _context.Empleados
                 .Include(e => e.Departamento)
                 .Include(e => e.Puesto)
