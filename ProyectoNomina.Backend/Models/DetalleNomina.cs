@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ProyectoNomina.Backend.Models
 {
-    [Table("DetalleNominas")] // 👈 Esto corrige el error
+    [Table("DetalleNominas")] 
     public class DetalleNomina
     {
         public int Id { get; set; }
