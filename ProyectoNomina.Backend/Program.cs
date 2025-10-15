@@ -4,12 +4,13 @@ using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Backend.Filters;
-            using System.Text;
+using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using ProyectoNomina.Backend.Middleware; 
+using Microsoft.AspNetCore.Http.Features; // ← agregado para multipart
+using ProyectoNomina.Backend.Middleware;
 
 namespace ProyectoNomina.Backend
 {
@@ -48,18 +49,17 @@ namespace ProyectoNomina.Backend
             var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
                                  ?? new[] { "http://localhost:5173" }; // Vite por defecto
 
-           builder.Services.AddCors(options =>
-{
-    options.AddPolicy("CorsPolicy", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              // Exponer cabeceras útiles (descargas, paginación, refresh token)
-              .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
-        // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
-    });
-});
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          // Exponer cabeceras útiles (descargas, paginación, refresh token)
+                          .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
+                });
+            });
 
             // 4) Servicios
             builder.Services.AddScoped<JwtService>();
@@ -75,7 +75,7 @@ namespace ProyectoNomina.Backend
                 options.Filters.AddService<AuditoriaActionFilter>();
             });
 
-            //  Forzar 422 en errores de validación 
+            // Forzar 422 en errores de validación 
             builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>
@@ -122,6 +122,20 @@ namespace ProyectoNomina.Backend
                 });
             });
 
+            // 🟢 NUEVO BLOQUE - soporte para carga de archivos grandes y límite de 20 MB
+            builder.Services.Configure<FormOptions>(o =>
+            {
+                o.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20 MB
+                o.ValueLengthLimit = int.MaxValue;
+                o.MultipartHeadersLengthLimit = 64 * 1024;
+            });
+
+            builder.WebHost.ConfigureKestrel(k =>
+            {
+                k.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20 MB
+            });
+            // 🟢 FIN BLOQUE NUEVO
+
             var app = builder.Build();
 
             // ---Forwarded Headers (útil en producción detrás de proxy) ---
@@ -148,13 +162,20 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
 
-            
-            // app.UseStaticFiles();
+            // app.UseStaticFiles();  // ← no necesario, manejas descargas vía endpoints seguros
 
             app.UseCors("CorsPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // - crear carpeta de Uploads/Expedientes si no existe
+            var expedientesPath = Path.Combine(app.Environment.ContentRootPath, "Uploads", "Expedientes");
+            if (!Directory.Exists(expedientesPath))
+            {
+                Directory.CreateDirectory(expedientesPath);
+            }
+            
 
             // 8) Endpoints básicos
             app.MapControllers();

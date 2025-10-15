@@ -11,7 +11,6 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/DocumentosEmpleado")] // 🔁 Forzamos la ruta compatible con el frontend
-    // Por tener [Authorize], documentamos 401 y 403 a nivel de clase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class DocumentoEmpleadoController : ControllerBase
@@ -79,38 +78,74 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<DocumentoEmpleadoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentos([FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10)
-{
-    if (page < 1) page = 1;
-    if (pageSize < 1) pageSize = 10;
-    if (pageSize > 100) pageSize = 100;
-
-    var baseQuery = _context.DocumentosEmpleado
-        .AsNoTracking()
-        .Include(d => d.Empleado)
-        .Include(d => d.TipoDocumento);
-
-    var total = await baseQuery.CountAsync();
-
-    var documentos = await baseQuery
-        .OrderBy(d => d.Id)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize)
-        .Select(d => new DocumentoEmpleadoDto
+        public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentos(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            Id = d.Id,
-            EmpleadoId = d.EmpleadoId,
-            TipoDocumentoId = d.TipoDocumentoId,
-           NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
-            RutaArchivo = d.RutaArchivo,
-            FechaSubida = d.FechaSubida
-        })
-        .ToListAsync();
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
 
-    Response.Headers["X-Total-Count"] = total.ToString();
-    return Ok(documentos);
-}
+            var baseQuery = _context.DocumentosEmpleado
+                .AsNoTracking()
+                .Include(d => d.Empleado)
+                .Include(d => d.TipoDocumento);
+
+            var total = await baseQuery.CountAsync();
+
+            var documentos = await baseQuery
+                .OrderBy(d => d.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(d => new DocumentoEmpleadoDto
+                {
+                    Id = d.Id,
+                    EmpleadoId = d.EmpleadoId,
+                    TipoDocumentoId = d.TipoDocumentoId,
+                    NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
+                    RutaArchivo = d.RutaArchivo,
+                    FechaSubida = d.FechaSubida
+                })
+                .ToListAsync();
+
+            Response.Headers["X-Total-Count"] = total.ToString();
+            return Ok(documentos);
+        }
+
+        // GET: /api/expedientes/{empleadoId}/documentos/{docId}
+        [HttpGet("/api/expedientes/{empleadoId}/documentos/{docId}")]
+        [Authorize(Roles = "Admin,RRHH,Empleado")]
+        public async Task<IActionResult> DescargarDocumento(int empleadoId, int docId)
+        {
+            var doc = await _context.DocumentosEmpleado
+                .FirstOrDefaultAsync(d => d.Id == docId && d.EmpleadoId == empleadoId);
+
+            if (doc == null)
+                return NotFound("Documento no encontrado.");
+
+            if (!System.IO.File.Exists(doc.RutaArchivo))
+                return NotFound("El archivo físico no existe en el servidor.");
+
+            var ext = Path.GetExtension(doc.RutaArchivo);
+            var contentType = GetContentType(ext);
+            var downloadName = Path.GetFileName(doc.RutaArchivo);
+
+            var bytes = await System.IO.File.ReadAllBytesAsync(doc.RutaArchivo);
+            return File(bytes, contentType, downloadName);
+        }
+
+        // 🔹 Método auxiliar MIME
+        private static string GetContentType(string ext)
+        {
+            return ext.ToLowerInvariant() switch
+            {
+                ".pdf" => "application/pdf",
+                ".jpg" => "image/jpeg",
+                ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "application/octet-stream"
+            };
+        }
 
         // GET: api/DocumentosEmpleado/5
         [HttpGet("{id}")]
@@ -217,6 +252,45 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok("Documento guardado.");
+        }
+
+        // POST /api/expedientes/{empleadoId}/documentos
+        [HttpPost("/api/expedientes/{empleadoId}/documentos")]
+        [Authorize(Roles = "Admin,RRHH")]
+        [RequestSizeLimit(20_000_000)]
+        public async Task<IActionResult> SubirDocumento(int empleadoId, IFormFile archivo)
+        {
+            if (archivo == null || archivo.Length == 0)
+                return BadRequest("No se seleccionó ningún archivo.");
+
+            var tiposPermitidos = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+            var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+            if (!tiposPermitidos.Contains(extension))
+                return BadRequest($"Tipo de archivo no permitido ({extension}).");
+
+            var rutaEmpleado = Path.Combine("Uploads", "Expedientes", empleadoId.ToString());
+            Directory.CreateDirectory(rutaEmpleado);
+
+            var nombreArchivo = $"{Guid.NewGuid()}{extension}";
+            var rutaCompleta = Path.Combine(rutaEmpleado, nombreArchivo);
+
+            using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+            {
+                await archivo.CopyToAsync(stream);
+            }
+
+            var documento = new DocumentoEmpleado
+            {
+                EmpleadoId = empleadoId,
+                RutaArchivo = rutaCompleta.Replace("\\", "/"),
+                FechaSubida = DateTime.UtcNow,
+                TipoDocumentoId = 0 // si no asignas tipo desde el front
+            };
+
+            _context.DocumentosEmpleado.Add(documento);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { mensaje = "Archivo subido correctamente", documento.Id });
         }
 
         // DELETE: Eliminar documento por ID
