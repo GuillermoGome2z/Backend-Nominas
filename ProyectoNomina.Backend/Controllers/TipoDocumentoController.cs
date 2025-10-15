@@ -28,21 +28,33 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<TipoDocumentoDto>>> GetTipos()
-        {
-            var tipos = await _context.TiposDocumento
-                .Select(t => new TipoDocumentoDto
-                {
-                    Id = t.Id,
-                    Nombre = t.Nombre,
-                    Descripcion = t.Descripcion,
-                    EsRequerido = t.EsRequerido,
-                    Orden = t.Orden
-                })
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<TipoDocumentoDto>>> GetTipos([FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return Ok(tipos);
-        }
+    var baseQuery = _context.TiposDocumento.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var tipos = await baseQuery
+        .OrderBy(t => t.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(t => new TipoDocumentoDto
+        {
+            Id = t.Id,
+            Nombre = t.Nombre,
+            Descripcion = t.Descripcion,
+            EsRequerido = t.EsRequerido
+        })
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(tipos);
+}
 
         // GET: api/TipoDocumento/5
         [HttpGet("{id}")]

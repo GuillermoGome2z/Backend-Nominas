@@ -27,10 +27,26 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<Deduccion>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<Deduccion>>> GetDeducciones()
-        {
-            return await _context.Deducciones.ToListAsync();
-        }
+        public async Task<ActionResult<IEnumerable<Deduccion>>> GetDeducciones( [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+
+    var baseQuery = _context.Deducciones.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var lista = await baseQuery
+        .OrderBy(d => d.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(lista);
+}
 
         // GET: api/Deducciones/5
         [HttpGet("{id}")]

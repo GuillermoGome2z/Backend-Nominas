@@ -26,23 +26,36 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<AuditoriaDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<AuditoriaDto>>> GetAuditoria()
-        {
-            var auditoria = await _context.Auditoria
-                .OrderByDescending(a => a.Fecha)
-                .Select(a => new AuditoriaDto
-                {
-                    Id = a.Id,
-                    Usuario = a.Usuario,
-                    Accion = a.Accion,
-                    Fecha = a.Fecha,
-                    Detalles = a.Detalles,
-                    Endpoint = a.Endpoint,
-                    Metodo = a.Metodo
-                })
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<AuditoriaDto>>> GetAuditoria([FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return Ok(auditoria);
+    var baseQuery = _context.Auditoria.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var auditoria = await baseQuery
+        .OrderByDescending(a => a.Fecha)
+        .ThenBy(a => a.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(a => new AuditoriaDto
+        {
+            Id = a.Id,
+            Usuario = a.Usuario,
+            Accion = a.Accion,
+            Fecha = a.Fecha,
+            Detalles = a.Detalles,
+            Endpoint = a.Endpoint,
+            Metodo = a.Metodo
+        })
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(auditoria);
         }
     }
 }

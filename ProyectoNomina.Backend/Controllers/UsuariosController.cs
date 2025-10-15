@@ -146,10 +146,30 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()
-        {
-            return await _context.Usuarios.ToListAsync();
-        }
+        public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios([FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+
+    var baseQuery = _context.UsuarioRoles
+        .AsNoTracking()
+        .Include(ur => ur.Usuario)
+        .Include(ur => ur.Rol);
+
+    var total = await baseQuery.CountAsync();
+
+    var asignaciones = await baseQuery
+    .OrderBy(ur => ur.UsuarioId)
+    .ThenBy(ur => ur.RolId)
+    .Skip((page - 1) * pageSize)
+    .Take(pageSize)
+    .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(asignaciones);
+}
 
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -199,7 +219,7 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok("Rol actualizado correctamente.");
         }
 
-        // ✅ NUEVO: Obtener el EmpleadoId del usuario autenticado
+        //  Obtener el EmpleadoId del usuario autenticado
         [HttpGet("empleado-actual")]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]

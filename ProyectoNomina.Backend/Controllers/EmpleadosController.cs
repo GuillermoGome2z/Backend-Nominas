@@ -27,11 +27,28 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<EmpleadoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados()
+        public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var empleados = await _context.Empleados
+            // --- NUEVO: saneo de parámetros ---
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            // --- NUEVO: base query + total ---
+            var baseQuery = _context.Empleados
+                .AsNoTracking()
                 .Include(e => e.Departamento)
-                .Include(e => e.Puesto)
+                .Include(e => e.Puesto);
+
+            var total = await baseQuery.CountAsync();
+
+            // --- NUEVO: orden determinista + paginación + proyección a DTO ---
+            var empleados = await baseQuery
+                .OrderBy(e => e.Id) // orden estable
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(e => new EmpleadoDto
                 {
                     Id = e.Id,
@@ -51,6 +68,9 @@ namespace ProyectoNomina.Backend.Controllers
                     NombrePuesto = e.Puesto != null ? e.Puesto.Nombre : "No disponible"
                 })
                 .ToListAsync();
+
+            // --- NUEVO: header X-Total-Count ---
+            Response.Headers["X-Total-Count"] = total.ToString();
 
             return Ok(empleados);
         }

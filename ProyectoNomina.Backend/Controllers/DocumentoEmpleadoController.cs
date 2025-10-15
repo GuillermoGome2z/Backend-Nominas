@@ -79,25 +79,38 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<DocumentoEmpleadoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentos()
-        {
-            var documentos = await _context.DocumentosEmpleado
-                .Include(d => d.Empleado)
-                .Include(d => d.TipoDocumento)
-                .Select(d => new DocumentoEmpleadoDto
-                {
-                    Id = d.Id,
-                    EmpleadoId = d.EmpleadoId,
-                    NombreEmpleado = d.Empleado.NombreCompleto,
-                    TipoDocumentoId = d.TipoDocumentoId,
-                    NombreTipo = d.TipoDocumento.Nombre,
-                    RutaArchivo = d.RutaArchivo,
-                    FechaSubida = d.FechaSubida
-                })
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentos([FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return documentos;
-        }
+    var baseQuery = _context.DocumentosEmpleado
+        .AsNoTracking()
+        .Include(d => d.Empleado)
+        .Include(d => d.TipoDocumento);
+
+    var total = await baseQuery.CountAsync();
+
+    var documentos = await baseQuery
+        .OrderBy(d => d.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(d => new DocumentoEmpleadoDto
+        {
+            Id = d.Id,
+            EmpleadoId = d.EmpleadoId,
+            TipoDocumentoId = d.TipoDocumentoId,
+           NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
+            RutaArchivo = d.RutaArchivo,
+            FechaSubida = d.FechaSubida
+        })
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(documentos);
+}
 
         // GET: api/DocumentosEmpleado/5
         [HttpGet("{id}")]

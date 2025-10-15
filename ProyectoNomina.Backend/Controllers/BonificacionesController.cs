@@ -27,10 +27,27 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<Bonificacion>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<Bonificacion>>> GetBonificaciones()
-        {
-            return await _context.Bonificaciones.ToListAsync();
-        }
+        public async Task<ActionResult<IEnumerable<Bonificacion>>> GetBonificaciones(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+
+    var baseQuery = _context.Bonificaciones.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var bonos = await baseQuery
+        .OrderBy(b => b.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(bonos);
+}
 
         // GET: api/Bonificaciones/5
         [HttpGet("{id}")]

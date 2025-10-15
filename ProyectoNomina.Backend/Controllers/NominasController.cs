@@ -25,76 +25,125 @@ namespace ProyectoNomina.Backend.Controllers
             _nominaService = nominaService;
         }
 
-        // ✅ Obtener todas las nóminas con sus detalles
+        // Obtener todas las nóminas con sus detalles (paginado)
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<Nomina>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas()
+        public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            return await _context.Nominas
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var baseQuery = _context.Nominas
+                .AsNoTracking()
                 .Include(n => n.Detalles)
-                .ThenInclude(d => d.Empleado)
+                .ThenInclude(d => d.Empleado);
+
+            var total = await baseQuery.CountAsync();
+
+            var nominas = await baseQuery
+                .OrderByDescending(n => n.FechaGeneracion)
+                .ThenBy(n => n.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            Response.Headers["X-Total-Count"] = total.ToString();
+
+            return Ok(nominas);
         }
 
-        // ✅ Obtener una nómina específica por ID
-        [HttpGet("{id}")]
+        // NUEVO: Obtener una nómina por Id (necesario para CreatedAtRoute)
+        [HttpGet("{id}", Name = "GetNominaById")]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<Nomina>> GetNomina(int id)
         {
             var nomina = await _context.Nominas
+                .AsNoTracking()
                 .Include(n => n.Detalles)
                 .ThenInclude(d => d.Empleado)
                 .FirstOrDefaultAsync(n => n.Id == id);
 
-            return nomina == null ? NotFound() : nomina;
+            if (nomina == null) return NotFound();
+
+            return Ok(nomina);
         }
 
-        // ✅ Obtener DTO con detalles incluidos para visualización completa
+        // Obtener DTO con detalles incluidos (paginado)
         [HttpGet("completa")]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<NominaDto>>> ObtenerNominasCompletas()
+        public async Task<ActionResult<IEnumerable<NominaDto>>> ObtenerNominasCompletas(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var nominas = await _context.Nominas
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var baseQuery = _context.Nominas
+                .AsNoTracking()
                 .Include(n => n.Detalles)
-                .ThenInclude(d => d.Empleado)
+                .ThenInclude(d => d.Empleado);
+
+            var total = await baseQuery.CountAsync();
+
+            var resultado = await baseQuery
                 .OrderByDescending(n => n.FechaGeneracion)
+                .ThenBy(n => n.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(n => new NominaDto
+                {
+                    Id = n.Id,
+                    Descripcion = n.Descripcion,
+                    FechaGeneracion = n.FechaGeneracion,
+                    Detalles = n.Detalles.Select(d => new DetalleNominaDto
+                    {
+                        EmpleadoId = d.EmpleadoId,
+                        NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : "",
+                        SalarioBruto = d.SalarioBruto,
+                        Deducciones = d.Deducciones,
+                        Bonificaciones = d.Bonificaciones,
+                        SalarioNeto = d.SalarioNeto,
+                        DesgloseDeducciones = d.DesgloseDeducciones
+                    }).ToList()
+                })
                 .ToListAsync();
 
-            var resultado = nominas.Select(n => new NominaDto
-            {
-                Id = n.Id,
-                Descripcion = n.Descripcion,
-                FechaGeneracion = n.FechaGeneracion,
-                Detalles = n.Detalles.Select(d => new DetalleNominaDto
-                {
-                    EmpleadoId = d.EmpleadoId,
-                    NombreEmpleado = d.Empleado?.NombreCompleto ?? "",
-                    SalarioBruto = d.SalarioBruto,
-                    Deducciones = d.Deducciones,
-                    Bonificaciones = d.Bonificaciones,
-                    SalarioNeto = d.SalarioNeto,
-                    DesgloseDeducciones = d.DesgloseDeducciones
-                }).ToList()
-            });
+            Response.Headers["X-Total-Count"] = total.ToString();
 
             return Ok(resultado);
         }
 
+        // Listado simple (paginado)
         [HttpGet("listado")]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ObtenerNominas()
+        public async Task<IActionResult> ObtenerNominas(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var nominas = await _context.Nominas
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var baseQuery = _context.Nominas.AsNoTracking();
+
+            var total = await baseQuery.CountAsync();
+
+            var nominas = await baseQuery
                 .OrderByDescending(n => n.FechaGeneracion)
+                .ThenBy(n => n.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(n => new NominaDto
                 {
                     Id = n.Id,
@@ -103,10 +152,12 @@ namespace ProyectoNomina.Backend.Controllers
                 })
                 .ToListAsync();
 
+            Response.Headers["X-Total-Count"] = total.ToString();
+
             return Ok(nominas);
         }
 
-        // ✅ Crear una nueva nómina (vacía, sin detalles)
+        // Crear una nueva nómina (vacía, sin detalles)
         [HttpPost]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -123,10 +174,11 @@ namespace ProyectoNomina.Backend.Controllers
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetNomina), new { id = nomina.Id }, nomina);
+            // CAMBIO: usar la ruta nombrada del GET-by-id
+            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nomina);
         }
 
-        // ✅ Procesar y calcular automáticamente una nómina
+        // Procesar y calcular automáticamente una nómina
         [HttpPost("procesar/{id}")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -197,7 +249,7 @@ namespace ProyectoNomina.Backend.Controllers
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Nomina_{id}.xlsx");
         }
 
-        // ✅ Editar una nómina existente
+        // Editar una nómina existente
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -225,7 +277,7 @@ namespace ProyectoNomina.Backend.Controllers
             return NoContent();
         }
 
-        // ✅ Eliminar una nómina por ID
+        // Eliminar una nómina por ID
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

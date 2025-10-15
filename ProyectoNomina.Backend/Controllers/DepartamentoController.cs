@@ -27,18 +27,32 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<DepartamentoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<DepartamentoDto>>> GetDepartamentos()
+        public async Task<ActionResult<IEnumerable<DepartamentoDto>>> GetDepartamentos(
+             [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var lista = await _context.Departamentos
-                .Select(d => new DepartamentoDto
-                {
-                    Id = d.Id,
-                    Nombre = d.Nombre
-                })
-                .ToListAsync();
+            if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return Ok(lista);
-        }
+    var baseQuery = _context.Departamentos.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var lista = await baseQuery
+        .OrderBy(d => d.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(d => new DepartamentoDto
+        {
+            Id = d.Id,
+            Nombre = d.Nombre
+        })
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(lista);
+}
 
         // GET: api/Departamentos/5
         [HttpGet("{id}")]

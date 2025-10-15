@@ -27,22 +27,36 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<InformacionAcademicaDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<InformacionAcademicaDto>>> GetInformacionAcademica()
-        {
-            var lista = await _context.InformacionAcademica
-                .Include(i => i.Empleado)
-                .Select(i => new InformacionAcademicaDto
-                {
-                    Id = i.Id,
-                    EmpleadoId = i.EmpleadoId,
-                    Titulo = i.Titulo,
-                    Institucion = i.Institucion,
-                    FechaGraduacion = i.FechaGraduacion
-                })
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<InformacionAcademicaDto>>> GetInformacionAcademica([FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return Ok(lista);
-        }
+    var baseQuery = _context.InformacionAcademica
+        .AsNoTracking()
+        .Include(i => i.Empleado);
+
+    var total = await baseQuery.CountAsync();
+
+    var lista = await baseQuery
+        .OrderBy(i => i.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(i => new InformacionAcademicaDto
+        {
+            Id = i.Id,
+            EmpleadoId = i.EmpleadoId,
+            Titulo = i.Titulo,
+            Institucion = i.Institucion,
+            FechaGraduacion = i.FechaGraduacion
+        })
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(lista);
+}
 
         // GET: api/InformacionAcademica/5
         [HttpGet("{id}")]

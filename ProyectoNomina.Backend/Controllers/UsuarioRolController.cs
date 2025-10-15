@@ -24,15 +24,26 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<UsuarioRol>>> GetAsignaciones()
-        {
-            var asignaciones = await _context.UsuarioRoles
-                .Include(ur => ur.Usuario)
-                .Include(ur => ur.Rol)
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<UsuarioRol>>> GetAsignaciones( [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
 
-            return Ok(asignaciones);
-        }
+    var baseQuery = _context.Usuarios.AsNoTracking();
+
+    var total = await baseQuery.CountAsync();
+
+    var usuarios = await baseQuery
+        .OrderBy(u => u.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(usuarios);
+}
 
         // GET: api/UsuarioRol/{usuarioId}/{rolId}
         [HttpGet("{usuarioId}/{rolId}")]

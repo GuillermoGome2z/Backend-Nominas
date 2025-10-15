@@ -48,18 +48,18 @@ namespace ProyectoNomina.Backend
             var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
                                  ?? new[] { "http://localhost:5173" }; // Vite por defecto
 
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", policy =>
-                {
-                    policy.WithOrigins(allowedOrigins)
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          // Exponer cabeceras útiles (descargas, paginación, refresh token)
-                          .WithExposedHeaders("Content-Disposition", "X-Refresh-Token");
-                    // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
-                });
-            });
+           builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              // Exponer cabeceras útiles (descargas, paginación, refresh token)
+              .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
+        // Si un día usas cookies/credenciales, cambia a .AllowCredentials()
+    });
+});
 
             // 4) Servicios
             builder.Services.AddScoped<JwtService>();
