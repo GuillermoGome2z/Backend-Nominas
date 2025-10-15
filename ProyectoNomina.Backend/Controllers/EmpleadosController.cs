@@ -23,57 +23,98 @@ namespace ProyectoNomina.Backend.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<EmpleadoDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+      [HttpGet]
+[ProducesResponseType(typeof(IEnumerable<EmpleadoDto>), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] 
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+public async Task<ActionResult<IEnumerable<EmpleadoDto>>> GetEmpleados(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? q = null,                    
+    [FromQuery] int? departamentoId = null,          
+    [FromQuery] DateTime? fechaInicio = null,        
+    [FromQuery] DateTime? fechaFin = null)           
+{
+    // --- saneo de parámetros (igual que tenías) ---
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+
+    // --- validación de rango de fechas → 422 (punto 9) ---
+    if (fechaInicio.HasValue && fechaFin.HasValue && fechaInicio > fechaFin)
+    {
+        return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
         {
-            // --- NUEVO: saneo de parámetros ---
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100;
+            ["rangoFechas"] = new[] { "fechaInicio no puede ser mayor que fechaFin." }
+        }));
+    }
 
-            // --- NUEVO: base query + total ---
-            var baseQuery = _context.Empleados
-                .AsNoTracking()
-                .Include(e => e.Departamento)
-                .Include(e => e.Puesto);
+    // --- base query ---
+    var query = _context.Empleados
+        .AsNoTracking()
+        .Include(e => e.Departamento)
+        .Include(e => e.Puesto)
+        .AsQueryable();
 
-            var total = await baseQuery.CountAsync();
+    // --- filtros del punto 9 ---
+    // q: búsqueda básica por nombre, DPI, NIT, correo
+    if (!string.IsNullOrWhiteSpace(q))
+    {
+        var qNorm = q.Trim().ToLower();
+        query = query.Where(e =>
+            (e.NombreCompleto ?? "").ToLower().Contains(qNorm) ||
+            (e.DPI ?? "").ToLower().Contains(qNorm) ||
+            (e.NIT ?? "").ToLower().Contains(qNorm) ||
+            (e.Correo ?? "").ToLower().Contains(qNorm));
+    }
 
-            // --- NUEVO: orden determinista + paginación + proyección a DTO ---
-            var empleados = await baseQuery
-                .OrderBy(e => e.Id) // orden estable
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(e => new EmpleadoDto
-                {
-                    Id = e.Id,
-                    NombreCompleto = e.NombreCompleto,
-                    DPI = e.DPI,
-                    NIT = e.NIT,
-                    Correo = e.Correo,
-                    Direccion = e.Direccion,
-                    Telefono = e.Telefono,
-                    FechaContratacion = e.FechaContratacion,
-                    FechaNacimiento = e.FechaNacimiento,
-                    EstadoLaboral = e.EstadoLaboral,
-                    SalarioMensual = e.SalarioMensual,
-                    DepartamentoId = e.DepartamentoId ?? 0,
-                    PuestoId = e.PuestoId,
-                    NombreDepartamento = e.Departamento != null ? e.Departamento.Nombre : "No disponible",
-                    NombrePuesto = e.Puesto != null ? e.Puesto.Nombre : "No disponible"
-                })
-                .ToListAsync();
+    // departamentoId
+    if (departamentoId.HasValue)
+    {
+        query = query.Where(e => e.DepartamentoId == departamentoId.Value);
+    }
 
-            // --- NUEVO: header X-Total-Count ---
-            Response.Headers["X-Total-Count"] = total.ToString();
+    // fechaInicio / fechaFin (usando FechaContratacion; ajusta si deseas otra fecha)
+    if (fechaInicio.HasValue)
+        query = query.Where(e => e.FechaContratacion >= fechaInicio.Value.Date);
 
-            return Ok(empleados);
-        }
+    if (fechaFin.HasValue)
+        query = query.Where(e => e.FechaContratacion <= fechaFin.Value.Date);
+
+    // --- total después de aplicar filtros ---
+    var total = await query.CountAsync();
+
+    // --- orden determinista + paginación + proyección a DTO (igual que tenías) ---
+    var empleados = await query
+        .OrderBy(e => e.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(e => new EmpleadoDto
+        {
+            Id = e.Id,
+            NombreCompleto = e.NombreCompleto,
+            DPI = e.DPI,
+            NIT = e.NIT,
+            Correo = e.Correo,
+            Direccion = e.Direccion,
+            Telefono = e.Telefono,
+            FechaContratacion = e.FechaContratacion,
+            FechaNacimiento = e.FechaNacimiento,
+            EstadoLaboral = e.EstadoLaboral,
+            SalarioMensual = e.SalarioMensual,
+            DepartamentoId = e.DepartamentoId ?? 0,
+            PuestoId = e.PuestoId,
+            NombreDepartamento = e.Departamento != null ? e.Departamento.Nombre : "No disponible",
+            NombrePuesto = e.Puesto != null ? e.Puesto.Nombre : "No disponible"
+        })
+        .ToListAsync();
+
+    // --- header X-Total-Count (igual que tenías) ---
+    Response.Headers["X-Total-Count"] = total.ToString();
+
+    return Ok(empleados);
+}
 
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(EmpleadoDto), StatusCodes.Status200OK)]

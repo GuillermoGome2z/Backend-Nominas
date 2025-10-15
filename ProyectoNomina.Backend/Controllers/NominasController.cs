@@ -26,36 +26,63 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // Obtener todas las nóminas con sus detalles (paginado)
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<Nomina>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+       [HttpGet]
+[ProducesResponseType(typeof(IEnumerable<Nomina>), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // ← NUEVO
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] int? departamentoId = null,      // ← NUEVO
+    [FromQuery] DateTime? fechaInicio = null,    // ← NUEVO
+    [FromQuery] DateTime? fechaFin = null)       // ← NUEVO
+{
+    // saneo de paginación (igual)
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
+    if (pageSize > 100) pageSize = 100;
+
+    // validación rango fechas → 422 (punto 9)
+    if (fechaInicio.HasValue && fechaFin.HasValue && fechaInicio > fechaFin)
+    {
+        return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100;
+            ["rangoFechas"] = new[] { "fechaInicio no puede ser mayor que fechaFin." }
+        }));
+    }
 
-            var baseQuery = _context.Nominas
-                .AsNoTracking()
-                .Include(n => n.Detalles)
-                .ThenInclude(d => d.Empleado);
+    // base query
+    var query = _context.Nominas
+        .AsNoTracking()
+        .Include(n => n.Detalles)
+            .ThenInclude(d => d.Empleado)
+        .AsQueryable();
 
-            var total = await baseQuery.CountAsync();
+    // filtros del punto 9
+    if (fechaInicio.HasValue)
+        query = query.Where(n => n.FechaGeneracion >= fechaInicio.Value.Date);
 
-            var nominas = await baseQuery
-                .OrderByDescending(n => n.FechaGeneracion)
-                .ThenBy(n => n.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+    if (fechaFin.HasValue)
+        query = query.Where(n => n.FechaGeneracion <= fechaFin.Value.Date);
 
-            Response.Headers["X-Total-Count"] = total.ToString();
+    if (departamentoId.HasValue)
+        query = query.Where(n => n.Detalles.Any(d => d.Empleado.DepartamentoId == departamentoId.Value));
 
-            return Ok(nominas);
-        }
+    // total después de aplicar filtros
+    var total = await query.CountAsync();
+
+    // orden + paginación (igual que tenías)
+    var nominas = await query
+        .OrderByDescending(n => n.FechaGeneracion)
+        .ThenBy(n => n.Id)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+
+    Response.Headers["X-Total-Count"] = total.ToString();
+    return Ok(nominas);
+}
 
         // NUEVO: Obtener una nómina por Id (necesario para CreatedAtRoute)
         [HttpGet("{id}", Name = "GetNominaById")]
