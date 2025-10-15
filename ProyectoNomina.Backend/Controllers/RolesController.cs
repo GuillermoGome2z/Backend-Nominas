@@ -11,6 +11,7 @@ namespace ProyectoNomina.Backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public class RolesController : ControllerBase
     {
