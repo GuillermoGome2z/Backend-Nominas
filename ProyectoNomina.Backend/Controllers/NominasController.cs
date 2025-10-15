@@ -184,6 +184,69 @@ public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas(
             return Ok(nominas);
         }
 
+        // GET: /api/nominas/{id}/detalle?empleadoId=123   (empleadoId es opcional)
+[HttpGet("{id:int}/detalle")]
+[ProducesResponseType(typeof(NominaDetalleDto), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+public async Task<ActionResult<NominaDetalleDto>> GetDetalle(int id, [FromQuery] int? empleadoId = null)
+{
+    // 404 si no existe la nómina
+    var nomina = await _context.Nominas
+        .AsNoTracking()
+        .FirstOrDefaultAsync(n => n.Id == id);
+
+    if (nomina == null)
+        return NotFound();
+
+    // Query base de detalles (con Empleado para el nombre)
+    var qDetalles = _context.DetalleNominas
+        .AsNoTracking()
+        .Where(d => d.NominaId == id)
+        .Include(d => d.Empleado)
+        .AsQueryable();
+
+    // Filtro opcional por empleado
+    if (empleadoId.HasValue)
+        qDetalles = qDetalles.Where(d => d.EmpleadoId == empleadoId.Value);
+
+    // Proyección a tu DTO existente (DetalleNominaDto)
+    var items = await qDetalles
+        .Select(d => new DetalleNominaDto
+        {
+            Id = d.Id,
+            NominaId = d.NominaId,
+            EmpleadoId = d.EmpleadoId,
+            SalarioBruto = d.SalarioBruto,
+            Deducciones = d.Deducciones,
+            Bonificaciones = d.Bonificaciones,
+            SalarioNeto = d.SalarioNeto,
+            DesgloseDeducciones = d.DesgloseDeducciones,
+            NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : string.Empty
+        })
+        .OrderBy(i => i.NombreEmpleado)
+        .ToListAsync();
+
+    // Totales (del conjunto actual: toda la nómina o filtrado por empleado)
+    var totalBruto = await qDetalles.SumAsync(d => (decimal?)d.SalarioBruto) ?? 0m;
+    var totalDeducciones = await qDetalles.SumAsync(d => (decimal?)d.Deducciones) ?? 0m;
+    var totalBonificaciones = await qDetalles.SumAsync(d => (decimal?)d.Bonificaciones) ?? 0m;
+    var totalNeto = await qDetalles.SumAsync(d => (decimal?)d.SalarioNeto) ?? 0m;
+
+    var dto = new NominaDetalleDto
+    {
+        NominaId = nomina.Id,
+        FechaGeneracion = nomina.FechaGeneracion,
+        Descripcion = nomina.Descripcion ?? string.Empty,
+        TotalBruto = totalBruto,
+        TotalDeducciones = totalDeducciones,
+        TotalBonificaciones = totalBonificaciones,
+        TotalNeto = totalNeto,
+        Items = items
+    };
+
+    return Ok(dto);
+}
+
         // Crear una nueva nómina (vacía, sin detalles)
         [HttpPost]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status201Created)]
