@@ -23,6 +23,7 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<InformacionAcademica> InformacionAcademica { get; set; }
         public DbSet<AjusteManual> AjustesManuales { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<ObservacionExpediente> ObservacionesExpediente { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,12 +51,12 @@ namespace ProyectoNomina.Backend.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            //  Configuración mínima para RefreshToken
+            // Configuración mínima para RefreshToken
             modelBuilder.Entity<RefreshToken>(et =>
             {
                 et.Property(p => p.Token)
                   .IsRequired()
-                  .HasMaxLength(512); // base64 de 64 bytes cabe bien
+                  .HasMaxLength(512);
 
                 et.Property(p => p.Expira)
                   .IsRequired();
@@ -63,11 +64,46 @@ namespace ProyectoNomina.Backend.Data
                 et.HasIndex(p => p.Token)
                   .IsUnique();
 
-                // Relación con Usuario (1:N). No necesitas navegación en Usuario.
                 et.HasOne<Usuario>()
                   .WithMany()
                   .HasForeignKey(p => p.UsuarioId)
                   .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // === Configuración para ObservacionExpediente ===
+            modelBuilder.Entity<ObservacionExpediente>(et =>
+            {
+                et.ToTable("ObservacionesExpediente");
+                et.HasKey(o => o.Id);
+
+                et.Property(o => o.Texto)
+                  .HasMaxLength(2000)
+                  .IsRequired();
+
+                et.Property(o => o.FechaCreacion)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+                // FK obligatoria -> Empleado
+                et.HasOne<Empleado>()
+                  .WithMany()
+                  .HasForeignKey(o => o.EmpleadoId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+                // FK obligatoria -> Usuario (creador)
+               et.HasOne<Empleado>()
+  .WithMany()
+  .HasForeignKey(o => o.EmpleadoId)
+  .OnDelete(DeleteBehavior.Restrict);
+
+                // FK opcional -> DocumentoEmpleado (evitar multiple cascade paths)
+                et.HasOne<DocumentoEmpleado>()
+                  .WithMany()
+                  .HasForeignKey(o => o.DocumentoEmpleadoId)
+                  .OnDelete(DeleteBehavior.SetNull); // << cambio clave
+
+                // Índices útiles
+                et.HasIndex(o => new { o.EmpleadoId, o.DocumentoEmpleadoId });
+                et.HasIndex(o => o.FechaCreacion);
             });
 
             base.OnModelCreating(modelBuilder);
