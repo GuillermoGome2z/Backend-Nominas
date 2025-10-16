@@ -29,8 +29,10 @@ namespace ProyectoNomina.Backend
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2) JWT
+            // 2) JWT (defensive config + validaciones estrictas)
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+            var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JwtSettings:Issuer no configurado");
+            var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JwtSettings:Audience no configurado");
             var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey no configurado");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -42,10 +44,10 @@ namespace ProyectoNomina.Backend
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        ValidIssuer = jwtSettings["Issuer"],
-                        ValidAudience = jwtSettings["Audience"],
+                        ValidIssuer = issuer,
+                        ValidAudience = audience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                        ClockSkew = TimeSpan.Zero // endurece expiración JWT (front muestra 401/403 correctamente)
+                        ClockSkew = TimeSpan.Zero // endurece expiración JWT
                     };
                 });
 
@@ -138,6 +140,10 @@ namespace ProyectoNomina.Backend
                         Array.Empty<string>()
                     }
                 });
+
+                // Si luego agregas el filtro AuthorizeResponsesOperationFilter,
+                // descomenta esta línea:
+                // options.OperationFilter<AuthorizeResponsesOperationFilter>();
             });
 
             // 7) Subida de archivos (20 MB) coherente con Kestrel e IIS
@@ -166,6 +172,27 @@ namespace ProyectoNomina.Backend
             // 9) Middlewares
             app.UseGlobalErrorHandler();
 
+            // Middleware para convertir request demasiado grande en 413 con ProblemDetails
+            app.Use(async (context, next) =>
+            {
+                try
+                {
+                    await next();
+                }
+                catch (BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
+                {
+                    context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                    context.Response.ContentType = "application/problem+json";
+                    var problem = new ProblemDetails
+                    {
+                        Status = StatusCodes.Status413PayloadTooLarge,
+                        Title = "Archivo demasiado grande",
+                        Detail = "El tamaño máximo permitido es 20 MB. Reduce el archivo e inténtalo de nuevo."
+                    };
+                    await context.Response.WriteAsJsonAsync(problem);
+                }
+            });
+
             // Swagger (si deseas ocultarlo en prod, colócalo dentro de if Development)
             app.UseSwagger();
             app.UseSwaggerUI();
@@ -177,6 +204,15 @@ namespace ProyectoNomina.Backend
 
             app.UseHttpsRedirection();
             app.UseCors("CorsPolicy");
+
+            // Agrega cabecera Vary: Origin para evitar cachés cruzados por origen
+            app.Use(async (ctx, next) =>
+            {
+                await next();
+                if (!ctx.Response.Headers.ContainsKey("Vary"))
+                    ctx.Response.Headers.Append("Vary", "Origin");
+            });
+
             app.UseAuthentication();
             app.UseAuthorization();
 
