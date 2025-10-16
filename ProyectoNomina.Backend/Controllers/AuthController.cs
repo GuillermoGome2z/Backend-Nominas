@@ -33,7 +33,6 @@ namespace ProyectoNomina.Backend.Controllers
             if (request is null || string.IsNullOrWhiteSpace(request.Correo) || string.IsNullOrWhiteSpace(request.Contraseña))
                 return BadRequest("Correo y contraseña son requeridos.");
 
-            // Buscar usuario REAL en BD por correo
             var usuario = await _context.Usuarios
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Correo == request.Correo);
@@ -41,26 +40,19 @@ namespace ProyectoNomina.Backend.Controllers
             if (usuario is null)
                 return Unauthorized("Credenciales inválidas.");
 
-            //  Verificar hash con BCrypt
             var passwordOk = BCrypt.Net.BCrypt.Verify(request.Contraseña, usuario.ClaveHash);
             if (!passwordOk)
                 return Unauthorized("Credenciales inválidas.");
 
-            // (Opcional) política de “un solo refresh activo por usuario”:
-            // Revocar todos los refresh no revocados del usuario antes de emitir uno nuevo.
+            // (Opcional) política: un solo refresh activo por usuario
             var tokensPrevios = await _context.RefreshTokens
                 .Where(t => t.UsuarioId == usuario.Id && !t.Revocado && t.Expira > DateTime.UtcNow)
                 .ToListAsync();
-
             if (tokensPrevios.Count > 0)
-            {
                 foreach (var t in tokensPrevios) t.Revocado = true;
-            }
 
-            //  Generar JWT
             var jwt = _jwtService.GenerarToken(usuario);
 
-            //  Generar nuevo refresh token (7 días)
             var refresh = new RefreshToken
             {
                 UsuarioId = usuario.Id,
@@ -77,7 +69,6 @@ namespace ProyectoNomina.Backend.Controllers
             }
             catch (Exception ex)
             {
-                // En prod, usa logger; aquí mantenemos coherencia con tu patrón
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine(ex.InnerException?.Message);
 
@@ -89,7 +80,7 @@ namespace ProyectoNomina.Backend.Controllers
                 });
             }
 
-            //  Devolver el refresh token por header para que el front lo pueda leer (exponer en CORS)
+            // Exponer en CORS (ya lo dejaste en Program.cs)
             Response.Headers.Append("X-Refresh-Token", refresh.Token);
 
             return Ok(new LoginResponseDto
@@ -100,18 +91,21 @@ namespace ProyectoNomina.Backend.Controllers
             });
         }
 
+        // ====== REFRESH usando DTO ======
         [HttpPost("refresh")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult> Refresh([FromBody] string refreshToken)
+        [ProducesResponseType(typeof(RefreshResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<ActionResult<RefreshResponseDto>> Refresh([FromBody] RefreshRequestDto request)
         {
-            if (string.IsNullOrWhiteSpace(refreshToken))
+            // [ApiController] + ApiBehaviorOptions devuelve 422 si el modelo no es válido,
+            // pero mantenemos BadRequest por si llega whitespace.
+            if (request is null || string.IsNullOrWhiteSpace(request.RefreshToken))
                 return BadRequest("Se requiere el refresh token.");
 
-            // Necesitamos entidad rastreada para poder modificar (revocar)
             var stored = await _context.RefreshTokens
-                .FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revocado);
+                .FirstOrDefaultAsync(t => t.Token == request.RefreshToken && !t.Revocado);
 
             if (stored == null || stored.Expira < DateTime.UtcNow)
                 return Unauthorized("Refresh token inválido o expirado.");
@@ -120,10 +114,9 @@ namespace ProyectoNomina.Backend.Controllers
             if (usuario == null)
                 return Unauthorized("Usuario no encontrado.");
 
-            //  Rotación: revocar el token antiguo
+            // Rotación: revocar y crear uno nuevo
             stored.Revocado = true;
 
-            //  Crear uno nuevo
             var nuevoRefresh = new RefreshToken
             {
                 UsuarioId = usuario.Id,
@@ -152,24 +145,25 @@ namespace ProyectoNomina.Backend.Controllers
 
             var nuevoJwt = _jwtService.GenerarToken(usuario);
 
-            return Ok(new
+            return Ok(new RefreshResponseDto
             {
-                token = nuevoJwt,
-                refreshToken = nuevoRefresh.Token
+                Token = nuevoJwt,
+                RefreshToken = nuevoRefresh.Token
             });
         }
 
-        //  Logout: revoca un refresh token vigente. Devuelve 204
+        // ====== LOGOUT usando DTO ======
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Logout([FromBody] string refreshToken)
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> Logout([FromBody] RefreshRequestDto request)
         {
-            if (string.IsNullOrWhiteSpace(refreshToken))
+            if (request is null || string.IsNullOrWhiteSpace(request.RefreshToken))
                 return BadRequest("Se requiere el refresh token.");
 
             var stored = await _context.RefreshTokens
-                .FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revocado);
+                .FirstOrDefaultAsync(t => t.Token == request.RefreshToken && !t.Revocado);
 
             if (stored != null)
             {
