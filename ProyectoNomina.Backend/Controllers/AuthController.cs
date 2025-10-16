@@ -23,7 +23,6 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         [HttpPost("login")]
-        // Documentación de respuestas requeridas: 200 / 400 / 401 / 422 / 500
         [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -31,51 +30,73 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
         {
-            // ⚠️ Usuario fijo para pruebas (ajusta a tu lógica real cuando conectes con Usuarios)
-            if (request.Correo == "admin@empresa.com" && request.Contraseña == "Admin123!")
+            // Validación mínima del payload
+            if (request is null || string.IsNullOrWhiteSpace(request.Correo) || string.IsNullOrWhiteSpace(request.Contraseña))
+                return BadRequest("Correo y contraseña son requeridos.");
+
+            // ⚠️ Credenciales de prueba (ajusta a tu verificación real de hash)
+            var credencialesOK = request.Correo == "admin@empresa.com" && request.Contraseña == "Admin123!";
+            if (!credencialesOK)
+                return Unauthorized("Credenciales inválidas");
+
+            // 🔴 ANTES: se creaba un Usuario con Id=1 “a mano” (posible FK inválida).
+            // ✅ AHORA: obtenemos el usuario REAL desde la BD por Correo.
+            var usuario = await _context.Usuarios
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Correo == request.Correo);
+
+            if (usuario == null)
+                return Unauthorized("Usuario no encontrado en la base de datos.");
+
+            // Rol: si usas tabla Roles/UsuarioRoles, arma el string si lo necesitas en el token
+            // (aquí usamos el campo Rol del modelo para mantener tu lógica actual)
+            var jwt = _jwtService.GenerarToken(usuario);
+
+            // Generar refresh token (7 días)
+            var refresh = new RefreshToken
             {
-                // Puedes buscar el usuario real en BD si quieres:
-                // var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Correo == request.Correo);
-                // if (usuario == null) return Unauthorized("Usuario no encontrado.");
+                UsuarioId = usuario.Id,                 // <- Id REAL de BD
+                Token = _jwtService.GenerarRefreshToken(),
+                Expira = DateTime.UtcNow.AddDays(7),
+                Revocado = false
+            };
 
-                // Usuario de ejemplo para generar el JWT:
-                var usuario = new Usuario
-                {
-                    Id = 1,
-                    NombreCompleto = "Administrador",
-                    Correo = request.Correo,
-                    Rol = "Admin"
-                };
+            _context.RefreshTokens.Add(refresh);
 
-                var jwt = _jwtService.GenerarToken(usuario);
-
-                // Generar y guardar refresh token (7 días)
-                var refresh = new RefreshToken
-                {
-                    UsuarioId = usuario.Id,
-                    Token = _jwtService.GenerarRefreshToken(),
-                    Expira = DateTime.UtcNow.AddDays(7),
-                    Revocado = false
-                };
-
-                _context.RefreshTokens.Add(refresh);
+            try
+            {
                 await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log útil en desarrollo
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine(ex.InnerException?.Message);
 
-                // Devolver el refresh token por header sin romper tu DTO:
-                Response.Headers.Append("X-Refresh-Token", refresh.Token);
-
-                return Ok(new LoginResponseDto
+                // Respuesta estándar (tu middleware de errores también la capturará)
+                return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
-                    Token = jwt,
-                    NombreUsuario = usuario.NombreCompleto,
-                    Rol = usuario.Rol
+                    status = 500,
+                    message = "Error interno al guardar el refresh token.",
+                    detail = ex.InnerException?.Message ?? ex.Message
                 });
             }
 
-            return Unauthorized("Credenciales inválidas");
+            // Devolver el refresh token por header sin romper tu DTO
+            Response.Headers.Append("X-Refresh-Token", refresh.Token);
+
+            return Ok(new LoginResponseDto
+            {
+                Token = jwt,
+                NombreUsuario = usuario.NombreCompleto,
+                Rol = usuario.Rol
+            });
         }
 
         [HttpPost("refresh")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult> Refresh([FromBody] string refreshToken)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
@@ -104,7 +125,22 @@ namespace ProyectoNomina.Backend.Controllers
             };
 
             _context.RefreshTokens.Add(nuevoRefresh);
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine(ex.InnerException?.Message);
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    status = 500,
+                    message = "Error interno al actualizar el refresh token.",
+                    detail = ex.InnerException?.Message ?? ex.Message
+                });
+            }
 
             var nuevoJwt = _jwtService.GenerarToken(usuario);
 
