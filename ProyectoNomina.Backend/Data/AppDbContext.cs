@@ -24,6 +24,7 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<AjusteManual> AjustesManuales { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<ObservacionExpediente> ObservacionesExpediente { get; set; }
+        public DbSet<DetalleNominaHistorial> DetalleNominaHistorial { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
