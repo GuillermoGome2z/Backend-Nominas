@@ -8,6 +8,7 @@ using ProyectoNomina.Backend.Options;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Shared.Models.DTOs;
 using System.Security.Claims;
+using ProyectoNomina.Backend.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -41,82 +42,82 @@ namespace ProyectoNomina.Backend.Controllers
         // Form fields: tipoDocumentoId, archivo
         // ============================================
         [HttpPost("{empleadoId:int}")]
-        [RequestSizeLimit(100_000_000)] // 100 MB -> 413 si se excede
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
-        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-        public async Task<IActionResult> SubirDocumentoMultipart(
-            int empleadoId,
-            [FromForm] int tipoDocumentoId,
-            [FromForm(Name = "archivo")] IFormFile archivo,
-            CancellationToken ct)
-        {
-            if (!_storage.IsEnabled)
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, "Azure Blob no está habilitado.");
+[Consumes("multipart/form-data")]
+[RequestSizeLimit(100_000_000)] // 100 MB -> 413 si se excede
+[ProducesResponseType(StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
+[ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+[ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+public async Task<IActionResult> SubirDocumentoMultipart(
+    int empleadoId,
+    [FromForm] DocumentoUploadFormDto form,
+    CancellationToken ct)
+{
+    if (!_storage.IsEnabled)
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, "Azure Blob no está habilitado.");
 
-            // existencia de empleado / tipo
-            var empleadoExists = await _context.Empleados.AnyAsync(e => e.Id == empleadoId, ct);
-            if (!empleadoExists) return NotFound("Empleado no existe.");
+    // existencia de empleado / tipo
+    var empleadoExists = await _context.Empleados.AnyAsync(e => e.Id == empleadoId, ct);
+    if (!empleadoExists) return NotFound("Empleado no existe.");
 
-            var tipoExists = await _context.TiposDocumento.AnyAsync(t => t.Id == tipoDocumentoId, ct);
-            if (!tipoExists) return NotFound("Tipo de documento no existe.");
+    var tipoExists = await _context.TiposDocumento.AnyAsync(t => t.Id == form.TipoDocumentoId, ct);
+    if (!tipoExists) return NotFound("Tipo de documento no existe.");
 
-            if (archivo == null || archivo.Length == 0)
-                return UnprocessableEntity(new { error = "Archivo vacío o ausente." });
+    var archivo = form.Archivo;
+    if (archivo == null || archivo.Length == 0)
+        return UnprocessableEntity(new { error = "Archivo vacío o ausente." });
 
-            // Validación de tipo
-            var allowedExt = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-            var allowedMime = new[] { "application/pdf", "image/jpeg", "image/png" };
+    // Validación de tipo
+    var allowedExt = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+    var allowedMime = new[] { "application/pdf", "image/jpeg", "image/png" };
 
-            var ext = Path.GetExtension(archivo.FileName).ToLowerInvariant();
-            if (!allowedExt.Contains(ext))
-                return UnprocessableEntity(new { error = $"Extensión no permitida: {ext}" });
+    var ext = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+    if (!allowedExt.Contains(ext))
+        return UnprocessableEntity(new { error = $"Extensión no permitida: {ext}" });
 
-            if (!allowedMime.Contains(archivo.ContentType))
-                return UnprocessableEntity(new { error = $"MIME no permitido: {archivo.ContentType}" });
+    if (!allowedMime.Contains(archivo.ContentType))
+        return UnprocessableEntity(new { error = $"MIME no permitido: {archivo.ContentType}" });
 
-            // Nombre seguro + ruta blob
-            string Safe(string s) => new string(s.Where(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' or ' ').ToArray()).Trim();
-            var safeName = Safe(Path.GetFileName(archivo.FileName));
-            var blobPath = $"documentos/{empleadoId}/{Guid.NewGuid():N}_{safeName}";
+    // Nombre seguro + ruta blob
+    string Safe(string s) => new string(s.Where(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' or ' ').ToArray()).Trim();
+    var safeName = Safe(Path.GetFileName(archivo.FileName));
+    var blobPath = $"documentos/{empleadoId}/{Guid.NewGuid():N}_{safeName}";
 
-            // Subir a blob (streaming)
-            var pathInBlob = await _storage.UploadAsync(archivo, blobPath, ct);
+    // Subir a blob (streaming)
+    var pathInBlob = await _storage.UploadAsync(archivo, blobPath, ct);
 
-            var documento = new DocumentoEmpleado
-            {
-                EmpleadoId = empleadoId,
-                TipoDocumentoId = tipoDocumentoId,
-                RutaArchivo = pathInBlob,         // guardamos ruta interna del blob
-                FechaSubida = DateTime.UtcNow
-            };
+    var documento = new DocumentoEmpleado
+    {
+        EmpleadoId = empleadoId,
+        TipoDocumentoId = form.TipoDocumentoId,
+        RutaArchivo = pathInBlob,
+        FechaSubida = DateTime.UtcNow
+    };
 
-            _context.DocumentosEmpleado.Add(documento);
+    _context.DocumentosEmpleado.Add(documento);
 
-            // Auditoría simple
-            _context.Auditoria.Add(new Auditoria
-            {
-                Usuario = User?.Identity?.Name ?? "sistema",
-                Accion = "UploadDocumento",
-                Detalles = $"EmpleadoId={empleadoId}, Tipo={tipoDocumentoId}, Ruta={pathInBlob}, Size={archivo.Length}, Ctype={archivo.ContentType}",
-                Fecha = DateTime.UtcNow
-            });
+    _context.Auditoria.Add(new Auditoria
+    {
+        Usuario = User?.Identity?.Name ?? "sistema",
+        Accion = "UploadDocumento",
+        Detalles = $"EmpleadoId={empleadoId}, Tipo={form.TipoDocumentoId}, Ruta={pathInBlob}, Size={archivo.Length}, Ctype={archivo.ContentType}",
+        Fecha = DateTime.UtcNow
+    });
 
-            await _context.SaveChangesAsync(ct);
+    await _context.SaveChangesAsync(ct);
 
-            var dto = new DocumentoEmpleadoDto
-            {
-                Id = documento.Id,
-                EmpleadoId = documento.EmpleadoId,
-                TipoDocumentoId = documento.TipoDocumentoId,
-                RutaArchivo = documento.RutaArchivo,
-                FechaSubida = documento.FechaSubida
-            };
+    var dto = new DocumentoEmpleadoDto
+    {
+        Id = documento.Id,
+        EmpleadoId = documento.EmpleadoId,
+        TipoDocumentoId = documento.TipoDocumentoId,
+        RutaArchivo = documento.RutaArchivo,
+        FechaSubida = documento.FechaSubida
+    };
 
-            return CreatedAtAction(nameof(GetDocumento), new { id = dto.Id }, dto);
-        }
+    return CreatedAtAction(nameof(GetDocumento), new { id = dto.Id }, dto);
+}
 
         // ====================================================
         //  GET listado paginado con filtros (DoD requisito)
