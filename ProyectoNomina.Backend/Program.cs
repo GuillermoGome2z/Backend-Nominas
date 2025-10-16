@@ -77,6 +77,11 @@ namespace ProyectoNomina.Backend
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
 
+            // ====== NUEVO: servicios para historial de DetalleNomina ======
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();              // NUEVO
+            builder.Services.AddScoped<IDetalleNominaAuditService, DetalleNominaAuditService>(); // NUEVO
+            // ===============================================================
+
             // 5) MVC + filtro global + JSON (ignora ciclos si algún endpoint devuelve entidades)
             builder.Services.AddControllers(options =>
             {

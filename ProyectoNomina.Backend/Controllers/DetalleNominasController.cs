@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Backend.Services; 
+using System.Linq;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -15,10 +17,12 @@ namespace ProyectoNomina.Backend.Controllers
     public class DetalleNominasController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IDetalleNominaAuditService _audit; // <-- NUEVO
 
-        public DetalleNominasController(AppDbContext context)
+        public DetalleNominasController(AppDbContext context, IDetalleNominaAuditService audit) // <-- NUEVO
         {
             _context = context;
+            _audit = audit; // <-- NUEVO
         }
 
         // GET: api/DetalleNominas
@@ -26,29 +30,30 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(IEnumerable<DetalleNomina>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<DetalleNomina>>> GetDetalles( [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10)
-{
-    if (page < 1) page = 1;
-    if (pageSize < 1) pageSize = 10;
-    if (pageSize > 100) pageSize = 100;
+        public async Task<ActionResult<IEnumerable<DetalleNomina>>> GetDetalles(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
 
-    var baseQuery = _context.DetalleNominas
-        .AsNoTracking()
-        .Include(d => d.Empleado)
-        .Include(d => d.Nomina);
+            var baseQuery = _context.DetalleNominas
+                .AsNoTracking()
+                .Include(d => d.Empleado)
+                .Include(d => d.Nomina);
 
-    var total = await baseQuery.CountAsync();
+            var total = await baseQuery.CountAsync();
 
-    var lista = await baseQuery
-        .OrderBy(d => d.Id)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize)
-        .ToListAsync();
+            var lista = await baseQuery
+                .OrderBy(d => d.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-    Response.Headers["X-Total-Count"] = total.ToString();
-    return Ok(lista);
-}
+            Response.Headers["X-Total-Count"] = total.ToString();
+            return Ok(lista);
+        }
 
         // GET: api/DetalleNominas/5
         [HttpGet("{id}")]
@@ -80,6 +85,7 @@ namespace ProyectoNomina.Backend.Controllers
                 return BadRequest("El Empleado o la Nómina no existen.");
             }
 
+            // Tu lógica original de cálculo
             detalle.SalarioNeto = detalle.SalarioBruto + detalle.Bonificaciones - detalle.Deducciones;
 
             _context.DetalleNominas.Add(detalle);
@@ -100,15 +106,28 @@ namespace ProyectoNomina.Backend.Controllers
             if (id != detalle.Id)
                 return BadRequest();
 
+            // Verificación de existencia (misma que ya tenías)
             if (!_context.DetalleNominas.Any(d => d.Id == id))
                 return NotFound();
 
+            // ⬇️ NUEVO: obtenemos snapshot ORIGINAL (sin tracking) para auditar difs
+            var original = await _context.DetalleNominas
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == id);
+            if (original == null)
+                return NotFound();
+
+            // Tu lógica original de cálculo
             detalle.SalarioNeto = detalle.SalarioBruto + detalle.Bonificaciones - detalle.Deducciones;
 
+            // Marcamos como modificado, igual que antes
             _context.Entry(detalle).State = EntityState.Modified;
 
             try
             {
+                // ⬇️ NUEVO: registramos difs por campo ANTES de guardar
+                await _audit.AuditarAsync(original, detalle);
+
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
@@ -135,6 +154,39 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // ============================
+        // GET: /api/DetalleNominas/{id}/historial   <-- NUEVO ENDPOINT
+        // ============================
+        [HttpGet("{id:int}/historial")]
+        [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetHistorial(int id, CancellationToken ct = default)
+        {
+            var existe = await _context.DetalleNominas
+                .AsNoTracking()
+                .AnyAsync(d => d.Id == id, ct);
+
+            if (!existe) return NotFound($"No existe DetalleNomina con id {id}.");
+
+            var data = await _context.Set<DetalleNominaHistorial>()
+                .AsNoTracking()
+                .Where(h => h.DetalleNominaId == id)
+                .OrderByDescending(h => h.Fecha)
+                .Select(h => new
+                {
+                    h.Id,
+                    h.DetalleNominaId,
+                    h.Campo,
+                    h.ValorAnterior,
+                    h.ValorNuevo,
+                    h.UsuarioId,
+                    h.Fecha
+                })
+                .ToListAsync(ct);
+
+            return Ok(data);
         }
     }
 }
