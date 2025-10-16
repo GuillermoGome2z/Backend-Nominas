@@ -30,32 +30,40 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
         {
-            // Validación mínima del payload
             if (request is null || string.IsNullOrWhiteSpace(request.Correo) || string.IsNullOrWhiteSpace(request.Contraseña))
                 return BadRequest("Correo y contraseña son requeridos.");
 
-            // ⚠️ Credenciales de prueba (ajusta a tu verificación real de hash)
-            var credencialesOK = request.Correo == "admin@empresa.com" && request.Contraseña == "Admin123!";
-            if (!credencialesOK)
-                return Unauthorized("Credenciales inválidas");
-
-            // 🔴 ANTES: se creaba un Usuario con Id=1 “a mano” (posible FK inválida).
-            // ✅ AHORA: obtenemos el usuario REAL desde la BD por Correo.
+            // Buscar usuario REAL en BD por correo
             var usuario = await _context.Usuarios
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Correo == request.Correo);
 
-            if (usuario == null)
-                return Unauthorized("Usuario no encontrado en la base de datos.");
+            if (usuario is null)
+                return Unauthorized("Credenciales inválidas.");
 
-            // Rol: si usas tabla Roles/UsuarioRoles, arma el string si lo necesitas en el token
-            // (aquí usamos el campo Rol del modelo para mantener tu lógica actual)
+            //  Verificar hash con BCrypt
+            var passwordOk = BCrypt.Net.BCrypt.Verify(request.Contraseña, usuario.ClaveHash);
+            if (!passwordOk)
+                return Unauthorized("Credenciales inválidas.");
+
+            // (Opcional) política de “un solo refresh activo por usuario”:
+            // Revocar todos los refresh no revocados del usuario antes de emitir uno nuevo.
+            var tokensPrevios = await _context.RefreshTokens
+                .Where(t => t.UsuarioId == usuario.Id && !t.Revocado && t.Expira > DateTime.UtcNow)
+                .ToListAsync();
+
+            if (tokensPrevios.Count > 0)
+            {
+                foreach (var t in tokensPrevios) t.Revocado = true;
+            }
+
+            //  Generar JWT
             var jwt = _jwtService.GenerarToken(usuario);
 
-            // Generar refresh token (7 días)
+            //  Generar nuevo refresh token (7 días)
             var refresh = new RefreshToken
             {
-                UsuarioId = usuario.Id,                 // <- Id REAL de BD
+                UsuarioId = usuario.Id,
                 Token = _jwtService.GenerarRefreshToken(),
                 Expira = DateTime.UtcNow.AddDays(7),
                 Revocado = false
@@ -69,11 +77,10 @@ namespace ProyectoNomina.Backend.Controllers
             }
             catch (Exception ex)
             {
-                // Log útil en desarrollo
+                // En prod, usa logger; aquí mantenemos coherencia con tu patrón
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine(ex.InnerException?.Message);
 
-                // Respuesta estándar (tu middleware de errores también la capturará)
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
                     status = 500,
@@ -82,7 +89,7 @@ namespace ProyectoNomina.Backend.Controllers
                 });
             }
 
-            // Devolver el refresh token por header sin romper tu DTO
+            //  Devolver el refresh token por header para que el front lo pueda leer (exponer en CORS)
             Response.Headers.Append("X-Refresh-Token", refresh.Token);
 
             return Ok(new LoginResponseDto
@@ -102,6 +109,7 @@ namespace ProyectoNomina.Backend.Controllers
             if (string.IsNullOrWhiteSpace(refreshToken))
                 return BadRequest("Se requiere el refresh token.");
 
+            // Necesitamos entidad rastreada para poder modificar (revocar)
             var stored = await _context.RefreshTokens
                 .FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revocado);
 
@@ -112,10 +120,10 @@ namespace ProyectoNomina.Backend.Controllers
             if (usuario == null)
                 return Unauthorized("Usuario no encontrado.");
 
-            // Revocar el token antiguo
+            //  Rotación: revocar el token antiguo
             stored.Revocado = true;
 
-            // Crear uno nuevo
+            //  Crear uno nuevo
             var nuevoRefresh = new RefreshToken
             {
                 UsuarioId = usuario.Id,
@@ -149,6 +157,27 @@ namespace ProyectoNomina.Backend.Controllers
                 token = nuevoJwt,
                 refreshToken = nuevoRefresh.Token
             });
+        }
+
+        //  Logout: revoca un refresh token vigente. Devuelve 204
+        [HttpPost("logout")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Logout([FromBody] string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return BadRequest("Se requiere el refresh token.");
+
+            var stored = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revocado);
+
+            if (stored != null)
+            {
+                stored.Revocado = true;
+                await _context.SaveChangesAsync();
+            }
+
+            return NoContent();
         }
     }
 }
