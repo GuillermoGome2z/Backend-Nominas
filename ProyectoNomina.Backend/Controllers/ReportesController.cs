@@ -26,6 +26,10 @@ namespace ProyectoNomina.Backend.Controllers
             _reporteService = reporteService;
         }
 
+        // ============================
+        //    REPORTES EXISTENTES
+        // ============================
+
         [HttpGet("Nominas")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -221,6 +225,173 @@ namespace ProyectoNomina.Backend.Controllers
             }).ToList();
 
             return Ok(resultado);
+        }
+
+        // =========================================
+        // PASO 16: EXPORTACIONES CSV / XLSX (NUEVO)
+        // =========================================
+
+        [HttpGet("empleados.csv")]
+[Produces("text/csv")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+public async Task<IActionResult> ExportEmpleadosCsv([FromQuery] int? departamentoId, [FromQuery] int? puestoId)
+{
+    var q = _context.Empleados
+        .Include(e => e.Departamento)
+        .Include(e => e.Puesto)
+        .AsNoTracking()
+        .AsQueryable();
+
+    if (departamentoId.HasValue) q = q.Where(e => e.DepartamentoId == departamentoId.Value);
+    if (puestoId.HasValue) q = q.Where(e => e.PuestoId == puestoId.Value);
+
+    var data = await q.Select(e => new
+    {
+        e.Id,
+        Nombre = e.NombreCompleto,
+        Departamento = e.Departamento != null ? e.Departamento.Nombre : "",
+        Puesto = e.Puesto != null ? e.Puesto.Nombre : ""
+    }).ToListAsync();
+
+    if (data.Count == 0) return NoContent();
+
+    var cols = new (string, Func<dynamic, object?>)[]
+    {
+        ("Id", d => d.Id),
+        ("Nombre", d => d.Nombre),
+        ("Departamento", d => d.Departamento),
+        ("Puesto", d => d.Puesto)
+    };
+
+    var bytes = ExportService.ToCsv(data, cols);
+    var fileName = $"empleados_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv";
+    return File(bytes, "text/csv", fileName);
+}
+
+// GET /api/reportes/empleados.xlsx
+[HttpGet("empleados.xlsx")]
+[Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+public async Task<IActionResult> ExportEmpleadosXlsx([FromQuery] int? departamentoId, [FromQuery] int? puestoId)
+{
+    var q = _context.Empleados
+        .Include(e => e.Departamento)
+        .Include(e => e.Puesto)
+        .AsNoTracking()
+        .AsQueryable();
+
+    if (departamentoId.HasValue) q = q.Where(e => e.DepartamentoId == departamentoId.Value);
+    if (puestoId.HasValue) q = q.Where(e => e.PuestoId == puestoId.Value);
+
+    var data = await q.Select(e => new
+    {
+        e.Id,
+        Nombre = e.NombreCompleto,
+        Departamento = e.Departamento != null ? e.Departamento.Nombre : "",
+        Puesto = e.Puesto != null ? e.Puesto.Nombre : ""
+    }).ToListAsync();
+
+    if (data.Count == 0) return NoContent();
+
+    var cols = new (string, Func<dynamic, object?>)[]
+    {
+        ("Id", d => d.Id),
+        ("Nombre", d => d.Nombre),
+        ("Departamento", d => d.Departamento),
+        ("Puesto", d => d.Puesto)
+    };
+
+    var bytes = ExportService.ToXlsx(data, cols, "Empleados");
+    var fileName = $"empleados_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+    return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+}
+
+        // GET /api/reportes/nomina.csv?nominaId=123
+        [HttpGet("nomina.csv")]
+        [Produces("text/csv")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> ExportNominaCsv([FromQuery] int nominaId)
+        {
+            var data = await _context.DetalleNominas
+                .Include(d => d.Empleado)
+                .AsNoTracking()
+                .Where(d => d.NominaId == nominaId)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.NominaId,
+                    d.EmpleadoId,
+                    Empleado = d.Empleado.NombreCompleto,
+                    d.SalarioBruto,
+                    d.Bonificaciones,
+                    d.Deducciones,
+                    d.SalarioNeto
+                })
+                .ToListAsync();
+
+            if (data.Count == 0) return NoContent();
+
+            var cols = new (string, Func<dynamic, object?>)[]
+            {
+                ("DetalleId", d => d.Id),
+                ("NominaId", d => d.NominaId),
+                ("EmpleadoId", d => d.EmpleadoId),
+                ("Empleado", d => d.Empleado),
+                ("SalarioBruto", d => d.SalarioBruto),
+                ("Bonificaciones", d => d.Bonificaciones),
+                ("Deducciones", d => d.Deducciones),
+                ("SalarioNeto", d => d.SalarioNeto)
+            };
+
+            var bytes = ExportService.ToCsv(data, cols);
+            var fileName = $"nomina_{nominaId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv";
+            return File(bytes, "text/csv", fileName);
+        }
+
+        // GET /api/reportes/nomina.xlsx?nominaId=123
+        [HttpGet("nomina.xlsx")]
+        [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> ExportNominaXlsx([FromQuery] int nominaId)
+        {
+            var data = await _context.DetalleNominas
+                .Include(d => d.Empleado)
+                .AsNoTracking()
+                .Where(d => d.NominaId == nominaId)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.NominaId,
+                    d.EmpleadoId,
+                    Empleado = d.Empleado.NombreCompleto,
+                    d.SalarioBruto,
+                    d.Bonificaciones,
+                    d.Deducciones,
+                    d.SalarioNeto
+                })
+                .ToListAsync();
+
+            if (data.Count == 0) return NoContent();
+
+            var cols = new (string, Func<dynamic, object?>)[]
+            {
+                ("DetalleId", d => d.Id),
+                ("NominaId", d => d.NominaId),
+                ("EmpleadoId", d => d.EmpleadoId),
+                ("Empleado", d => d.Empleado),
+                ("SalarioBruto", d => d.SalarioBruto),
+                ("Bonificaciones", d => d.Bonificaciones),
+                ("Deducciones", d => d.Deducciones),
+                ("SalarioNeto", d => d.SalarioNeto)
+            };
+
+            var bytes = ExportService.ToXlsx(data, cols, $"Nomina_{nominaId}");
+            var fileName = $"nomina_{nominaId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
     }
 }
