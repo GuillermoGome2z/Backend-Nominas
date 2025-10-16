@@ -1,16 +1,19 @@
-﻿using QuestPDF.Fluent;
+﻿using System;
+using System.IO;
+using System.Linq;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Shared.Models.DTOs;
 using ClosedXML.Excel;
-using System.IO;
+
 
 namespace ProyectoNomina.Backend.Services
 {
     public class ReporteService
     {
-        // ✅ Reporte 1: Nómina Procesada
+        // Reporte 1 Nómina Procesada
         public byte[] GenerarReporteNominaPdf(Nomina nomina)
         {
             var document = Document.Create(container =>
@@ -63,8 +66,8 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ Reporte 2: Estado de Expedientes
-        public byte[] GenerarReporteExpediente(List<ReporteExpedienteDto> expedientes)
+        // Reporte 2: Estado de Expedientes
+        public byte[] GenerarReporteExpediente(System.Collections.Generic.List<ReporteExpedienteDto> expedientes)
         {
             var document = Document.Create(container =>
             {
@@ -113,8 +116,8 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ Reporte 3: Información Académica
-        public byte[] GenerarReporteInformacionAcademica(List<InformacionAcademica> datos)
+        //  Reporte 3: Información Académica
+        public byte[] GenerarReporteInformacionAcademica(System.Collections.Generic.List<InformacionAcademica> datos)
         {
             var document = Document.Create(container =>
             {
@@ -163,8 +166,8 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ Reporte 4: Ajustes Manuales
-        public byte[] GenerarReporteAjustesManuales(List<AjusteManual> ajustes)
+        // Reporte 4: Ajustes Manuales
+        public byte[] GenerarReporteAjustesManuales(System.Collections.Generic.List<AjusteManual> ajustes)
         {
             var document = Document.Create(container =>
             {
@@ -210,8 +213,8 @@ namespace ProyectoNomina.Backend.Services
             return document.GeneratePdf();
         }
 
-        // ✅ Reporte 5: Auditoría del sistema
-        public byte[] GenerarReporteAuditoria(List<Auditoria> auditoria)
+        //  Reporte 5: Auditoría del sistema
+        public byte[] GenerarReporteAuditoria(System.Collections.Generic.List<Auditoria> auditoria)
         {
             var document = Document.Create(container =>
             {
@@ -285,7 +288,167 @@ namespace ProyectoNomina.Backend.Services
             return stream.ToArray();
         }
 
-        // 🔁 Estilo común de celdas
+        // ===============================
+        // Paso 17: PDF Nómina (NUEVO)
+        // ===============================
+
+        // PDF global de nómina (resumen por empleado)
+        public byte[] GenerarNominaGeneral(Nomina nomina, System.Collections.Generic.IEnumerable<DetalleNomina> detalles)
+        {
+            var items = detalles
+                .OrderBy(d => d.Empleado?.NombreCompleto)
+                .Select(d => new
+                {
+                    Nombre = d.Empleado?.NombreCompleto ?? $"Empleado {d.EmpleadoId}",
+                    d.EmpleadoId,
+                    d.SalarioBruto,
+                    d.Bonificaciones,
+                    d.Deducciones,
+                    d.SalarioNeto
+                })
+                .ToList();
+
+            var totalBruto = items.Sum(x => x.SalarioBruto);
+            var totalBonif = items.Sum(x => x.Bonificaciones);
+            var totalDedu = items.Sum(x => x.Deducciones);
+            var totalNeto  = items.Sum(x => x.SalarioNeto);
+
+            var doc = Document.Create(c =>
+            {
+                c.Page(p =>
+                {
+                    p.Margin(30);
+                    p.Header().Text($"Nómina #{nomina.Id} — {nomina.Descripcion}")
+                        .FontSize(18).Bold().AlignCenter();
+
+                    p.Content().Column(col =>
+                    {
+                        col.Item().Text($"Generada: {nomina.FechaGeneracion:dd/MM/yyyy HH:mm}").FontSize(11);
+                        col.Item().Height(5); // <-- espacio
+
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cols =>
+                            {
+                                cols.RelativeColumn(10);  // Empleado
+                                cols.RelativeColumn(3);   // EmpleadoId
+                                cols.RelativeColumn(3);   // Bruto
+                                cols.RelativeColumn(3);   // Bonif
+                                cols.RelativeColumn(3);   // Deducc
+                                cols.RelativeColumn(3);   // Neto
+                            });
+
+                            t.Header(h =>
+                            {
+                                h.Cell().Element(CellStyle).Text("Empleado").SemiBold();
+                                h.Cell().Element(CellStyle).Text("ID").SemiBold();
+                                h.Cell().Element(CellStyle).Text("Bruto").SemiBold();
+                                h.Cell().Element(CellStyle).Text("Bonif.").SemiBold();
+                                h.Cell().Element(CellStyle).Text("Deducc.").SemiBold();
+                                h.Cell().Element(CellStyle).Text("Neto").SemiBold();
+                            });
+
+                            foreach (var it in items)
+                            {
+                                t.Cell().Element(CellStyle).AlignLeft().Text(it.Nombre);
+                                t.Cell().Element(CellStyle).Text(it.EmpleadoId.ToString());
+                                t.Cell().Element(CellStyle).Text($"Q{it.SalarioBruto:N2}");
+                                t.Cell().Element(CellStyle).Text($"Q{it.Bonificaciones:N2}");
+                                t.Cell().Element(CellStyle).Text($"Q{it.Deducciones:N2}");
+                                t.Cell().Element(CellStyle).Text($"Q{it.SalarioNeto:N2}");
+                            }
+
+                            // Totales
+                            t.Cell().Element(CellStyle).AlignRight().Text("TOTALES").Bold();
+                            t.Cell().Element(CellStyle).Text(""); // columna ID vacía
+                            t.Cell().Element(CellStyle).Text($"Q{totalBruto:N2}").Bold();
+                            t.Cell().Element(CellStyle).Text($"Q{totalBonif:N2}").Bold();
+                            t.Cell().Element(CellStyle).Text($"Q{totalDedu:N2}").Bold();
+                            t.Cell().Element(CellStyle).Text($"Q{totalNeto:N2}").Bold();
+                        });
+                    });
+
+                    p.Footer().AlignCenter().Text($"Generado por Proyecto Nómina - {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10);
+                });
+            });
+
+            return doc.GeneratePdf();
+        }
+
+        // Recibo individual por empleado
+        public byte[] GenerarReciboNominaEmpleado(Nomina nomina, DetalleNomina detalle)
+        {
+            var nombre = detalle.Empleado?.NombreCompleto ?? $"Empleado {detalle.EmpleadoId}";
+
+            var doc = Document.Create(c =>
+            {
+                c.Page(p =>
+                {
+                    p.Margin(36);
+
+                    p.Header().Column(h =>
+                    {
+                        h.Item().Text("Recibo de Pago").FontSize(18).Bold().AlignCenter();
+                        h.Item().Text($"Nómina #{nomina.Id} — {nomina.Descripcion}").FontSize(11).AlignCenter();
+                        h.Item().Text($"Fecha: {nomina.FechaGeneracion:dd/MM/yyyy HH:mm}").FontSize(10).AlignCenter();
+                    });
+
+                    p.Content().Column(col =>
+                    {
+                        col.Item().Height(8);  // <-- espacio
+
+                        // Datos empleado
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cols =>
+                            {
+                                cols.RelativeColumn(3);
+                                cols.RelativeColumn(7);
+                            });
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text("Empleado");
+                            t.Cell().Element(CellStyle).AlignLeft().Text($"{nombre} (ID: {detalle.EmpleadoId})");
+                        });
+
+                        col.Item().Height(10); // <-- espacio
+
+                        // Montos
+                        col.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cols =>
+                            {
+                                cols.RelativeColumn(6);
+                                cols.RelativeColumn(4);
+                            });
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text("Salario bruto:");
+                            t.Cell().Element(CellStyle).AlignRight().Text($"Q{detalle.SalarioBruto:N2}");
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text("Bonificaciones:");
+                            t.Cell().Element(CellStyle).AlignRight().Text($"Q{detalle.Bonificaciones:N2}");
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text("Deducciones:");
+                            t.Cell().Element(CellStyle).AlignRight().Text($"Q{detalle.Deducciones:N2}");
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text(" ");
+                            t.Cell().Element(CellStyle).AlignRight().Text(" ");
+
+                            t.Cell().Element(CellStyle).AlignLeft().Text("Total neto:").Bold();
+                            t.Cell().Element(CellStyle).AlignRight().Text($"Q{detalle.SalarioNeto:N2}").Bold();
+                        });
+
+                        col.Item().Height(20); // <-- espacio
+                        col.Item().Text("Firma del empleado: ____________________________").FontSize(10);
+                    });
+
+                    p.Footer().AlignCenter().Text($"Generado por Proyecto Nómina - {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10);
+                });
+            });
+
+            return doc.GeneratePdf();
+        }
+
+        //  Estilo común de celdas
         private static IContainer CellStyle(IContainer container)
         {
             return container
