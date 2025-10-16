@@ -28,10 +28,27 @@ namespace ProyectoNomina.Backend.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Índice único para correo de Usuario
-            modelBuilder.Entity<Usuario>()
-                .HasIndex(u => u.Correo)
-                .IsUnique();
+            // ===== Usuario =====
+            modelBuilder.Entity<Usuario>(entity =>
+            {
+                entity.Property(u => u.NombreCompleto)
+                      .HasMaxLength(200)
+                      .IsRequired();
+
+                entity.Property(u => u.Correo)
+                      .HasMaxLength(256)
+                      .IsRequired();
+
+                entity.Property(u => u.ClaveHash)
+                      .IsRequired(); //  no nula
+
+                entity.Property(u => u.Rol)
+                      .HasMaxLength(50)
+                      .IsRequired();
+
+                //  Correo único
+                entity.HasIndex(u => u.Correo).IsUnique();
+            });
 
             // Clave compuesta para UsuarioRol
             modelBuilder.Entity<UsuarioRol>()
@@ -44,7 +61,7 @@ namespace ProyectoNomina.Backend.Data
                 .HasForeignKey(e => e.DepartamentoId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación 1:1 entre Usuario y Empleado
+            // Relación 1:1 entre Usuario y Empleado (opcional)
             modelBuilder.Entity<Usuario>()
                 .HasOne(u => u.Empleado)
                 .WithOne(e => e.Usuario)
@@ -52,26 +69,25 @@ namespace ProyectoNomina.Backend.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // Configuración mínima para RefreshToken
+            // ===== RefreshToken =====
             modelBuilder.Entity<RefreshToken>(et =>
             {
-                et.Property(p => p.Token)
-                  .IsRequired()
-                  .HasMaxLength(512);
+                et.Property(p => p.Token).IsRequired().HasMaxLength(512);
+                et.Property(p => p.Expira).IsRequired();
 
-                et.Property(p => p.Expira)
-                  .IsRequired();
+                et.HasIndex(p => p.Token).IsUnique(); //  Token único
 
-                et.HasIndex(p => p.Token)
-                  .IsUnique();
-
-                et.HasOne<Usuario>()
-                  .WithMany()
-                  .HasForeignKey(p => p.UsuarioId)
+                // Relación 1:N correcta con Usuario
+                et.HasOne(rt => rt.Usuario)
+                  .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(rt => rt.UsuarioId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+                // Índice útil para búsquedas por usuario/estado/expiración
+                et.HasIndex(p => new { p.UsuarioId, p.Revocado, p.Expira });
             });
 
-            // === Configuración para ObservacionExpediente ===
+            // === ObservacionExpediente ===
             modelBuilder.Entity<ObservacionExpediente>(et =>
             {
                 et.ToTable("ObservacionesExpediente");
@@ -84,25 +100,18 @@ namespace ProyectoNomina.Backend.Data
                 et.Property(o => o.FechaCreacion)
                   .HasDefaultValueSql("GETUTCDATE()");
 
-                // FK obligatoria -> Empleado
+                // FK obligatoria -> Empleado (elige una sola política para evitar conflictos)
                 et.HasOne<Empleado>()
                   .WithMany()
                   .HasForeignKey(o => o.EmpleadoId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-                // FK obligatoria -> Usuario (creador)
-               et.HasOne<Empleado>()
-  .WithMany()
-  .HasForeignKey(o => o.EmpleadoId)
-  .OnDelete(DeleteBehavior.Restrict);
+                  .OnDelete(DeleteBehavior.Restrict);
 
                 // FK opcional -> DocumentoEmpleado (evitar multiple cascade paths)
                 et.HasOne<DocumentoEmpleado>()
                   .WithMany()
                   .HasForeignKey(o => o.DocumentoEmpleadoId)
-                  .OnDelete(DeleteBehavior.SetNull); // << cambio clave
+                  .OnDelete(DeleteBehavior.SetNull);
 
-                // Índices útiles
                 et.HasIndex(o => new { o.EmpleadoId, o.DocumentoEmpleadoId });
                 et.HasIndex(o => o.FechaCreacion);
             });
