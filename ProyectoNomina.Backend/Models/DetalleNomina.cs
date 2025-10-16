@@ -14,6 +14,20 @@ namespace ProyectoNomina.Backend.Models
         public int EmpleadoId { get; set; }
         public Empleado Empleado { get; set; }
 
+        // ===== NUEVO: horas y tarifas =====
+        [Precision(18, 2)]
+        public decimal HorasRegulares { get; set; }
+
+        [Precision(18, 2)]
+        public decimal HorasExtra { get; set; }
+
+        [Precision(18, 2)]
+        public decimal TarifaHora { get; set; }
+
+        [Precision(18, 2)]
+        public decimal TarifaExtra { get; set; }
+
+        // ===== Ya existentes =====
         [Precision(18, 2)]
         public decimal SalarioBruto { get; set; }
 

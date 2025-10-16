@@ -5,6 +5,8 @@ using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Shared.Models.DTOs;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ProyectoNomina.Backend.Controllers
 {
@@ -324,13 +326,149 @@ namespace ProyectoNomina.Backend.Controllers
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync(ct);
 
-            // Si NominaService admite rango/dep, pásalo; si no, usa la lógica interna
+            // Se mantiene tu lógica actual (retrocompatible)
             await _nominaService.Calcular(nomina);
             await _context.SaveChangesAsync(ct);
 
             return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, new
             {
                 mensaje = "✅ Nómina generada y calculada correctamente.",
+                nominaId = nomina.Id
+            });
+        }
+
+        // ============================================================
+        // POST /api/Nominas/generar-v2  (crear + calcular V2 con horas/comisiones/parámetros)
+        // Body: GenerarNominaV2Dto
+        // ============================================================
+        [HttpPost("generar-v2")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GenerarNominaV2([FromBody] GenerarNominaV2Dto dto, CancellationToken ct = default)
+        {
+            // Validaciones de rango
+            if (!dto.FechaInicio.HasValue || !dto.FechaFin.HasValue)
+            {
+                return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["fechas"] = new[] { "fechaInicio y fechaFin son requeridos." }
+                }));
+            }
+
+            var inicio = dto.FechaInicio.Value.Date;
+            var fin = dto.FechaFin.Value.Date;
+            if (inicio > fin)
+            {
+                return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["rangoFechas"] = new[] { "fechaInicio no puede ser mayor que fechaFin." }
+                }));
+            }
+
+            // Validaciones básicas de horas/comisiones
+            if (dto.Horas != null)
+            {
+                foreach (var h in dto.Horas)
+                {
+                    if (h.HorasRegulares < 0 || h.HorasExtra < 0)
+                        return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
+                        {
+                            [$"empleado:{h.EmpleadoId}"] = new[] { "Las horas no pueden ser negativas." }
+                        }));
+
+                    if (h.TarifaHora <= 0)
+                        return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
+                        {
+                            [$"empleado:{h.EmpleadoId}"] = new[] { "TarifaHora debe ser > 0." }
+                        }));
+                }
+            }
+
+            if (dto.Comisiones != null)
+            {
+                foreach (var c in dto.Comisiones)
+                {
+                    if (c.Monto < 0)
+                        return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
+                        {
+                            [$"empleado:{c.EmpleadoId}"] = new[] { "La comisión no puede ser negativa." }
+                        }));
+                }
+            }
+
+            var nomina = new Nomina
+            {
+                Descripcion = string.IsNullOrWhiteSpace(dto.Descripcion)
+                    ? $"Nómina {inicio:yyyy-MM-dd} a {fin:yyyy-MM-dd}"
+                    : dto.Descripcion!.Trim(),
+                FechaGeneracion = DateTime.Now
+            };
+
+            _context.Nominas.Add(nomina);
+            await _context.SaveChangesAsync(ct);
+
+            // Mapear horas
+            IDictionary<int, NominaService.HorasTarifas>? horasMap = null;
+            if (dto.Horas != null && dto.Horas.Any())
+            {
+                horasMap = dto.Horas
+                    .GroupBy(h => h.EmpleadoId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var last = g.Last();
+                            var tarifaExtraEf = last.TarifaExtra > 0 ? last.TarifaExtra : (last.TarifaHora * 1.5m);
+                            return new NominaService.HorasTarifas(
+                                last.HorasRegulares,
+                                last.HorasExtra,
+                                last.TarifaHora,
+                                tarifaExtraEf
+                            );
+                        });
+            }
+
+            // Mapear comisiones
+            IDictionary<int, decimal>? comisionesMap = null;
+            if (dto.Comisiones != null && dto.Comisiones.Any())
+            {
+                comisionesMap = dto.Comisiones
+                    .GroupBy(c => c.EmpleadoId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
+            }
+
+            // Resolver de parámetros legales (inline opcional)
+            NominaService.ParametrosResolver? resolver = null;
+            if (dto.ParametrosLegales != null && dto.ParametrosLegales.Any())
+            {
+                var dict = dto.ParametrosLegales
+                    .GroupBy(p => p.Clave.Trim().ToUpperInvariant())
+                    .ToDictionary(g => g.Key, g => g.Last().Valor);
+
+                resolver = (clave, fecha) =>
+                {
+                    if (string.IsNullOrWhiteSpace(clave)) return null;
+                    var k = clave.Trim().ToUpperInvariant();
+                    return dict.TryGetValue(k, out var val) ? val : null;
+                };
+            }
+
+            // Calcular con V2 (si no hay resolver/horas/comisiones, hace fallback y queda como tu versión actual)
+            await _nominaService.CalcularV2(
+                nomina: nomina,
+                periodoInicio: inicio,
+                periodoFin: fin,
+                horasPorEmpleado: horasMap,
+                comisionesPorEmpleado: comisionesMap,
+                resolver: resolver
+            );
+
+            await _context.SaveChangesAsync(ct);
+
+            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, new
+            {
+                mensaje = "✅ Nómina (V2) generada y calculada correctamente.",
                 nominaId = nomina.Id
             });
         }
@@ -473,5 +611,42 @@ namespace ProyectoNomina.Backend.Controllers
         public DateTime? FechaFin { get; set; }
         public int? DepartamentoId { get; set; }   // si tu servicio lo usa, puedes leerlo allí
         public string? Descripcion { get; set; }
+    }
+
+    // ---------- NUEVOS DTOs para generar-v2 ----------
+    public class HorasEmpleadoDto
+    {
+        public int EmpleadoId { get; set; }
+        public decimal HorasRegulares { get; set; }
+        public decimal HorasExtra { get; set; }
+        public decimal TarifaHora { get; set; }
+        public decimal TarifaExtra { get; set; } // si llega 0, se aplica 1.5x en el servicio
+    }
+
+    public class ComisionEmpleadoDto
+    {
+        public int EmpleadoId { get; set; }
+        public decimal Monto { get; set; }
+        public string? Observacion { get; set; }
+    }
+
+    public class ParametroLegalInlineDto
+    {
+        public string Clave { get; set; } = string.Empty; // "IGSS", "IRTRA", "ISR"
+        public decimal Valor { get; set; } // porcentajes como 0.0483, 0.01, etc.
+    }
+
+    public class GenerarNominaV2Dto
+    {
+        public DateTime? FechaInicio { get; set; }
+        public DateTime? FechaFin { get; set; }
+        public string? Descripcion { get; set; }
+
+        // Opcionales:
+        public List<HorasEmpleadoDto>? Horas { get; set; }
+        public List<ComisionEmpleadoDto>? Comisiones { get; set; }
+
+        // Parámetros legales “inline” (opcional). Si no se envían, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
+        public List<ParametroLegalInlineDto>? ParametrosLegales { get; set; }
     }
 }
