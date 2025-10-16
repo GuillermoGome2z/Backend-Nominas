@@ -27,19 +27,20 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // GET /api/Nominas  (paginado + filtros + 422 por rango inválido)
+        // GET /api/Nominas  (paginado + filtros + 422 por rango inválido) → ahora responde DTO
         // ============================================================
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<Nomina>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<Nomina>>> GetNominas(
+        public async Task<ActionResult<IEnumerable<NominaDto>>> GetNominas(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] int? departamentoId = null,
             [FromQuery] DateTime? fechaInicio = null,
-            [FromQuery] DateTime? fechaFin = null)
+            [FromQuery] DateTime? fechaFin = null,
+            CancellationToken ct = default)
         {
             // saneo de paginación
             if (page < 1) page = 1;
@@ -55,10 +56,9 @@ namespace ProyectoNomina.Backend.Controllers
                 }));
             }
 
+            // base query (sin Include: proyectamos a DTO)
             var query = _context.Nominas
                 .AsNoTracking()
-                .Include(n => n.Detalles)
-                    .ThenInclude(d => d.Empleado)
                 .AsQueryable();
 
             // filtros
@@ -69,16 +69,27 @@ namespace ProyectoNomina.Backend.Controllers
                 query = query.Where(n => n.FechaGeneracion.Date <= fechaFin.Value.Date);
 
             if (departamentoId.HasValue)
-                query = query.Where(n => n.Detalles.Any(d => d.Empleado.DepartamentoId == departamentoId.Value));
+            {
+                // Filtramos por departamento via subconsulta sobre DetalleNominas
+                query = query.Where(n => _context.DetalleNominas
+                    .Any(d => d.NominaId == n.Id && d.Empleado.DepartamentoId == departamentoId.Value));
+            }
 
-            var total = await query.CountAsync();
+            var total = await query.CountAsync(ct);
 
+            // Proyección a DTO "ligero" (Id, Descripcion, FechaGeneracion)
             var nominas = await query
                 .OrderByDescending(n => n.FechaGeneracion)
                 .ThenBy(n => n.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .Select(n => new NominaDto
+                {
+                    Id = n.Id,
+                    Descripcion = n.Descripcion,
+                    FechaGeneracion = n.FechaGeneracion
+                })
+                .ToListAsync(ct);
 
             Response.Headers["X-Total-Count"] = total.ToString();
             return Ok(nominas);
@@ -90,13 +101,13 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet("{id}", Name = "GetNominaById")]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<Nomina>> GetNomina(int id)
+        public async Task<ActionResult<Nomina>> GetNomina(int id, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
                 .AsNoTracking()
                 .Include(n => n.Detalles)
                     .ThenInclude(d => d.Empleado)
-                .FirstOrDefaultAsync(n => n.Id == id);
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null) return NotFound();
 
@@ -104,7 +115,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // GET /api/Nominas/completa  (DTO + paginado)
+        // GET /api/Nominas/completa  (DTO con detalles + paginado)
         // ============================================================
         [HttpGet("completa")]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
@@ -112,7 +123,8 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<NominaDto>>> ObtenerNominasCompletas(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
         {
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 10;
@@ -123,7 +135,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .Include(n => n.Detalles)
                     .ThenInclude(d => d.Empleado);
 
-            var total = await baseQuery.CountAsync();
+            var total = await baseQuery.CountAsync(ct);
 
             var resultado = await baseQuery
                 .OrderByDescending(n => n.FechaGeneracion)
@@ -146,15 +158,14 @@ namespace ProyectoNomina.Backend.Controllers
                         DesgloseDeducciones = d.DesgloseDeducciones
                     }).ToList()
                 })
-                .ToListAsync();
+                .ToListAsync(ct);
 
             Response.Headers["X-Total-Count"] = total.ToString();
-
             return Ok(resultado);
         }
 
         // ============================================================
-        // GET /api/Nominas/listado  (DTO simple + paginado)
+        // GET /api/Nominas/listado  (DTO simple + paginado) – se mantiene por compatibilidad
         // ============================================================
         [HttpGet("listado")]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
@@ -162,7 +173,8 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ObtenerNominas(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
         {
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 10;
@@ -170,7 +182,7 @@ namespace ProyectoNomina.Backend.Controllers
 
             var baseQuery = _context.Nominas.AsNoTracking();
 
-            var total = await baseQuery.CountAsync();
+            var total = await baseQuery.CountAsync(ct);
 
             var nominas = await baseQuery
                 .OrderByDescending(n => n.FechaGeneracion)
@@ -183,10 +195,9 @@ namespace ProyectoNomina.Backend.Controllers
                     Descripcion = n.Descripcion,
                     FechaGeneracion = n.FechaGeneracion
                 })
-                .ToListAsync();
+                .ToListAsync(ct);
 
             Response.Headers["X-Total-Count"] = total.ToString();
-
             return Ok(nominas);
         }
 
@@ -196,11 +207,11 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet("{id:int}/detalle")]
         [ProducesResponseType(typeof(NominaDetalleDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<NominaDetalleDto>> GetDetalle(int id, [FromQuery] int? empleadoId = null)
+        public async Task<ActionResult<NominaDetalleDto>> GetDetalle(int id, [FromQuery] int? empleadoId = null, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
                 .AsNoTracking()
-                .FirstOrDefaultAsync(n => n.Id == id);
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
                 return NotFound();
@@ -228,12 +239,12 @@ namespace ProyectoNomina.Backend.Controllers
                     NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : string.Empty
                 })
                 .OrderBy(i => i.NombreEmpleado)
-                .ToListAsync();
+                .ToListAsync(ct);
 
-            var totalBruto = await qDetalles.SumAsync(d => (decimal?)d.SalarioBruto) ?? 0m;
-            var totalDeducciones = await qDetalles.SumAsync(d => (decimal?)d.Deducciones) ?? 0m;
-            var totalBonificaciones = await qDetalles.SumAsync(d => (decimal?)d.Bonificaciones) ?? 0m;
-            var totalNeto = await qDetalles.SumAsync(d => (decimal?)d.SalarioNeto) ?? 0m;
+            var totalBruto = await qDetalles.SumAsync(d => (decimal?)d.SalarioBruto, ct) ?? 0m;
+            var totalDeducciones = await qDetalles.SumAsync(d => (decimal?)d.Deducciones, ct) ?? 0m;
+            var totalBonificaciones = await qDetalles.SumAsync(d => (decimal?)d.Bonificaciones, ct) ?? 0m;
+            var totalNeto = await qDetalles.SumAsync(d => (decimal?)d.SalarioNeto, ct) ?? 0m;
 
             var dto = new NominaDetalleDto
             {
@@ -258,7 +269,7 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto)
+        public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto, CancellationToken ct = default)
         {
             var nomina = new Nomina
             {
@@ -267,20 +278,20 @@ namespace ProyectoNomina.Backend.Controllers
             };
 
             _context.Nominas.Add(nomina);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nomina);
         }
 
         // ============================================================
-        // POST /api/Nominas/generar  (NUEVO: crear + calcular por rango)
+        // POST /api/Nominas/generar  (crear + calcular por rango)
         // Body: { fechaInicio, fechaFin, descripcion?, departamentoId? }
         // ============================================================
         [HttpPost("generar")]
         [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GenerarNominaPorRango([FromBody] GenerarNominaRangoDto dto)
+        public async Task<IActionResult> GenerarNominaPorRango([FromBody] GenerarNominaRangoDto dto, CancellationToken ct = default)
         {
             // Validaciones de rango → 422
             if (!dto.FechaInicio.HasValue || !dto.FechaFin.HasValue)
@@ -311,14 +322,11 @@ namespace ProyectoNomina.Backend.Controllers
             };
 
             _context.Nominas.Add(nomina);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
-            // Nota: si tu NominaService tiene una sobrecarga con rango/departamento, úsala aquí.
-            // En caso contrario, el servicio calculará con las reglas internas (como en /procesar/{id}).
+            // Si NominaService admite rango/dep, pásalo; si no, usa la lógica interna
             await _nominaService.Calcular(nomina);
-
-            // Importante: guardar detalles generados por el servicio
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, new
             {
@@ -334,21 +342,21 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ProcesarNominaExistente(int id)
+        public async Task<IActionResult> ProcesarNominaExistente(int id, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
                 .Include(n => n.Detalles)
-                .FirstOrDefaultAsync(n => n.Id == id);
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
                 return NotFound("❌ Nómina no encontrada.");
 
             // Limpiar detalles anteriores si existen
             _context.DetalleNominas.RemoveRange(nomina.Detalles);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             await _nominaService.Calcular(nomina);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             return Ok(new
             {
@@ -364,14 +372,14 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GenerarPdf(int id, [FromServices] ReporteService reporteService)
+        public async Task<IActionResult> GenerarPdf(int id, [FromServices] ReporteService reporteService, CancellationToken ct = default)
         {
             try
             {
                 var nomina = await _context.Nominas
                     .Include(n => n.Detalles)
                         .ThenInclude(d => d.Empleado)
-                    .FirstOrDefaultAsync(n => n.Id == id);
+                    .FirstOrDefaultAsync(n => n.Id == id, ct);
 
                 if (nomina == null)
                     return NotFound("No se encontró la nómina.");
@@ -392,12 +400,12 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GenerarExcel(int id, [FromServices] ReporteService reporteService)
+        public async Task<IActionResult> GenerarExcel(int id, [FromServices] ReporteService reporteService, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
                 .Include(n => n.Detalles)
                     .ThenInclude(d => d.Empleado)
-                .FirstOrDefaultAsync(n => n.Id == id);
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
                 return NotFound("Nómina no encontrada.");
@@ -415,7 +423,7 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> PutNomina(int id, [FromBody] Nomina nomina)
+        public async Task<IActionResult> PutNomina(int id, [FromBody] Nomina nomina, CancellationToken ct = default)
         {
             if (id != nomina.Id) return BadRequest();
 
@@ -423,11 +431,11 @@ namespace ProyectoNomina.Backend.Controllers
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(ct);
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!await _context.Nominas.AnyAsync(n => n.Id == id))
+                if (!await _context.Nominas.AnyAsync(n => n.Id == id, ct))
                     return NotFound();
                 else
                     throw;
@@ -444,20 +452,20 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteNomina(int id)
+        public async Task<IActionResult> DeleteNomina(int id, CancellationToken ct = default)
         {
-            var nomina = await _context.Nominas.FindAsync(id);
+            var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
             if (nomina == null) return NotFound();
 
             _context.Nominas.Remove(nomina);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             return NoContent();
         }
     }
 
     // =======================
-    // DTOs de entrada (NUEVO)
+    // DTOs de entrada 
     // =======================
     public class GenerarNominaRangoDto
     {

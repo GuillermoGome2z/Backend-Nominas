@@ -9,9 +9,10 @@ using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.Features; // ← agregado para multipart
+using Microsoft.AspNetCore.Http.Features;
 using ProyectoNomina.Backend.Middleware;
 using ProyectoNomina.Backend.Options;
+using System.Net;
 
 namespace ProyectoNomina.Backend
 {
@@ -21,6 +22,7 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Licencia QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
 
             // 1) DB
@@ -42,17 +44,17 @@ namespace ProyectoNomina.Backend
                         ValidateIssuerSigningKey = true,
                         ValidIssuer = jwtSettings["Issuer"],
                         ValidAudience = jwtSettings["Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                        ClockSkew = TimeSpan.Zero // endurece expiración JWT (front muestra 401/403 correctamente)
                     };
                 });
 
-            // 3) CORS (leer orígenes desde appsettings)
-            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+            // 3) CORS (lee orígenes desde appsettings)
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                                  ?? new[] { "http://localhost:5173" }; // Vite por defecto
 
-                                 builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
-builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
-
+            builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
+            builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
 
             builder.Services.AddCors(options =>
             {
@@ -61,7 +63,8 @@ builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          // Exponer cabeceras útiles (descargas, paginación, refresh token)
+                          // .AllowCredentials() // descomenta si usas cookies/credenciales en el front
+                          // expone cabeceras para paginación/descarga y refresh
                           .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
                 });
             });
@@ -74,13 +77,18 @@ builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
 
-            // 5) MVC + filtro global
+            // 5) MVC + filtro global + JSON (ignora ciclos si algún endpoint devuelve entidades)
             builder.Services.AddControllers(options =>
             {
                 options.Filters.AddService<AuditoriaActionFilter>();
+            })
+            .AddJsonOptions(o =>
+            {
+                // Por si alguna entidad EF se expone (igual preferimos DTOs).
+                o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
             });
 
-            // Forzar 422 en errores de validación 
+            // Forzar 422 en errores de validación (front lo pide explícito)
             builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>
@@ -97,7 +105,7 @@ builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
                 };
             });
 
-            // 6) Swagger con JWT
+            // 6) Swagger con JWT (el front usa OpenAPI para tipado/consumo)
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
@@ -127,73 +135,73 @@ builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
                 });
             });
 
-            // 🟢 NUEVO BLOQUE - soporte para carga de archivos grandes y límite de 20 MB
+            // 7) Subida de archivos (20 MB) coherente con Kestrel e IIS
             builder.Services.Configure<FormOptions>(o =>
             {
                 o.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20 MB
                 o.ValueLengthLimit = int.MaxValue;
                 o.MultipartHeadersLengthLimit = 64 * 1024;
             });
-
             builder.WebHost.ConfigureKestrel(k =>
             {
                 k.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20 MB
             });
-            // 🟢 FIN BLOQUE NUEVO
+            builder.Services.Configure<IISServerOptions>(o => o.MaxRequestBodySize = 20 * 1024 * 1024);
 
             var app = builder.Build();
 
-            // ---Forwarded Headers (útil en producción detrás de proxy) ---
+            // 8) Forwarded Headers (si vas detrás de proxy; ajusta KnownProxies/Networks según tu infra)
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
-                ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+                ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+                // KnownProxies = { IPAddress.Parse("10.0.0.10") },
+                // KnownNetworks = { new IPNetwork(IPAddress.Parse("10.0.0.0"), 8) }
             });
-            // ---------------------------------------------------------------------
 
-            // 7) Middleware
-
-            // Middleware global de manejo de errores 
+            // 9) Middlewares
             app.UseGlobalErrorHandler();
 
+            // Swagger (si deseas ocultarlo en prod, colócalo dentro de if Development)
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            // --- HSTS solo fuera de Development ---
             if (!app.Environment.IsDevelopment())
             {
                 app.UseHsts();
             }
-            // ---------------------------------------------
 
             app.UseHttpsRedirection();
-
-            // app.UseStaticFiles();  // ← no necesario, manejas descargas vía endpoints seguros
-
             app.UseCors("CorsPolicy");
-
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // - crear carpeta de Uploads/Expedientes si no existe
+            // Crear carpeta Uploads/Expedientes si no existe
             var expedientesPath = Path.Combine(app.Environment.ContentRootPath, "Uploads", "Expedientes");
             if (!Directory.Exists(expedientesPath))
             {
                 Directory.CreateDirectory(expedientesPath);
             }
-            
 
-            // 8) Endpoints básicos
+            // 10) Endpoints
             app.MapControllers();
 
-            // Health y redirección a swagger
+            // Health y redirección a Swagger
             app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
             app.MapGet("/", () => Results.Redirect("/swagger"));
 
-            // Ejecutar seed runner en runtime 
-            using (var scope = app.Services.CreateScope())
+            // 11) Migraciones + Seed (con manejo de errores para no romper arranque)
+            try
             {
+                using var scope = app.Services.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                db.Database.Migrate(); // aplica migraciones pendientes
                 ProyectoNomina.Backend.Data.DataSeeder.SeedAsync(db).GetAwaiter().GetResult();
+            }
+            catch (Exception seedingEx)
+            {
+                app.Logger.LogError(seedingEx, "Error al aplicar migraciones/seed.");
+                // no tiramos la app: permite inspección en /health y Swagger
             }
 
             app.Run();
