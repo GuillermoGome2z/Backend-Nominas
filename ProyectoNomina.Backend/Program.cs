@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.Features; // ← agregado para multipart
 using ProyectoNomina.Backend.Middleware;
+using ProyectoNomina.Backend.Options;
 
 namespace ProyectoNomina.Backend
 {
@@ -48,6 +49,10 @@ namespace ProyectoNomina.Backend
             // 3) CORS (leer orígenes desde appsettings)
             var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
                                  ?? new[] { "http://localhost:5173" }; // Vite por defecto
+
+                                 builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
+builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
+
 
             builder.Services.AddCors(options =>
             {

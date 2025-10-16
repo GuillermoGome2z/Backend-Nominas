@@ -11,7 +11,7 @@ namespace ProyectoNomina.Backend.Models
         [Required]
         public string Correo { get; set; }
         [Required]
-        public string ClaveHash { get; set; }
+        public string ClaveHash { get; set; } 
         [Required]
         public string Rol { get; set; } = "Usuario";
 

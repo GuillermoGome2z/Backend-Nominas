@@ -8,7 +8,7 @@ namespace ProyectoNomina.Backend.Models
     public class Bonificacion
     {
         public int Id { get; set; }
-        public string Nombre { get; set; }
+        public string Nombre { get; set; } = string.Empty;
         [Precision(18, 2)]
         public decimal Monto { get; set; }
         public int EmpleadoId { get; set; }

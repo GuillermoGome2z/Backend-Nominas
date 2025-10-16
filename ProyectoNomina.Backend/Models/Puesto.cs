@@ -8,7 +8,7 @@ namespace ProyectoNomina.Backend.Models
     public class Puesto
     {
         public int Id { get; set; }
-        public string Nombre { get; set; }
+        public string Nombre { get; set; } = string.Empty;
         [Precision(18, 2)]
         public decimal SalarioBase { get; set; }
 
