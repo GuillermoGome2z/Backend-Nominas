@@ -10,9 +10,10 @@ namespace ProyectoNomina.Backend.Models
         public int Id { get; set; }
         public string Nombre { get; set; } = string.Empty;
         [Precision(18, 2)]
-        public decimal SalarioBase { get; set; }
+        public decimal SalarioBase { get; set; } 
 
-        public ICollection<Empleado> Empleados { get; set; }
+        public ICollection<Empleado> Empleados { get; set; } = new List<Empleado>();
+
     }
 }
 

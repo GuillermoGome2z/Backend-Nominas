@@ -19,51 +19,53 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // GET: /api/dashboard
-        [HttpGet]
-        public async Task<ActionResult<DashboardKpisDto>> GetKpis()
+       [HttpGet]
+public async Task<ActionResult<DashboardKpisDto>> GetKpis()
+{
+    // Total empleados
+    var totalEmpleados = await _context.Empleados.CountAsync();
+
+    // Activos por departamento (null-safe)
+    var activosPorDepto = await _context.Empleados
+        .GroupBy(e => new 
+        { 
+            e.DepartamentoId, 
+            Nombre = e.Departamento != null ? e.Departamento.Nombre : "Sin departamento" 
+        })
+        .Select(g => new ActivosPorDepartamentoDto
         {
-            // 1️⃣ Total de empleados
-            var totalEmpleados = await _context.Empleados.CountAsync();
+            Departamento = g.Key.Nombre,
+            Activos = g.Count()
+        })
+        .OrderByDescending(x => x.Activos)
+        .ToListAsync();
 
-            // 2️⃣ Activos por departamento
-            // Si tu modelo Empleado no tiene un booleano "Activo",
-            // puedes filtrar por FechaSalida == null o Estatus == "Activo"
-            var activosPorDepto = await _context.Empleados
-                //.Where(e => e.FechaSalida == null) // Descomenta si ese es tu criterio
-                .GroupBy(e => new { e.DepartamentoId, Nombre = e.Departamento.Nombre })
-                .Select(g => new ActivosPorDepartamentoDto
-                {
-                    Departamento = g.Key.Nombre,
-                    Activos = g.Count()
-                })
-                .OrderByDescending(x => x.Activos)
-                .ToListAsync();
+    // Fechas en TZ Guatemala
+    var tz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time"); // Windows name para GT
+    var ahoraLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+    var inicioMesActualLocal = new DateTime(ahoraLocal.Year, ahoraLocal.Month, 1);
+    var inicioMesAnteriorLocal = inicioMesActualLocal.AddMonths(-1);
 
-            // 3️⃣ Nóminas del último mes (usando FechaGeneracion de tu modelo)
-            var hoy = DateTime.UtcNow;
-            var inicioMesActual = new DateTime(hoy.Year, hoy.Month, 1);
-            var inicioMesAnterior = inicioMesActual.AddMonths(-1);
+    // Cantidad de nóminas del último mes (en base a Nomina.FechaGeneracion)
+    var nominasUltimoMesCount = await _context.Nominas
+        .Where(n => n.FechaGeneracion >= inicioMesAnteriorLocal && n.FechaGeneracion < inicioMesActualLocal)
+        .CountAsync();
 
-            // Cantidad de nóminas generadas
-            var nominasUltimoMesCount = await _context.Nominas
-                .Where(n => n.FechaGeneracion >= inicioMesAnterior && n.FechaGeneracion < inicioMesActual)
-                .CountAsync();
+    // Total neto del último mes (join explícito evita navegar propiedades nulas)
+    var nominasUltimoMesTotal = await _context.DetalleNominas
+        .Where(d => _context.Nominas
+            .Where(n => n.FechaGeneracion >= inicioMesAnteriorLocal && n.FechaGeneracion < inicioMesActualLocal)
+            .Select(n => n.Id).Contains(d.NominaId))
+        .SumAsync(d => (decimal?)d.SalarioNeto) ?? 0m;
 
-            // Total del último mes (suma de SalarioNeto desde los detalles)
-            var nominasUltimoMesTotal = await _context.DetalleNominas
-                .Where(d => d.Nomina.FechaGeneracion >= inicioMesAnterior && d.Nomina.FechaGeneracion < inicioMesActual)
-                .SumAsync(d => (decimal?)d.SalarioNeto) ?? 0m;
+    return Ok(new DashboardKpisDto
+    {
+        TotalEmpleados = totalEmpleados,
+        ActivosPorDepartamento = activosPorDepto,
+        NominasUltimoMesCount = nominasUltimoMesCount,
+        NominasUltimoMesTotal = nominasUltimoMesTotal
+    });
+}
 
-            // DTO de respuesta
-            var dto = new DashboardKpisDto
-            {
-                TotalEmpleados = totalEmpleados,
-                ActivosPorDepartamento = activosPorDepto,
-                NominasUltimoMesCount = nominasUltimoMesCount,
-                NominasUltimoMesTotal = nominasUltimoMesTotal
-            };
-
-            return Ok(dto);
-        }
     }
 }

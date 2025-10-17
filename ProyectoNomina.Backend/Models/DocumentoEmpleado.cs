@@ -6,13 +6,13 @@
 
         // Relaciones
         public int EmpleadoId { get; set; }
-        public Empleado Empleado { get; set; }
+        public Empleado Empleado { get; set; } = null!;
 
         public int TipoDocumentoId { get; set; }
-        public TipoDocumento TipoDocumento { get; set; }
+        public TipoDocumento TipoDocumento { get; set; } = null!;
 
         // Archivo (compatibilidad con tu lógica actual)
-        public string RutaArchivo { get; set; }
+        public string RutaArchivo { get; set; } = string.Empty;
         public DateTime FechaSubida { get; set; }
 
         // ====== Metadata adicional (Paso 18) ======

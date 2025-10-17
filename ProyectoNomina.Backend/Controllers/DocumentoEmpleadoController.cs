@@ -1,20 +1,21 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
+using ProyectoNomina.Backend.Models.DTOs;
 using ProyectoNomina.Backend.Options;
 using ProyectoNomina.Backend.Services;
 using ProyectoNomina.Shared.Models.DTOs;
-using System.Security.Claims;
-using ProyectoNomina.Backend.Models.DTOs;
 
 namespace ProyectoNomina.Backend.Controllers
 {
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
-    [Route("api/DocumentosEmpleado")] // ruta estable para el front
+    // Mantén la ruta plural para el FE estable:
+    [Route("api/DocumentosEmpleado")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public class DocumentoEmpleadoController : ControllerBase
@@ -36,14 +37,10 @@ namespace ProyectoNomina.Backend.Controllers
             _blobOpt = blobOpt.Value;
         }
 
-        // ============================================
-        //  POST multipart: subir a Azure Blob
-        //     /api/DocumentosEmpleado/{empleadoId}
-        // Form fields: tipoDocumentoId, archivo
-        // ============================================
+        // POST /api/DocumentosEmpleado/{empleadoId}
         [HttpPost("{empleadoId:int}")]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(100_000_000)] // 100 MB -> 413 si se excede
+        [RequestSizeLimit(100_000_000)] // 100 MB → 413 si excede
         [ProducesResponseType(typeof(DocumentoEmpleadoDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
@@ -57,7 +54,6 @@ namespace ProyectoNomina.Backend.Controllers
             if (!_storage.IsEnabled)
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, "Azure Blob no está habilitado.");
 
-            // existencia de empleado / tipo
             var empleadoExists = await _context.Empleados.AnyAsync(e => e.Id == empleadoId, ct);
             if (!empleadoExists) return NotFound("Empleado no existe.");
 
@@ -68,7 +64,6 @@ namespace ProyectoNomina.Backend.Controllers
             if (archivo == null || archivo.Length == 0)
                 return UnprocessableEntity(new { error = "Archivo vacío o ausente." });
 
-            // Validación de tipo
             var allowedExt = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
             var allowedMime = new[] { "application/pdf", "image/jpeg", "image/png" };
 
@@ -79,12 +74,13 @@ namespace ProyectoNomina.Backend.Controllers
             if (!allowedMime.Contains(archivo.ContentType))
                 return UnprocessableEntity(new { error = $"MIME no permitido: {archivo.ContentType}" });
 
-            // Nombre seguro + ruta blob
-            string Safe(string s) => new string(s.Where(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' or ' ').ToArray()).Trim();
+            static string Safe(string s) =>
+                new string(s.Where(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' or ' ').ToArray()).Trim();
+
             var safeName = Safe(Path.GetFileName(archivo.FileName));
             var blobPath = $"documentos/{empleadoId}/{Guid.NewGuid():N}_{safeName}";
 
-            // Hash SHA-256 (stream separado del que usará el Storage)
+            // Hash SHA-256
             string sha256Hex;
             using (var sha = System.Security.Cryptography.SHA256.Create())
             using (var s = archivo.OpenReadStream())
@@ -93,13 +89,10 @@ namespace ProyectoNomina.Backend.Controllers
                 sha256Hex = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
             }
 
-            // Subir a blob (streaming)
             var pathInBlob = await _storage.UploadAsync(archivo, blobPath, ct);
 
-            // Usuario que sube (opcional)
-            int? subidoPor = null;
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (int.TryParse(userIdStr, out var uid)) subidoPor = uid;
+            var userIdStr = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            int? subidoPor = int.TryParse(userIdStr, out var uid) ? uid : (int?)null;
 
             var documento = new DocumentoEmpleado
             {
@@ -108,7 +101,6 @@ namespace ProyectoNomina.Backend.Controllers
                 RutaArchivo = pathInBlob,
                 FechaSubida = DateTime.UtcNow,
 
-                // ====== Metadata adicional ======
                 NombreOriginal = Path.GetFileName(archivo.FileName),
                 Tamano = archivo.Length,
                 ContentType = archivo.ContentType,
@@ -118,7 +110,6 @@ namespace ProyectoNomina.Backend.Controllers
             };
 
             _context.DocumentosEmpleado.Add(documento);
-
             _context.Auditoria.Add(new Auditoria
             {
                 Usuario = User?.Identity?.Name ?? "sistema",
@@ -141,10 +132,7 @@ namespace ProyectoNomina.Backend.Controllers
             return CreatedAtAction(nameof(GetDocumento), new { id = dto.Id }, dto);
         }
 
-        // ====================================================
-        //  GET listado paginado con filtros (DoD requisito)
-        //     /api/DocumentosEmpleado?empleadoId=&tipoDocumentoId=&from=&to=&page=&pageSize=
-        // ====================================================
+        // GET /api/DocumentosEmpleado?empleadoId=&tipoDocumentoId=&from=&to=&page=&pageSize=
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<DocumentoEmpleadoDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentos(
@@ -155,9 +143,8 @@ namespace ProyectoNomina.Backend.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100;
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 10 : pageSize > 100 ? 100 : pageSize;
 
             var q = _context.DocumentosEmpleado
                 .AsNoTracking()
@@ -192,9 +179,7 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(documentos);
         }
 
-        // ===========================
-        //  GET por Id (detalle)
-        // ===========================
+        // GET /api/DocumentosEmpleado/{id}
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(DocumentoEmpleadoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -220,10 +205,7 @@ namespace ProyectoNomina.Backend.Controllers
             };
         }
 
-        // ===========================================================
-        //  GET SAS URL temporal (descarga)
-        //     /api/DocumentosEmpleado/{empleadoId}/{documentoId}/download?minutes=10&download=true
-        // ===========================================================
+        // GET /api/DocumentosEmpleado/{empleadoId}/{documentoId}/download?minutes=&download=
         [HttpGet("{empleadoId:int}/{documentoId:int}/download")]
         [ProducesResponseType(typeof(SignedUrlDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -244,10 +226,12 @@ namespace ProyectoNomina.Backend.Controllers
             if (doc == null) return NotFound("Documento no encontrado.");
             if (string.IsNullOrWhiteSpace(doc.RutaArchivo)) return NotFound("El documento no tiene ruta de blob.");
 
-            var life = TimeSpan.FromMinutes(minutes.HasValue && minutes > 0 ? minutes.Value : _blobOpt.DefaultSasMinutes);
+            var life = TimeSpan.FromMinutes(minutes.HasValue && minutes.Value > 0
+                ? minutes.Value
+                : _blobOpt.DefaultSasMinutes);
+
             var baseUrl = await _storage.GetReadSasUrlAsync(doc.RutaArchivo, life, ct);
 
-            // Forzar descarga si download=true
             var finalUrl = baseUrl;
             if (download)
             {
@@ -256,7 +240,6 @@ namespace ProyectoNomina.Backend.Controllers
                 finalUrl = baseUrl + (baseUrl.Contains('?') ? "&" : "?") + $"response-content-disposition={cd}";
             }
 
-            // Auditoría
             _context.Auditoria.Add(new Auditoria
             {
                 Usuario = User?.Identity?.Name ?? "sistema",
@@ -274,27 +257,25 @@ namespace ProyectoNomina.Backend.Controllers
             });
         }
 
-        // ===========================================
-        //  PUT: actualizar solo TipoDocumentoId
-        // (cambio simple, no re-sube archivo)
-        // ===========================================
+        // PUT /api/DocumentosEmpleado/{id}  (actualiza solo TipoDocumentoId)
         [HttpPut("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         public async Task<IActionResult> ActualizarDocumento(int id, [FromBody] int tipoDocumentoId)
         {
             var doc = await _context.DocumentosEmpleado.FindAsync(id);
             if (doc == null) return NotFound();
+
+            var tipoOk = await _context.TiposDocumento.AnyAsync(t => t.Id == tipoDocumentoId);
+            if (!tipoOk) return UnprocessableEntity(new { error = "TipoDocumentoId inválido" });
 
             doc.TipoDocumentoId = tipoDocumentoId;
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // ===========================================
-        //  DELETE: borra blob + registro
-        //     /api/DocumentosEmpleado/{empleadoId}/{documentoId}
-        // ===========================================
+        // DELETE /api/DocumentosEmpleado/{empleadoId}/{documentoId}
         [HttpDelete("{empleadoId:int}/{documentoId:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -313,12 +294,11 @@ namespace ProyectoNomina.Backend.Controllers
                 await _storage.DeleteAsync(doc.RutaArchivo, ct);
 
             _context.DocumentosEmpleado.Remove(doc);
-
             _context.Auditoria.Add(new Auditoria
             {
                 Usuario = User?.Identity?.Name ?? "sistema",
                 Accion = "DeleteDocumento",
-                Detalles = $"EmpleadoId={empleadoId}, DocumentoId={documentoId}, Ruta={doc.RutaArchivo}",
+                Detalles = $"EmpleadoId={empleadoId}, DocumentoId={documentoId}, Ruta={(doc.RutaArchivo ?? "<sin-ruta>")}",
                 Fecha = DateTime.UtcNow
             });
 
@@ -326,13 +306,8 @@ namespace ProyectoNomina.Backend.Controllers
             return NoContent();
         }
 
-        // =====================================================
-        // 🔻 ENDPOINTS ANTIGUOS (filesystem local)
-        //     Los dejo por compatibilidad. Puedes eliminarlos
-        //     cuando migres al 100% a Blob.
-        // =====================================================
+        // ===== ENDPOINTS ANTIGUOS (local filesystem) =====
 
-        // POST (antiguo) /api/DocumentosEmpleado/Upload -> guarda en wwwroot/documentos
         [HttpPost("Upload")]
         [Obsolete("Usar POST /api/DocumentosEmpleado/{empleadoId} con Azure Blob")]
         public async Task<IActionResult> UploadDocumento([FromForm] DocumentoSubidaDto dto)
@@ -341,12 +316,15 @@ namespace ProyectoNomina.Backend.Controllers
                 return BadRequest("Archivo no válido");
 
             var nombreArchivo = $"{Guid.NewGuid()}_{Path.GetFileName(dto.Archivo.FileName)}";
-            var rutaCarpeta = Path.Combine(_env.WebRootPath ?? Directory.GetCurrentDirectory(), "documentos");
-            if (!Directory.Exists(rutaCarpeta)) Directory.CreateDirectory(rutaCarpeta);
+            var root = _env.WebRootPath ?? Directory.GetCurrentDirectory();
+            var rutaCarpeta = Path.Combine(root, "documentos");
+            Directory.CreateDirectory(rutaCarpeta);
 
             var rutaCompleta = Path.Combine(rutaCarpeta, nombreArchivo);
-            using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+            await using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+            {
                 await dto.Archivo.CopyToAsync(stream);
+            }
 
             var documento = new DocumentoEmpleado
             {
@@ -362,7 +340,6 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(new { documento.Id, documento.RutaArchivo });
         }
 
-        // GET (antiguo) descarga por ruta local
         [HttpGet("/api/expedientes/{empleadoId}/documentos/{docId}")]
         [Authorize(Roles = "Admin,RRHH,Empleado")]
         [Obsolete("Usar GET /api/DocumentosEmpleado/{empleadoId}/{documentoId}/download con SAS")]
@@ -372,11 +349,17 @@ namespace ProyectoNomina.Backend.Controllers
                 .FirstOrDefaultAsync(d => d.Id == docId && d.EmpleadoId == empleadoId);
 
             if (doc == null) return NotFound("Documento no encontrado.");
+            if (string.IsNullOrWhiteSpace(doc.RutaArchivo))
+                return NotFound("El documento no tiene ruta local válida.");
 
-            if (!System.IO.File.Exists(doc.RutaArchivo))
+            if (Path.IsPathFullyQualified(doc.RutaArchivo))
+                return BadRequest("Ruta de archivo inválida.");
+
+            var fullPath = Path.Combine(_env.WebRootPath ?? Directory.GetCurrentDirectory(), doc.RutaArchivo);
+            if (!System.IO.File.Exists(fullPath))
                 return NotFound("El archivo físico no existe en el servidor.");
 
-            var ext = Path.GetExtension(doc.RutaArchivo).ToLowerInvariant();
+            var ext = Path.GetExtension(fullPath).ToLowerInvariant();
             var contentType = ext switch
             {
                 ".pdf" => "application/pdf",
@@ -384,8 +367,8 @@ namespace ProyectoNomina.Backend.Controllers
                 ".png" => "image/png",
                 _ => "application/octet-stream"
             };
-            var downloadName = Path.GetFileName(doc.RutaArchivo);
-            var bytes = await System.IO.File.ReadAllBytesAsync(doc.RutaArchivo);
+            var downloadName = Path.GetFileName(fullPath);
+            var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
             return File(bytes, contentType, downloadName);
         }
     }
