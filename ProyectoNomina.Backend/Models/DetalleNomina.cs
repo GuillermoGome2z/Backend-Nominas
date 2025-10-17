@@ -9,10 +9,10 @@ namespace ProyectoNomina.Backend.Models
         public int Id { get; set; }
 
         public int NominaId { get; set; }
-        public Nomina Nomina { get; set; }
+        public Nomina Nomina { get; set; } = null!;
 
         public int EmpleadoId { get; set; }
-        public Empleado Empleado { get; set; }
+        public Empleado Empleado { get; set; } = null!;
 
         // ===== NUEVO: horas y tarifas =====
         [Precision(18, 2)]
