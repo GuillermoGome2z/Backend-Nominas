@@ -215,6 +215,42 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("DetalleNominas");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.DetalleNominaHistorial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Campo")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("DetalleNominaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ValorAnterior")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ValorNuevo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetalleNominaId");
+
+                    b.ToTable("DetalleNominaHistorial");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.DocumentoEmpleado", b =>
                 {
                     b.Property<int>("Id")
@@ -478,7 +514,7 @@ namespace ProyectoNomina.Backend.Migrations
                     b.HasIndex("Token")
                         .IsUnique();
 
-                    b.HasIndex("UsuarioId");
+                    b.HasIndex("UsuarioId", "Revocado", "Expira");
 
                     b.ToTable("RefreshTokens");
                 });
@@ -540,18 +576,21 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.Property<string>("Correo")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int?>("EmpleadoId")
                         .HasColumnType("int");
 
                     b.Property<string>("NombreCompleto")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Rol")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
@@ -632,6 +671,17 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Navigation("Nomina");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.DetalleNominaHistorial", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.DetalleNomina", "DetalleNomina")
+                        .WithMany()
+                        .HasForeignKey("DetalleNominaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DetalleNomina");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.DocumentoEmpleado", b =>
                 {
                     b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
@@ -696,11 +746,13 @@ namespace ProyectoNomina.Backend.Migrations
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.RefreshToken", b =>
                 {
-                    b.HasOne("ProyectoNomina.Backend.Models.Usuario", null)
-                        .WithMany()
+                    b.HasOne("ProyectoNomina.Backend.Models.Usuario", "Usuario")
+                        .WithMany("RefreshTokens")
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
@@ -770,6 +822,11 @@ namespace ProyectoNomina.Backend.Migrations
             modelBuilder.Entity("ProyectoNomina.Backend.Models.TipoDocumento", b =>
                 {
                     b.Navigation("DocumentosEmpleados");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
+                {
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

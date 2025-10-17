@@ -12,8 +12,8 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250609170106_FixUsuarioEmpleadoRelation")]
-    partial class FixUsuarioEmpleadoRelation
+    [Migration("20251017170050_Init_Prod_2025")]
+    partial class Init_Prod_2025
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -182,6 +182,14 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("HorasExtra")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("HorasRegulares")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("NominaId")
                         .HasColumnType("int");
 
@@ -190,6 +198,14 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SalarioNeto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TarifaExtra")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TarifaHora")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -202,6 +218,42 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("DetalleNominas");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.DetalleNominaHistorial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Campo")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("DetalleNominaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ValorAnterior")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ValorNuevo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetalleNominaId");
+
+                    b.ToTable("DetalleNominaHistorial");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.DocumentoEmpleado", b =>
                 {
                     b.Property<int>("Id")
@@ -210,15 +262,36 @@ namespace ProyectoNomina.Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ContentType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("FechaSubida")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Hash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NombreOriginal")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Observaciones")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("RutaArchivo")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SubidoPorUsuarioId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("Tamano")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("TipoDocumentoId")
                         .HasColumnType("int");
@@ -355,6 +428,47 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("Nominas");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.ObservacionExpediente", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DocumentoEmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FechaActualizacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentoEmpleadoId");
+
+                    b.HasIndex("FechaCreacion");
+
+                    b.HasIndex("EmpleadoId", "DocumentoEmpleadoId");
+
+                    b.ToTable("ObservacionesExpediente", (string)null);
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Puesto", b =>
                 {
                     b.Property<int>("Id")
@@ -376,6 +490,38 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("Puestos");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Expira")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Revocado")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId", "Revocado", "Expira");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Rol", b =>
                 {
                     b.Property<int>("Id")
@@ -393,6 +539,32 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.TipoDocumento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EsRequerido")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("Orden")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TiposDocumento");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
                 {
                     b.Property<int>("Id")
@@ -407,18 +579,21 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.Property<string>("Correo")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int?>("EmpleadoId")
                         .HasColumnType("int");
 
                     b.Property<string>("NombreCompleto")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Rol")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
@@ -445,32 +620,6 @@ namespace ProyectoNomina.Backend.Migrations
                     b.HasIndex("RolId");
 
                     b.ToTable("UsuarioRoles");
-                });
-
-            modelBuilder.Entity("TipoDocumento", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Descripcion")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("EsRequerido")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("Orden")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TiposDocumento");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.AjusteManual", b =>
@@ -525,6 +674,17 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Navigation("Nomina");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.DetalleNominaHistorial", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.DetalleNomina", "DetalleNomina")
+                        .WithMany()
+                        .HasForeignKey("DetalleNominaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DetalleNomina");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.DocumentoEmpleado", b =>
                 {
                     b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
@@ -533,7 +693,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TipoDocumento", "TipoDocumento")
+                    b.HasOne("ProyectoNomina.Backend.Models.TipoDocumento", "TipoDocumento")
                         .WithMany("DocumentosEmpleados")
                         .HasForeignKey("TipoDocumentoId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -571,6 +731,31 @@ namespace ProyectoNomina.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Empleado");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.ObservacionExpediente", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.DocumentoEmpleado", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentoEmpleadoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProyectoNomina.Backend.Models.Empleado", null)
+                        .WithMany()
+                        .HasForeignKey("EmpleadoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.RefreshToken", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.Usuario", "Usuario")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
@@ -637,9 +822,14 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Navigation("UsuarioRoles");
                 });
 
-            modelBuilder.Entity("TipoDocumento", b =>
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.TipoDocumento", b =>
                 {
                     b.Navigation("DocumentosEmpleados");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.Usuario", b =>
+                {
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }
