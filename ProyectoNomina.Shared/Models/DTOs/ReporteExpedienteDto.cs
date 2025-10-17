@@ -7,14 +7,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class ReporteExpedienteDto
-    {
-         [Required(ErrorMessage = "El empleado es obligatorio")]
-        public string Empleado { get; set; } 
-         [Required(ErrorMessage = "El estado del expediente es obligatorio")]
-        public string EstadoExpediente { get; set; } 
-        public int DocumentosRequeridos { get; set; }
-        public int DocumentosPresentados { get; set; }
-        public int DocumentosFaltantes { get; set; }
-    }
+   public class ReporteExpedienteDto
+{
+    [Required] public required string Empleado { get; init; }
+    [Required] public required string EstadoExpediente { get; init; }
+    public int DocumentosRequeridos { get; init; }
+    public int DocumentosPresentados { get; init; }
+    public int DocumentosFaltantes { get; init; }
+}
 }

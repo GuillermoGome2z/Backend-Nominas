@@ -6,15 +6,11 @@ namespace ProyectoNomina.Shared.Models.DTOs
 {
     public class UsuarioRegistroDto
     {
-        [Required]
-        public string Nombre { get; set; }
-        [Required]
-        public string Correo { get; set; }
-        [Required]
-        public string Contraseña { get; set; }
-        [Required]
-        public string Rol { get; set; } = "Usuario";
+        [Required] public required string Nombre { get; init; }
+        [Required, EmailAddress] public required string Correo { get; init; }
+        [Required] public required string Contraseña { get; init; }
 
-        public int? EmpleadoId { get; set; }
+        [Required] public string Rol { get; init; } = "Usuario";
+        public int? EmpleadoId { get; init; }
     }
 }

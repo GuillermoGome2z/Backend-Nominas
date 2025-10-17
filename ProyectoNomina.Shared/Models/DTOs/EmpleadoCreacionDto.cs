@@ -1,48 +1,39 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class EmpleadoCreacionDto
+    public sealed class EmpleadoCreacionDto
     {
-        [Required(ErrorMessage = "El nombre completo es obligatorio")]
-        public string NombreCompleto { get; set; }
+        [Required] public required string NombreCompleto { get; init; }
+        [Required, EmailAddress] public required string Correo { get; init; }
+        [Required] public required string Telefono { get; init; }
+        [Required] public required string Direccion { get; init; }
 
-        [Required(ErrorMessage = "El correo es obligatorio")]
-        [EmailAddress(ErrorMessage = "El correo no es válido")]
-        public string Correo { get; set; }
+        [Required, RegularExpression(@"^\d{13}$")]
+        public required string DPI { get; init; }
 
+        [Required, RegularExpression(@"^[0-9A-Za-z-]{7,15}$")]
+        public required string NIT { get; init; }
 
-        [Required(ErrorMessage = "El teléfono es obligatorio")]
-        [RegularExpression(@"^\d{8}$", ErrorMessage = "El número de teléfono es incorrecto")]
-        public string Telefono { get; set; }
+        [Required, DataType(DataType.Date)]
+        public DateTime FechaNacimiento { get; init; }
 
-        [Required(ErrorMessage = "La dirección es obligatoria")]
-        public string Direccion { get; set; }
+        //  Campos que tu EmpleadosController está leyendo
+        [Required, Range(1, int.MaxValue)]
+        public int DepartamentoId { get; init; }
 
-        [Required(ErrorMessage = "El salario base es obligatorio")]
-        public decimal SalarioBase { get; set; }
+        [Required, Range(1, int.MaxValue)]
+        public int PuestoId { get; init; }
 
-        [Required(ErrorMessage = "Debe seleccionar un departamento")]
-        public int DepartamentoId { get; set; }
+        // Si el salario lo toma del Puesto en BD, esto podría ser opcional.
+        // Como tu controller lo usa (línea 186), lo exponemos y validamos.
+        [Required, Range(0, double.MaxValue)]
+        public decimal SalarioBase { get; init; }
 
-        [Required(ErrorMessage = "Debe seleccionar un puesto")]
-        public int PuestoId { get; set; }
+        [Required, DataType(DataType.Date)]
+        public DateTime FechaContratacion { get; init; }
 
-        [Required(ErrorMessage = "La fecha de contratación es obligatoria")]
-        [DataType(DataType.Date)]
-        public DateTime FechaContratacion { get; set; }
-
-        [Required(ErrorMessage = "El DPI es obligatorio")]
-        public string DPI { get; set; }
-
-        [Required(ErrorMessage = "El NIT es obligatorio")]
-        public string NIT { get; set; }
-
-        [Required(ErrorMessage = "La fecha de nacimiento es obligatoria")]
-        [DataType(DataType.Date)]
-        public DateTime FechaNacimiento { get; set; }
-
-        public string EstadoLaboral { get; set; } = "Activo";
+        // Opcional, con default controlado
+        public string EstadoLaboral { get; init; } = "Activo";
     }
 }

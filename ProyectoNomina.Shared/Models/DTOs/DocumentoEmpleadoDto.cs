@@ -3,20 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoNomina.Shared.Models.DTOs
 {
-    public class DocumentoEmpleadoDto
+    public sealed class DocumentoEmpleadoDto
     {
-        public int Id { get; set; }
+        public int Id { get; init; }
+        [Required] public int EmpleadoId { get; init; }
+        [Required] public int TipoDocumentoId { get; init; }
 
-        public int EmpleadoId { get; set; }
-        public string NombreEmpleado { get; set; } = string.Empty;
+        // Opcionales: pueden ser null cuando no se incluye la navegación
+        public string? NombreTipo { get; init; }
+        public string? NombreEmpleado { get; init; }
 
-        public int TipoDocumentoId { get; set; }
-        public string NombreTipo { get; set; } = string.Empty;
-
-        public string RutaArchivo { get; set; } = string.Empty;
-        public DateTime FechaSubida { get; set; }
+        [Required] public string RutaArchivo { get; init; } = string.Empty;
+        public DateTime FechaSubida { get; init; }
     }
 }
