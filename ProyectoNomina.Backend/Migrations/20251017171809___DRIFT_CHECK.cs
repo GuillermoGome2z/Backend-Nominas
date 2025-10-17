@@ -5,25 +5,18 @@
 namespace ProyectoNomina.Backend.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCorreoToEmpleado : Migration
+    public partial class __DRIFT_CHECK : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Correo",
-                table: "Empleados",
-                type: "nvarchar(max)",
-                nullable: false,
-                defaultValue: "");
+
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Correo",
-                table: "Empleados");
+
         }
     }
 }
