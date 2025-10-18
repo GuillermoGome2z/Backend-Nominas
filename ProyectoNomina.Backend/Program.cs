@@ -205,12 +205,17 @@ namespace ProyectoNomina.Backend
             app.UseHttpsRedirection();
             app.UseCors("CorsPolicy");
 
-            // Agrega cabecera Vary: Origin para evitar cachés cruzados por origen
+            // ⬇️ CORREGIDO: agregar 'Vary: Origin' justo antes de iniciar la respuesta
             app.Use(async (ctx, next) =>
             {
+                ctx.Response.OnStarting(() =>
+                {
+                    if (!ctx.Response.Headers.ContainsKey("Vary"))
+                        ctx.Response.Headers.Append("Vary", "Origin");
+                    return Task.CompletedTask;
+                });
+
                 await next();
-                if (!ctx.Response.Headers.ContainsKey("Vary"))
-                    ctx.Response.Headers.Append("Vary", "Origin");
             });
 
             app.UseAuthentication();
