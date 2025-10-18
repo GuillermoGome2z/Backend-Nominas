@@ -202,7 +202,7 @@ namespace ProyectoNomina.Backend
                 app.UseHsts();
             }
 
-            app.UseHttpsRedirection();
+           // app.UseHttpsRedirection();
             app.UseCors("CorsPolicy");
 
             // ⬇️ CORREGIDO: agregar 'Vary: Origin' justo antes de iniciar la respuesta
