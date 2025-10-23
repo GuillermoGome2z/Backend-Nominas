@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http.Features;
 using ProyectoNomina.Backend.Middleware;
 using ProyectoNomina.Backend.Options;
 using System.Net;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace ProyectoNomina.Backend
 {
@@ -21,6 +22,9 @@ namespace ProyectoNomina.Backend
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            // ⭐ CONFIGURACIÓN PUERTO FIJO
+            builder.WebHost.UseUrls("http://localhost:5009");
 
             // Licencia QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
@@ -67,7 +71,7 @@ namespace ProyectoNomina.Backend
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          // .AllowCredentials() // descomenta si usas cookies/credenciales en el front
+                          .AllowCredentials() // Habilitado para JWT en headers
                           // expone cabeceras para paginación/descarga y refresh
                           .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
                 });
@@ -181,7 +185,7 @@ namespace ProyectoNomina.Backend
                 {
                     await next();
                 }
-                catch (BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
+                catch (Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
                 {
                     context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
                     context.Response.ContentType = "application/problem+json";
