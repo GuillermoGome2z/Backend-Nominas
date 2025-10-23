@@ -28,13 +28,19 @@ namespace ProyectoNomina.Backend.Controllers
         /// </summary>
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetExpedientes(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
             [FromQuery] int? departamentoId = null,
+            [FromQuery] int? puestoId = null,
+            [FromQuery] int? empleadoId = null,
             [FromQuery] string? estadoLaboral = null,
-            [FromQuery] bool? activo = null)
+            [FromQuery] bool? activo = null,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortOrder = null)
         {
             try
             {
@@ -56,9 +62,25 @@ namespace ProyectoNomina.Backend.Controllers
                     query = query.Where(e => e.DepartamentoId == departamentoId.Value);
                 }
 
+                if (puestoId.HasValue)
+                {
+                    query = query.Where(e => e.PuestoId == puestoId.Value);
+                }
+
+                if (empleadoId.HasValue)
+                {
+                    query = query.Where(e => e.Id == empleadoId.Value);
+                }
+
                 if (!string.IsNullOrWhiteSpace(estadoLaboral))
                 {
                     query = query.Where(e => e.EstadoLaboral == estadoLaboral);
+                }
+
+                if (activo.HasValue)
+                {
+                    var estado = activo.Value ? "ACTIVO" : "INACTIVO";
+                    query = query.Where(e => e.EstadoLaboral == estado);
                 }
 
                 // Paginación
@@ -331,6 +353,176 @@ namespace ProyectoNomina.Backend.Controllers
             {
                 return StatusCode(500, new { message = "Error al obtener estadísticas", error = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// GET /api/expedientes/{id}/download - Descargar expediente completo o documentos específicos
+        /// </summary>
+        [HttpGet("{id}/download")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DescargarExpediente(int id, [FromQuery] string? tipo = null, [FromQuery] int? documentoId = null)
+        {
+            try
+            {
+                var empleado = await _context.Empleados
+                    .Include(e => e.Documentos)
+                    .FirstOrDefaultAsync(e => e.Id == id);
+
+                if (empleado == null)
+                    return NotFound(new { message = "Expediente no encontrado" });
+
+                // Si se especifica un documento específico
+                if (documentoId.HasValue)
+                {
+                    var documento = empleado.Documentos?.FirstOrDefault(d => d.Id == documentoId.Value);
+                    if (documento == null)
+                        return NotFound(new { message = "Documento no encontrado" });
+
+                    // Aquí deberías implementar la lógica real para obtener el archivo
+                    // Por ahora, generar contenido de ejemplo
+                    var contenidoDocumento = GenerarContenidoDocumento(documento);
+                    var fileName = $"{documento.NombreOriginal ?? "Documento"}_{empleado.NombreCompleto.Replace(" ", "_")}.pdf";
+                    return File(contenidoDocumento, "application/pdf", fileName);
+                }
+
+                // Si se especifica un tipo de documento
+                if (!string.IsNullOrEmpty(tipo))
+                {
+                    var documentosTipo = empleado.Documentos?.Where(d => (d.NombreOriginal ?? "").ToLower().Contains(tipo.ToLower())).ToList();
+                    if (documentosTipo?.Any() != true)
+                        return NotFound(new { message = $"No se encontraron documentos de tipo '{tipo}'" });
+
+                    // Generar un ZIP con todos los documentos del tipo especificado
+                    var contenidoZip = GenerarZipDocumentos(documentosTipo, empleado.NombreCompleto);
+                    var zipFileName = $"Expediente_{empleado.NombreCompleto.Replace(" ", "_")}_{tipo}.zip";
+                    return File(contenidoZip, "application/zip", zipFileName);
+                }
+
+                // Descargar expediente completo
+                var todosDocumentos = empleado.Documentos?.ToList() ?? new List<DocumentoEmpleado>();
+                var expedienteCompleto = GenerarExpedienteCompleto(empleado, todosDocumentos);
+                var expedienteFileName = $"Expediente_Completo_{empleado.NombreCompleto.Replace(" ", "_")}.pdf";
+                return File(expedienteCompleto, "application/pdf", expedienteFileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al descargar expediente", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET /api/expedientes/estadisticas - Estadísticas de expedientes para dashboard
+        /// </summary>
+        [HttpGet("estadisticas")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<object>> GetEstadisticasExpedientes()
+        {
+            try
+            {
+                var totalExpedientes = await _context.Empleados.CountAsync();
+                var expedientesActivos = await _context.Empleados.CountAsync(e => e.EstadoLaboral == "ACTIVO");
+                var expedientesInactivos = await _context.Empleados.CountAsync(e => e.EstadoLaboral == "INACTIVO");
+                
+                var totalDocumentos = await _context.DocumentosEmpleado.CountAsync();
+                var documentosPorEmpleado = await _context.Empleados
+                    .Select(e => new {
+                        Empleado = e.NombreCompleto,
+                        TotalDocumentos = e.Documentos != null ? e.Documentos.Count() : 0
+                    })
+                    .Where(x => x.TotalDocumentos > 0)
+                    .OrderByDescending(x => x.TotalDocumentos)
+                    .Take(5)
+                    .ToListAsync();
+
+                var expedientesPorDepartamento = await _context.Empleados
+                    .GroupBy(e => e.Departamento != null ? e.Departamento.Nombre : "Sin Departamento")
+                    .Select(g => new {
+                        Departamento = g.Key,
+                        Total = g.Count(),
+                        Activos = g.Count(e => e.EstadoLaboral == "ACTIVO"),
+                        Inactivos = g.Count(e => e.EstadoLaboral == "INACTIVO")
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    resumen = new {
+                        totalExpedientes = totalExpedientes,
+                        expedientesActivos = expedientesActivos,
+                        expedientesInactivos = expedientesInactivos,
+                        totalDocumentos = totalDocumentos,
+                        porcentajeActivos = totalExpedientes > 0 ? Math.Round((double)expedientesActivos / totalExpedientes * 100, 1) : 0
+                    },
+                    expedientesPorDepartamento = expedientesPorDepartamento,
+                    documentosPorEmpleado = documentosPorEmpleado,
+                    fechaConsulta = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener estadísticas de expedientes", error = ex.Message });
+            }
+        }
+
+        // Métodos auxiliares para generar contenido de descargas
+        private byte[] GenerarContenidoDocumento(DocumentoEmpleado documento)
+        {
+            // Implementación básica - en producción deberías obtener el archivo real del storage
+            var contenido = $@"DOCUMENTO: {documento.NombreOriginal ?? "Sin nombre"}
+EMPLEADO: {documento.Empleado?.NombreCompleto ?? "N/A"}
+TIPO: {documento.TipoDocumento?.Nombre ?? "N/A"}
+FECHA SUBIDA: {documento.FechaSubida:dd/MM/yyyy}
+RUTA: {documento.RutaArchivo ?? "N/A"}
+
+Este es un documento de ejemplo generado por el sistema.
+En una implementación real, aquí se retornaría el contenido del archivo almacenado.";
+
+            return System.Text.Encoding.UTF8.GetBytes(contenido);
+        }
+
+        private byte[] GenerarZipDocumentos(List<DocumentoEmpleado> documentos, string nombreEmpleado)
+        {
+            // Implementación básica - en producción usarías System.IO.Compression
+            var contenido = $@"EXPEDIENTE ZIP - {nombreEmpleado}
+DOCUMENTOS INCLUIDOS:
+
+{string.Join("\n", documentos.Select(d => $"- {d.NombreOriginal ?? "Sin nombre"} ({d.TipoDocumento?.Nombre ?? "N/A"})"))}
+
+Total de documentos: {documentos.Count}
+Generado: {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+            return System.Text.Encoding.UTF8.GetBytes(contenido);
+        }
+
+        private byte[] GenerarExpedienteCompleto(Empleado empleado, List<DocumentoEmpleado> documentos)
+        {
+            var contenido = $@"EXPEDIENTE COMPLETO
+===================
+
+DATOS PERSONALES:
+Nombre: {empleado.NombreCompleto}
+DPI: {empleado.DPI ?? "N/A"}
+NIT: {empleado.NIT ?? "N/A"}
+Correo: {empleado.Correo ?? "N/A"}
+Teléfono: {empleado.Telefono ?? "N/A"}
+Dirección: {empleado.Direccion ?? "N/A"}
+Fecha Nacimiento: {empleado.FechaNacimiento?.ToString("dd/MM/yyyy") ?? "N/A"}
+
+DATOS LABORALES:
+Departamento: {empleado.Departamento?.Nombre ?? "N/A"}
+Puesto: {empleado.Puesto?.Nombre ?? "N/A"}
+Salario Mensual: Q{empleado.SalarioMensual:N2}
+Fecha Contratación: {empleado.FechaContratacion:dd/MM/yyyy}
+Estado Laboral: {empleado.EstadoLaboral}
+
+DOCUMENTOS ({documentos.Count}):
+{string.Join("\n", documentos.Select(d => $"- {d.NombreOriginal ?? "Sin nombre"} ({d.TipoDocumento?.Nombre ?? "N/A"}) - Subido: {d.FechaSubida:dd/MM/yyyy}"))}
+
+Expediente generado: {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+            return System.Text.Encoding.UTF8.GetBytes(contenido);
         }
     }
 

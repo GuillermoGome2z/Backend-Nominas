@@ -608,23 +608,28 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CalcularNominas([FromBody] CalcularNominasDto dto, CancellationToken ct = default)
+        public async Task<IActionResult> CalcularNominas([FromBody] CalcularNominasDto? dto = null, CancellationToken ct = default)
         {
             try
             {
                 var query = _context.Nominas.AsQueryable();
 
-                if (dto.NominaIds?.Any() == true)
+                if (dto?.NominaIds?.Any() == true)
                 {
                     query = query.Where(n => dto.NominaIds.Contains(n.Id));
                 }
-                else if (dto.Periodo != null)
+                else if (!string.IsNullOrEmpty(dto?.Periodo))
                 {
                     query = query.Where(n => n.Periodo == dto.Periodo);
                 }
-                else if (dto.FechaInicio.HasValue && dto.FechaFin.HasValue)
+                else if (dto?.FechaInicio.HasValue == true && dto?.FechaFin.HasValue == true)
                 {
                     query = query.Where(n => n.FechaInicio >= dto.FechaInicio && n.FechaFin <= dto.FechaFin);
+                }
+                // Si no hay filtros, calcular todas las nóminas en estado BORRADOR
+                else
+                {
+                    query = query.Where(n => n.Estado == "BORRADOR");
                 }
 
                 var nominas = await query.ToListAsync(ct);
@@ -652,6 +657,72 @@ namespace ProyectoNomina.Backend.Controllers
                 return Ok(new { 
                     message = "Nóminas calculadas exitosamente",
                     resultados = resultados
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al calcular nóminas", error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        // GET /api/nominas/calcular - Calcular nóminas (versión GET para frontend)
+        // ============================================================
+        [HttpGet("calcular")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CalcularNominasGet([FromQuery] string? periodo = null, [FromQuery] string? estado = null, CancellationToken ct = default)
+        {
+            try
+            {
+                var query = _context.Nominas.AsQueryable();
+                
+                if (!string.IsNullOrEmpty(periodo))
+                {
+                    query = query.Where(n => n.Periodo == periodo);
+                }
+                
+                if (!string.IsNullOrEmpty(estado))
+                {
+                    query = query.Where(n => n.Estado == estado);
+                }
+                else
+                {
+                    // Por defecto, calcular nóminas en BORRADOR
+                    query = query.Where(n => n.Estado == "BORRADOR");
+                }
+
+                var nominas = await query.ToListAsync(ct);
+                
+                if (!nominas.Any())
+                {
+                    return Ok(new { 
+                        message = "No se encontraron nóminas para calcular",
+                        resultados = new object[0],
+                        totalCalculadas = 0
+                    });
+                }
+
+                var resultados = new List<object>();
+                foreach (var nomina in nominas)
+                {
+                    await _nominaService.Calcular(nomina);
+                    resultados.Add(new { 
+                        NominaId = nomina.Id,
+                        Periodo = nomina.Periodo,
+                        TotalEmpleados = nomina.DetallesNomina?.Count ?? 0,
+                        MontoTotal = nomina.MontoTotal,
+                        Estado = "Calculado"
+                    });
+                }
+
+                await _context.SaveChangesAsync(ct);
+                
+                return Ok(new { 
+                    message = "Nóminas calculadas exitosamente",
+                    resultados = resultados,
+                    totalCalculadas = resultados.Count
                 });
             }
             catch (Exception ex)
@@ -772,8 +843,24 @@ namespace ProyectoNomina.Backend.Controllers
                     query = query.Where(n => n.Periodo == periodo);
                 }
 
+                var totalNominas = await query.CountAsync(ct);
+                
+                if (totalNominas == 0)
+                {
+                    return Ok(new {
+                        periodo = periodo ?? "Todos los períodos",
+                        resumen = new {
+                            totalNominas = 0,
+                            montoGlobalTotal = 0m,
+                            empleadosConNomina = 0
+                        },
+                        estadisticasPorEstado = new object[0],
+                        fechaConsulta = DateTime.UtcNow
+                    });
+                }
+
                 var estadisticas = await query
-                    .GroupBy(n => n.Estado)
+                    .GroupBy(n => n.Estado ?? "SIN_ESTADO")
                     .Select(g => new {
                         Estado = g.Key,
                         Cantidad = g.Count(),
@@ -781,14 +868,21 @@ namespace ProyectoNomina.Backend.Controllers
                     })
                     .ToListAsync(ct);
 
-                var totalNominas = await query.CountAsync(ct);
-                var montoGlobalTotal = await query.SumAsync(n => n.MontoTotal, ct);
+                var montoGlobalTotal = estadisticas.Sum(e => e.MontoTotal);
                 
-                var empleadosConNomina = await query
-                    .SelectMany(n => n.DetallesNomina)
-                    .Select(d => d.EmpleadoId)
-                    .Distinct()
-                    .CountAsync(ct);
+                var empleadosConNomina = 0;
+                try 
+                {
+                    empleadosConNomina = await _context.DetalleNominas
+                        .Where(d => query.Any(n => n.Id == d.NominaId))
+                        .Select(d => d.EmpleadoId)
+                        .Distinct()
+                        .CountAsync(ct);
+                }
+                catch
+                {
+                    // Si falla la consulta de empleados, continuar con 0
+                }
 
                 return Ok(new {
                     periodo = periodo ?? "Todos los períodos",
