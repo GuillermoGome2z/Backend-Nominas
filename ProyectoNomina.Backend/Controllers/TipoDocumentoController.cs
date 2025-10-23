@@ -11,6 +11,7 @@ namespace ProyectoNomina.Backend.Controllers
     [Authorize(Roles = "Admin,RRHH")]
     [ApiController]
     [Route("api/[controller]")]
+    [Route("api/tipos-documento")] // Alias para el frontend
     [Produces("application/json")]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

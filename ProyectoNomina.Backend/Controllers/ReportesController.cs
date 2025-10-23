@@ -28,6 +28,71 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================
+        //    REPORTES GENERALES
+        // ============================
+
+        [HttpGet("general")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<object>> ObtenerReporteGeneral([FromQuery] string? estadoLaboral = null)
+        {
+            try
+            {
+                var query = _context.Empleados.AsQueryable();
+
+                // Filtrar por estado laboral si se proporciona
+                if (!string.IsNullOrWhiteSpace(estadoLaboral))
+                {
+                    query = query.Where(e => e.EstadoLaboral == estadoLaboral);
+                }
+
+                var empleados = await query
+                    .Include(e => e.Departamento)
+                    .Include(e => e.Puesto)
+                    .Select(e => new 
+                    {
+                        Id = e.Id,
+                        NombreCompleto = e.NombreCompleto,
+                        Correo = e.Correo,
+                        Telefono = e.Telefono,
+                        SalarioMensual = e.SalarioMensual,
+                        FechaContratacion = e.FechaContratacion,
+                        EstadoLaboral = e.EstadoLaboral,
+                        Departamento = e.Departamento != null ? e.Departamento.Nombre : "Sin Departamento",
+                        Puesto = e.Puesto != null ? e.Puesto.Nombre : "Sin Puesto"
+                    })
+                    .ToListAsync();
+
+                return Ok(new 
+                {
+                    totalEmpleados = empleados.Count,
+                    empleados = empleados,
+                    estadoFiltro = estadoLaboral ?? "Todos"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Error al generar reporte general", error = ex.Message });
+            }
+        }
+
+        [HttpGet("excel")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ExportarExcelGeneral([FromQuery] string? estadoLaboral = null)
+        {
+            return Ok(new { message = "Endpoint Excel disponible", redirect = "/api/reportes/empleados.xlsx" });
+        }
+
+        [HttpGet("pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ExportarPdfGeneral([FromQuery] string? estadoLaboral = null)
+        {
+            return Ok(new { message = "Endpoint PDF disponible", redirect = "/api/reportes/Expedientes/pdf" });
+        }
+
+        // ============================
         //    REPORTES EXISTENTES
         // ============================
 

@@ -55,8 +55,10 @@ namespace ProyectoNomina.Backend
             var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                                  ?? new[] { "http://localhost:5173" }; // Vite por defecto
 
-            builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
-            builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
+            // Azure Blob temporalmente deshabilitado - usando almacenamiento local
+            // builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
+            // builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
+            builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 
             builder.Services.AddCors(options =>
             {
