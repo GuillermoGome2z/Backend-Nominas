@@ -68,7 +68,7 @@ namespace ProyectoNomina.Backend.Services
             decimal irtraPctBase = resolver?.Invoke("IRTRA", fechaCorte) ?? 0M;
             decimal isrPctBase   = resolver?.Invoke("ISR",   fechaCorte) ?? 0M;
 
-            nomina.Detalles ??= new List<DetalleNomina>();
+            nomina.DetallesNomina ??= new List<DetalleNomina>();
 
             foreach (var empleado in empleados)
             {
@@ -149,11 +149,99 @@ namespace ProyectoNomina.Backend.Services
                     DesgloseDeducciones = desglose.ToString()
                 };
 
-                nomina.Detalles.Add(detalle);
+                nomina.DetallesNomina.Add(detalle);
             }
 
             _context.Nominas.Update(nomina);
             await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Genera un PDF de la nómina
+        /// </summary>
+        public async Task<byte[]> GenerarPdfAsync(Nomina nomina)
+        {
+            // Implementación básica - puedes mejorarla con una librería como QuestPDF
+            var content = GenerarContenidoNomina(nomina);
+            
+            // Por ahora retornamos un PDF simple con texto plano
+            // En una implementación real usarías una librería como QuestPDF, iTextSharp, etc.
+            var bytes = System.Text.Encoding.UTF8.GetBytes($"NÓMINA PDF\n{content}");
+            return await Task.FromResult(bytes);
+        }
+
+        /// <summary>
+        /// Genera un Excel de la nómina
+        /// </summary>
+        public async Task<byte[]> GenerarExcelAsync(Nomina nomina)
+        {
+            // Implementación básica - puedes mejorarla con una librería como EPPlus
+            var content = GenerarContenidoNomina(nomina);
+            
+            // Por ahora retornamos un CSV simple
+            // En una implementación real usarías EPPlus, ClosedXML, etc.
+            var bytes = System.Text.Encoding.UTF8.GetBytes($"NÓMINA EXCEL\n{content}");
+            return await Task.FromResult(bytes);
+        }
+
+        /// <summary>
+        /// Envía la nómina por email
+        /// </summary>
+        public async Task<bool> EnviarNominaPorEmailAsync(Nomina nomina, string email, string formato, string? mensaje = null)
+        {
+            try
+            {
+                // Implementación básica - en una implementación real usarías un servicio de email
+                // como SendGrid, SMTP, etc.
+                
+                var contenido = GenerarContenidoNomina(nomina);
+                var asunto = $"Nómina {nomina.Periodo ?? nomina.FechaGeneracion.ToString("yyyy-MM")} - {nomina.Descripcion}";
+                
+                // Simular envío de email
+                Console.WriteLine($"Enviando email a: {email}");
+                Console.WriteLine($"Asunto: {asunto}");
+                Console.WriteLine($"Formato: {formato}");
+                Console.WriteLine($"Mensaje: {mensaje ?? "Sin mensaje adicional"}");
+                Console.WriteLine($"Contenido: {contenido}");
+                
+                // Simular delay de envío
+                await Task.Delay(100);
+                
+                return true; // Retorna true si se envió exitosamente
+            }
+            catch (Exception)
+            {
+                return false; // Retorna false si hubo error
+            }
+        }
+
+        /// <summary>
+        /// Genera el contenido básico de la nómina para reportes
+        /// </summary>
+        private string GenerarContenidoNomina(Nomina nomina)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"ID: {nomina.Id}");
+            sb.AppendLine($"Descripción: {nomina.Descripcion}");
+            sb.AppendLine($"Fecha de Generación: {nomina.FechaGeneracion:dd/MM/yyyy}");
+            sb.AppendLine($"Período: {nomina.Periodo ?? "N/A"}");
+            sb.AppendLine($"Estado: {nomina.Estado}");
+            sb.AppendLine($"Monto Total: Q{nomina.MontoTotal:N2}");
+            sb.AppendLine($"Total Bruto: Q{nomina.TotalBruto:N2}");
+            sb.AppendLine($"Total Deducciones: Q{nomina.TotalDeducciones:N2}");
+            sb.AppendLine($"Total Bonificaciones: Q{nomina.TotalBonificaciones:N2}");
+            sb.AppendLine($"Total Neto: Q{nomina.TotalNeto:N2}");
+            
+            if (nomina.DetallesNomina?.Any() == true)
+            {
+                sb.AppendLine("\nDETALLE DE EMPLEADOS:");
+                foreach (var detalle in nomina.DetallesNomina)
+                {
+                    sb.AppendLine($"- Empleado {detalle.EmpleadoId}: Q{detalle.SalarioNeto:N2}");
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }

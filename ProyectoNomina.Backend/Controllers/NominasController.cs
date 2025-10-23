@@ -600,6 +600,337 @@ namespace ProyectoNomina.Backend.Controllers
 
             return NoContent();
         }
+
+        // ============================================================
+        // POST /api/nominas/calcular - Calcular nóminas existentes
+        // ============================================================
+        [HttpPost("calcular")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CalcularNominas([FromBody] CalcularNominasDto dto, CancellationToken ct = default)
+        {
+            try
+            {
+                var query = _context.Nominas.AsQueryable();
+
+                if (dto.NominaIds?.Any() == true)
+                {
+                    query = query.Where(n => dto.NominaIds.Contains(n.Id));
+                }
+                else if (dto.Periodo != null)
+                {
+                    query = query.Where(n => n.Periodo == dto.Periodo);
+                }
+                else if (dto.FechaInicio.HasValue && dto.FechaFin.HasValue)
+                {
+                    query = query.Where(n => n.FechaInicio >= dto.FechaInicio && n.FechaFin <= dto.FechaFin);
+                }
+
+                var nominas = await query.ToListAsync(ct);
+                
+                if (!nominas.Any())
+                {
+                    return BadRequest(new { message = "No se encontraron nóminas para calcular" });
+                }
+
+                var resultados = new List<object>();
+                foreach (var nomina in nominas)
+                {
+                    await _nominaService.Calcular(nomina);
+                    resultados.Add(new { 
+                        NominaId = nomina.Id,
+                        Periodo = nomina.Periodo,
+                        TotalEmpleados = nomina.DetallesNomina?.Count ?? 0,
+                        MontoTotal = nomina.MontoTotal,
+                        Estado = "Calculado"
+                    });
+                }
+
+                await _context.SaveChangesAsync(ct);
+                
+                return Ok(new { 
+                    message = "Nóminas calculadas exitosamente",
+                    resultados = resultados
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al calcular nóminas", error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        // PUT /api/nominas/{id}/aprobar - Aprobar nómina
+        // ============================================================
+        [HttpPut("{id}/aprobar")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AprobarNomina(int id, CancellationToken ct = default)
+        {
+            var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
+            if (nomina == null)
+                return NotFound(new { message = "Nómina no encontrada" });
+
+            if (nomina.Estado != "BORRADOR" && nomina.Estado != "PENDIENTE")
+                return BadRequest(new { message = "Solo se pueden aprobar nóminas en estado BORRADOR o PENDIENTE" });
+
+            nomina.Estado = "APROBADA";
+            nomina.FechaAprobacion = DateTime.UtcNow;
+            
+            await _context.SaveChangesAsync(ct);
+
+            return Ok(new { 
+                message = "Nómina aprobada exitosamente",
+                nominaId = id,
+                estado = nomina.Estado,
+                fechaAprobacion = nomina.FechaAprobacion
+            });
+        }
+
+        // ============================================================
+        // PUT /api/nominas/{id}/pagar - Marcar nómina como pagada
+        // ============================================================
+        [HttpPut("{id}/pagar")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> PagarNomina(int id, CancellationToken ct = default)
+        {
+            var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
+            if (nomina == null)
+                return NotFound(new { message = "Nómina no encontrada" });
+
+            if (nomina.Estado != "APROBADA")
+                return BadRequest(new { message = "Solo se pueden pagar nóminas en estado APROBADA" });
+
+            nomina.Estado = "PAGADA";
+            nomina.FechaPago = DateTime.UtcNow;
+            
+            await _context.SaveChangesAsync(ct);
+
+            return Ok(new { 
+                message = "Nómina marcada como pagada exitosamente",
+                nominaId = id,
+                estado = nomina.Estado,
+                fechaPago = nomina.FechaPago
+            });
+        }
+
+        // ============================================================
+        // PUT /api/nominas/{id}/anular - Anular nómina
+        // ============================================================
+        [HttpPut("{id}/anular")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AnularNomina(int id, [FromBody] AnularNominaDto dto, CancellationToken ct = default)
+        {
+            var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
+            if (nomina == null)
+                return NotFound(new { message = "Nómina no encontrada" });
+
+            if (nomina.Estado == "ANULADA")
+                return BadRequest(new { message = "La nómina ya está anulada" });
+
+            if (nomina.Estado == "PAGADA")
+                return BadRequest(new { message = "No se puede anular una nómina que ya ha sido pagada" });
+
+            nomina.Estado = "ANULADA";
+            nomina.FechaAnulacion = DateTime.UtcNow;
+            nomina.MotivoAnulacion = dto.Motivo ?? "Sin motivo especificado";
+            
+            await _context.SaveChangesAsync(ct);
+
+            return Ok(new { 
+                message = "Nómina anulada exitosamente",
+                nominaId = id,
+                estado = nomina.Estado,
+                fechaAnulacion = nomina.FechaAnulacion,
+                motivo = nomina.MotivoAnulacion
+            });
+        }
+
+        // ============================================================
+        // GET /api/nominas/stats - Estadísticas de nóminas
+        // ============================================================
+        [HttpGet("stats")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetEstadisticasNominas([FromQuery] string? periodo = null, CancellationToken ct = default)
+        {
+            try
+            {
+                var query = _context.Nominas.AsQueryable();
+                
+                if (!string.IsNullOrEmpty(periodo))
+                {
+                    query = query.Where(n => n.Periodo == periodo);
+                }
+
+                var estadisticas = await query
+                    .GroupBy(n => n.Estado)
+                    .Select(g => new {
+                        Estado = g.Key,
+                        Cantidad = g.Count(),
+                        MontoTotal = g.Sum(n => n.MontoTotal)
+                    })
+                    .ToListAsync(ct);
+
+                var totalNominas = await query.CountAsync(ct);
+                var montoGlobalTotal = await query.SumAsync(n => n.MontoTotal, ct);
+                
+                var empleadosConNomina = await query
+                    .SelectMany(n => n.DetallesNomina)
+                    .Select(d => d.EmpleadoId)
+                    .Distinct()
+                    .CountAsync(ct);
+
+                return Ok(new {
+                    periodo = periodo ?? "Todos los períodos",
+                    resumen = new {
+                        totalNominas = totalNominas,
+                        montoGlobalTotal = montoGlobalTotal,
+                        empleadosConNomina = empleadosConNomina
+                    },
+                    estadisticasPorEstado = estadisticas,
+                    fechaConsulta = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener estadísticas", error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        // GET /api/nominas/{id}/export/{formato} - Exportar nómina
+        // ============================================================
+        [HttpGet("{id}/export/{formato}")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExportarNomina(int id, string formato, CancellationToken ct = default)
+        {
+            formato = formato.ToLowerInvariant();
+            
+            if (formato != "pdf" && formato != "excel")
+                return BadRequest(new { message = "Formato no soportado. Use 'pdf' o 'excel'" });
+
+            var nomina = await _context.Nominas
+                .Include(n => n.DetallesNomina)
+                    .ThenInclude(d => d.Empleado)
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
+
+            if (nomina == null)
+                return NotFound(new { message = "Nómina no encontrada" });
+
+            try
+            {
+                if (formato == "pdf")
+                {
+                    var pdfBytes = await _nominaService.GenerarPdfAsync(nomina);
+                    var fileName = $"nomina_{nomina.Periodo}_{nomina.Id}.pdf";
+                    return File(pdfBytes, "application/pdf", fileName);
+                }
+                else // excel
+                {
+                    var excelBytes = await _nominaService.GenerarExcelAsync(nomina);
+                    var fileName = $"nomina_{nomina.Periodo}_{nomina.Id}.xlsx";
+                    return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Error al generar {formato.ToUpper()}", error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        // POST /api/nominas/{id}/enviar-email - Enviar nómina por email
+        // ============================================================
+        [HttpPost("{id}/enviar-email")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> EnviarNominaPorEmail(int id, [FromBody] EnviarEmailDto dto, CancellationToken ct = default)
+        {
+            var nomina = await _context.Nominas
+                .Include(n => n.DetallesNomina)
+                    .ThenInclude(d => d.Empleado)
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
+
+            if (nomina == null)
+                return NotFound(new { message = "Nómina no encontrada" });
+
+            if (nomina.Estado != "APROBADA" && nomina.Estado != "PAGADA")
+                return BadRequest(new { message = "Solo se pueden enviar nóminas aprobadas o pagadas" });
+
+            try
+            {
+                var resultados = new List<object>();
+
+                if (dto.EnviarATodos)
+                {
+                    // Enviar a todos los empleados de la nómina
+                    foreach (var detalle in nomina.DetallesNomina)
+                    {
+                        if (!string.IsNullOrEmpty(detalle.Empleado.Correo))
+                        {
+                            var enviado = await _nominaService.EnviarNominaPorEmailAsync(
+                                nomina, 
+                                detalle.Empleado.Correo, 
+                                dto.Formato ?? "pdf",
+                                dto.Mensaje
+                            );
+
+                            resultados.Add(new {
+                                EmpleadoId = detalle.EmpleadoId,
+                                Nombre = detalle.Empleado.NombreCompleto,
+                                Email = detalle.Empleado.Correo,
+                                Enviado = enviado
+                            });
+                        }
+                    }
+                }
+                else if (!string.IsNullOrEmpty(dto.Email))
+                {
+                    // Enviar a email específico
+                    var enviado = await _nominaService.EnviarNominaPorEmailAsync(
+                        nomina, 
+                        dto.Email, 
+                        dto.Formato ?? "pdf",
+                        dto.Mensaje
+                    );
+
+                    resultados.Add(new {
+                        Email = dto.Email,
+                        Enviado = enviado
+                    });
+                }
+                else
+                {
+                    return BadRequest(new { message = "Debe especificar un email o marcar enviarATodos como true" });
+                }
+
+                return Ok(new {
+                    message = "Proceso de envío completado",
+                    nominaId = id,
+                    resultados = resultados,
+                    totalEnviados = resultados.Count(r => (bool)r.GetType().GetProperty("Enviado")?.GetValue(r)!)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al enviar emails", error = ex.Message });
+            }
+        }
     }
 
     // =======================
@@ -646,7 +977,28 @@ namespace ProyectoNomina.Backend.Controllers
         public List<HorasEmpleadoDto>? Horas { get; set; }
         public List<ComisionEmpleadoDto>? Comisiones { get; set; }
 
-        // Parámetros legales “inline” (opcional). Si no se envían, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
+        // Parámetros legales "inline" (opcional). Si no se envían, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
         public List<ParametroLegalInlineDto>? ParametrosLegales { get; set; }
+    }
+
+    public class CalcularNominasDto
+    {
+        public List<int>? NominaIds { get; set; }
+        public string? Periodo { get; set; }
+        public DateTime? FechaInicio { get; set; }
+        public DateTime? FechaFin { get; set; }
+    }
+
+    public class AnularNominaDto
+    {
+        public string? Motivo { get; set; }
+    }
+
+    public class EnviarEmailDto
+    {
+        public string? Email { get; set; }
+        public bool EnviarATodos { get; set; } = false;
+        public string? Formato { get; set; } = "pdf"; // "pdf" o "excel"
+        public string? Mensaje { get; set; }
     }
 }
