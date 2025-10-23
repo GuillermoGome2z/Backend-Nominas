@@ -235,21 +235,6 @@ namespace ProyectoNomina.Backend
             app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
             app.MapGet("/", () => Results.Redirect("/swagger"));
 
-            // 11) Migraciones + Seed (con manejo de errores para no romper arranque)
-            try
-            {
-                using var scope = app.Services.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                db.Database.Migrate(); // aplica migraciones pendientes
-                ProyectoNomina.Backend.Data.DataSeeder.SeedAsync(db).GetAwaiter().GetResult();
-            }
-            catch (Exception seedingEx)
-            {
-                app.Logger.LogError(seedingEx, "Error al aplicar migraciones/seed.");
-                // no tiramos la app: permite inspección en /health y Swagger
-            }
-
             app.Run();
         }
     }
