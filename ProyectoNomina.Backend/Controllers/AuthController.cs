@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Models;
@@ -22,27 +23,51 @@ namespace ProyectoNomina.Backend.Controllers
             _jwtService = jwtService;
         }
 
+        /// <summary>
+        /// Autenticación de usuarios
+        /// Responde 200 en éxito, 401 credenciales inválidas, 403 según rol
+        /// </summary>
         [HttpPost("login")]
+        [AllowAnonymous]
         [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
         {
+            // Validación básica del request
             if (request is null || string.IsNullOrWhiteSpace(request.Correo) || string.IsNullOrWhiteSpace(request.Contraseña))
-                return BadRequest("Correo y contraseña son requeridos.");
+                return BadRequest(new ProblemDetails 
+                { 
+                    Title = "Datos inválidos", 
+                    Detail = "Correo y contraseña son requeridos." 
+                });
 
             var usuario = await _context.Usuarios
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Correo == request.Correo);
 
+            // 401 para credenciales inválidas
             if (usuario is null)
-                return Unauthorized("Credenciales inválidas.");
+                return Unauthorized(new ProblemDetails 
+                { 
+                    Title = "Credenciales inválidas", 
+                    Detail = "El correo o la contraseña son incorrectos." 
+                });
 
             var passwordOk = BCrypt.Net.BCrypt.Verify(request.Contraseña, usuario.ClaveHash);
             if (!passwordOk)
-                return Unauthorized("Credenciales inválidas.");
+                return Unauthorized(new ProblemDetails 
+                { 
+                    Title = "Credenciales inválidas", 
+                    Detail = "El correo o la contraseña son incorrectos." 
+                });
+
+            // Verificación adicional de estado del usuario (opcional para 403)
+            // Por ejemplo, si el usuario está deshabilitado:
+            // if (!usuario.Activo) 
+            //     return Forbid(new ProblemDetails { Title = "Usuario deshabilitado", Detail = "Su cuenta está deshabilitada." });
 
             // (Opcional) política: un solo refresh activo por usuario
             var tokensPrevios = await _context.RefreshTokens

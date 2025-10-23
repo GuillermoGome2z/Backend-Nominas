@@ -57,22 +57,43 @@ namespace ProyectoNomina.Backend.Controllers
             return new DepartamentoDto { Id = d.Id, Nombre = d.Nombre, Activo = d.Activo };
         }
 
-        // NUEVO: GET: api/Departamentos/5/Puestos
+        /// <summary>
+        /// Obtiene SOLO puestos activos del departamento ordenados por nombre
+        /// </summary>
+        /// <param name="id">ID del departamento</param>
+        /// <returns>Lista de puestos activos ordenados por nombre</returns>
+        /// <remarks>
+        /// Ejemplo de uso:
+        /// 
+        ///     GET /api/Departamentos/1/Puestos
+        /// 
+        /// Respuesta:
+        /// 
+        ///     [
+        ///       {
+        ///         "id": 1,
+        ///         "nombre": "Analista de Sistemas",
+        ///         "salarioBase": 8000.00,
+        ///         "activo": true,
+        ///         "departamentoId": 1
+        ///       }
+        ///     ]
+        /// 
+        /// </remarks>
         [HttpGet("{id}/Puestos")]
         [ProducesResponseType(typeof(IEnumerable<PuestoDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<IEnumerable<PuestoDto>>> GetPuestosPorDepartamento(
-            int id,
-            [FromQuery] bool? activo = null)
+        public async Task<ActionResult<IEnumerable<PuestoDto>>> GetPuestosActivosPorDepartamento(int id)
         {
             var dep = await _context.Departamentos.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
-            if (dep == null) return NotFound(new { mensaje = "Departamento no encontrado." });
+            if (dep == null) 
+                return NotFound(new ProblemDetails { Title = "Departamento no encontrado", Detail = $"No existe un departamento con ID {id}." });
 
-            var q = _context.Puestos.AsNoTracking().Where(p => p.DepartamentoId == id);
-            if (activo.HasValue) q = q.Where(p => p.Activo == activo.Value);
-
-            var data = await q
-                .OrderBy(p => p.Id)
+            // Solo puestos ACTIVOS ordenados por Nombre según especificación
+            var data = await _context.Puestos
+                .AsNoTracking()
+                .Where(p => p.DepartamentoId == id && p.Activo)
+                .OrderBy(p => p.Nombre) // Ordenado por nombre según especificación
                 .Select(p => new PuestoDto
                 {
                     Id = p.Id,
@@ -140,6 +161,73 @@ namespace ProyectoNomina.Backend.Controllers
             d.Activo = dto.Activo;
 
             await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Activar un departamento
+        /// </summary>
+        /// <param name="id">ID del departamento</param>
+        /// <returns>204 NoContent si la operación fue exitosa</returns>
+        [HttpPut("{id}/activar")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ActivarDepartamento(int id)
+        {
+            var departamento = await _context.Departamentos.FindAsync(id);
+            if (departamento == null)
+                return NotFound(new ProblemDetails { Title = "Departamento no encontrado", Detail = $"No existe un departamento con ID {id}." });
+
+            departamento.Activo = true;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Desactivar un departamento
+        /// </summary>
+        /// <param name="id">ID del departamento</param>
+        /// <returns>204 NoContent si exitoso, 409 Conflict si tiene empleados/puestos activos</returns>
+        /// <remarks>
+        /// No se puede desactivar si tiene empleados activos o puestos activos asociados.
+        /// </remarks>
+        [HttpPut("{id}/desactivar")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DesactivarDepartamento(int id)
+        {
+            var departamento = await _context.Departamentos.FindAsync(id);
+            if (departamento == null)
+                return NotFound(new ProblemDetails { Title = "Departamento no encontrado", Detail = $"No existe un departamento con ID {id}." });
+
+            // Verificar que no tenga empleados ACTIVOS ni puestos ACTIVOS
+            var tieneEmpleadosActivos = await _context.Empleados
+                .AnyAsync(e => e.DepartamentoId == id && e.EstadoLaboral == "ACTIVO");
+
+            var tienePuestosActivos = await _context.Puestos
+                .AnyAsync(p => p.DepartamentoId == id && p.Activo);
+
+            if (tieneEmpleadosActivos)
+                return Conflict(new ProblemDetails 
+                { 
+                    Title = "No se puede desactivar", 
+                    Detail = "El departamento tiene empleados activos asociados." 
+                });
+
+            if (tienePuestosActivos)
+                return Conflict(new ProblemDetails 
+                { 
+                    Title = "No se puede desactivar", 
+                    Detail = "El departamento tiene puestos activos asociados." 
+                });
+
+            departamento.Activo = false;
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
 

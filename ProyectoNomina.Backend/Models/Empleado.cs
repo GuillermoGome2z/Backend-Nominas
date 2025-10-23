@@ -15,15 +15,12 @@ namespace ProyectoNomina.Backend.Models
         [Required(ErrorMessage = "El nombre completo es obligatorio")]
         public string NombreCompleto { get; set; } = null!;
 
-        [Required(ErrorMessage = "El correo es obligatorio")]
         [EmailAddress(ErrorMessage = "Correo inválido")]
-        public string Correo { get; set; } = null!;
+        public string? Correo { get; set; }
 
-        [Required(ErrorMessage = "El teléfono es obligatorio")]
-        public string Telefono { get; set; } = null!;
+        public string? Telefono { get; set; }
 
-        [Required(ErrorMessage = "La dirección es obligatoria")]
-        public string Direccion { get; set; } = null!;
+        public string? Direccion { get; set; }
 
         [Required(ErrorMessage = "El salario mensual es obligatorio")]
         [Precision(18, 2)]
@@ -31,16 +28,13 @@ namespace ProyectoNomina.Backend.Models
 
         public DateTime FechaContratacion { get; set; }
 
-        [Required(ErrorMessage = "El DPI es obligatorio")]
-        public string DPI { get; set; } = null!;
+        public string? DPI { get; set; }
 
-        [Required(ErrorMessage = "El NIT es obligatorio")]
-        public string NIT { get; set; } = null!;
+        public string? NIT { get; set; }
 
-        [Required(ErrorMessage = "La fecha de nacimiento es obligatoria")]
-        public DateTime FechaNacimiento { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
 
-        public string EstadoLaboral { get; set; } = "Activo";
+        public string EstadoLaboral { get; set; } = "ACTIVO";
 
         // Relaciones foráneas
         public int? DepartamentoId { get; set; }
@@ -48,7 +42,7 @@ namespace ProyectoNomina.Backend.Models
         [JsonIgnore]
         public Departamento? Departamento { get; set; }
 
-        public int PuestoId { get; set; }
+        public int? PuestoId { get; set; }
 
         [JsonIgnore]
         public Puesto? Puesto { get; set; }

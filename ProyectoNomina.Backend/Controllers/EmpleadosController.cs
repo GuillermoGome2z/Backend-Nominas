@@ -104,10 +104,10 @@ namespace ProyectoNomina.Backend.Controllers
                     FechaNacimiento = e.FechaNacimiento,
                     EstadoLaboral = e.EstadoLaboral,
                     SalarioMensual = e.SalarioMensual,
-                    DepartamentoId = e.DepartamentoId ?? 0,
+                    DepartamentoId = e.DepartamentoId,
                     PuestoId = e.PuestoId,
-                    NombreDepartamento = e.Departamento != null ? e.Departamento.Nombre : "No disponible",
-                    NombrePuesto = e.Puesto != null ? e.Puesto.Nombre : "No disponible"
+                    NombreDepartamento = e.Departamento != null ? e.Departamento.Nombre : null,
+                    NombrePuesto = e.Puesto != null ? e.Puesto.Nombre : null
                 })
                 .ToListAsync();
 
@@ -142,40 +142,83 @@ namespace ProyectoNomina.Backend.Controllers
                 FechaContratacion = e.FechaContratacion,
                 FechaNacimiento = e.FechaNacimiento,
                 SalarioMensual = e.SalarioMensual,
-                DepartamentoId = e.DepartamentoId ?? 0,
+                DepartamentoId = e.DepartamentoId,
                 PuestoId = e.PuestoId,
-                NombreDepartamento = e.Departamento?.Nombre ?? "No disponible",
-                NombrePuesto = e.Puesto?.Nombre ?? "No disponible",
+                NombreDepartamento = e.Departamento?.Nombre,
+                NombrePuesto = e.Puesto?.Nombre,
                 EstadoLaboral = e.EstadoLaboral
             });
         }
 
         // POST: api/Empleados
         [HttpPost]
+        [Authorize(Roles = "Admin,RRHH")]
         [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> PostEmpleado([FromBody] EmpleadoCreacionDto dto)
+        public async Task<IActionResult> PostEmpleado([FromBody] EmpleadoCreateUpdateDto dto)
         {
-            if (dto.FechaNacimiento == DateTime.MinValue)
-                return BadRequest("La fecha de nacimiento es inválida.");
+            // Validaciones básicas
+            if (dto.FechaNacimiento.HasValue && dto.FechaNacimiento > DateTime.Today)
+                return UnprocessableEntity(new ProblemDetails
+                {
+                    Title = "Fecha de nacimiento inválida",
+                    Detail = "La fecha de nacimiento no puede ser futura."
+                });
 
-            var depto = await _context.Departamentos.FirstOrDefaultAsync(d => d.Id == dto.DepartamentoId);
-            if (depto == null) return BadRequest("El departamento seleccionado no existe.");
-            if (!depto.Activo) return BadRequest("El departamento seleccionado está inactivo.");
+            if (dto.FechaContratacion > DateTime.Today)
+                return UnprocessableEntity(new ProblemDetails
+                {
+                    Title = "Fecha de contratación inválida",
+                    Detail = "La fecha de contratación no puede ser futura."
+                });
 
-            var puesto = await _context.Puestos.FirstOrDefaultAsync(p => p.Id == dto.PuestoId);
-            if (puesto == null) return BadRequest("El puesto seleccionado no existe.");
-            if (!puesto.Activo) return BadRequest("El puesto seleccionado está inactivo.");
+            // Validar departamento si se proporciona
+            if (dto.DepartamentoId.HasValue)
+            {
+                var depto = await _context.Departamentos.FirstOrDefaultAsync(d => d.Id == dto.DepartamentoId);
+                if (depto == null) 
+                    return BadRequest(new ProblemDetails { Title = "Departamento inválido", Detail = "El departamento seleccionado no existe." });
+                if (!depto.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Departamento inactivo", Detail = "El departamento seleccionado está inactivo." });
+            }
 
-            var dpiExiste = await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
-            var nitExiste = await _context.Empleados.AnyAsync(e => e.NIT == dto.NIT);
-            var correoExiste = await _context.Empleados.AnyAsync(e => e.Correo == dto.Correo);
+            // Validar puesto si se proporciona
+            if (dto.PuestoId.HasValue)
+            {
+                var puesto = await _context.Puestos.Include(p => p.Departamento).FirstOrDefaultAsync(p => p.Id == dto.PuestoId);
+                if (puesto == null) 
+                    return BadRequest(new ProblemDetails { Title = "Puesto inválido", Detail = "El puesto seleccionado no existe." });
+                if (!puesto.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Puesto inactivo", Detail = "El puesto seleccionado está inactivo." });
+                
+                // Validar que el puesto pertenece al departamento si ambos están especificados
+                if (dto.DepartamentoId.HasValue && puesto.DepartamentoId != dto.DepartamentoId)
+                    return UnprocessableEntity(new ProblemDetails { Title = "Inconsistencia departamento-puesto", Detail = "El puesto seleccionado no pertenece al departamento especificado." });
+            }
 
-            if (dpiExiste) return BadRequest("Ya existe un empleado con ese DPI.");
-            if (nitExiste) return BadRequest("Ya existe un empleado con ese NIT.");
-            if (correoExiste) return BadRequest("Ya existe un empleado con ese correo.");
+            // Validar duplicados
+            if (!string.IsNullOrWhiteSpace(dto.DPI))
+            {
+                var dpiExiste = await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
+                if (dpiExiste) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "DPI duplicado", Detail = "Ya existe un empleado con ese DPI." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.NIT))
+            {
+                var nitExiste = await _context.Empleados.AnyAsync(e => e.NIT == dto.NIT);
+                if (nitExiste) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "NIT duplicado", Detail = "Ya existe un empleado con ese NIT." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Correo))
+            {
+                var correoExiste = await _context.Empleados.AnyAsync(e => e.Correo == dto.Correo);
+                if (correoExiste) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Correo duplicado", Detail = "Ya existe un empleado con ese correo." });
+            }
 
             var nuevo = new Empleado
             {
@@ -183,12 +226,12 @@ namespace ProyectoNomina.Backend.Controllers
                 Correo = dto.Correo,
                 Telefono = dto.Telefono,
                 Direccion = dto.Direccion,
-                SalarioMensual = dto.SalarioBase,
-                DepartamentoId = dto.DepartamentoId != 0 ? dto.DepartamentoId : null,
+                SalarioMensual = dto.SalarioMensual,
+                DepartamentoId = dto.DepartamentoId,
                 PuestoId = dto.PuestoId,
                 FechaContratacion = dto.FechaContratacion,
                 FechaNacimiento = dto.FechaNacimiento,
-                EstadoLaboral = dto.EstadoLaboral,
+                EstadoLaboral = "ACTIVO", // Siempre empieza activo
                 DPI = dto.DPI,
                 NIT = dto.NIT
             };
@@ -205,52 +248,119 @@ namespace ProyectoNomina.Backend.Controllers
 
         // PUT: api/Empleados/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,RRHH")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ActualizarEmpleado(int id, EmpleadoDto dto)
+        public async Task<IActionResult> ActualizarEmpleado(int id, EmpleadoCreateUpdateDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest("ID en la URL no coincide con el del cuerpo.");
-
-            if (dto.FechaNacimiento == DateTime.MinValue)
-                return BadRequest("La fecha de nacimiento es inválida.");
-
             var empleado = await _context.Empleados.FindAsync(id);
             if (empleado == null)
-                return NotFound();
+                return NotFound(new ProblemDetails { Title = "Empleado no encontrado", Detail = $"No existe un empleado con ID {id}." });
 
-            // Validar depto/puesto activos
-            var depto = await _context.Departamentos.FirstOrDefaultAsync(d => d.Id == dto.DepartamentoId);
-            if (depto == null) return BadRequest("El departamento seleccionado no existe.");
-            if (!depto.Activo) return BadRequest("El departamento seleccionado está inactivo.");
+            // Validaciones básicas
+            if (dto.FechaNacimiento.HasValue && dto.FechaNacimiento > DateTime.Today)
+                return UnprocessableEntity(new ProblemDetails { Title = "Fecha de nacimiento inválida", Detail = "La fecha de nacimiento no puede ser futura." });
 
-            var puesto = await _context.Puestos.FirstOrDefaultAsync(p => p.Id == dto.PuestoId);
-            if (puesto == null) return BadRequest("El puesto seleccionado no existe.");
-            if (!puesto.Activo) return BadRequest("El puesto seleccionado está inactivo.");
+            if (dto.FechaContratacion > DateTime.Today)
+                return UnprocessableEntity(new ProblemDetails { Title = "Fecha de contratación inválida", Detail = "La fecha de contratación no puede ser futura." });
 
-            var otroConMismoDPI = await _context.Empleados.AnyAsync(e => e.Id != id && e.DPI == dto.DPI);
-            var otroConMismoNIT = await _context.Empleados.AnyAsync(e => e.Id != id && e.NIT == dto.NIT);
-            var otroConMismoCorreo = await _context.Empleados.AnyAsync(e => e.Id != id && e.Correo == dto.Correo);
+            // Validar departamento si se proporciona
+            if (dto.DepartamentoId.HasValue)
+            {
+                var depto = await _context.Departamentos.FirstOrDefaultAsync(d => d.Id == dto.DepartamentoId);
+                if (depto == null) 
+                    return BadRequest(new ProblemDetails { Title = "Departamento inválido", Detail = "El departamento seleccionado no existe." });
+                if (!depto.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Departamento inactivo", Detail = "El departamento seleccionado está inactivo." });
+            }
 
-            if (otroConMismoDPI) return BadRequest("Ya existe otro empleado con el mismo DPI.");
-            if (otroConMismoNIT) return BadRequest("Ya existe otro empleado con el mismo NIT.");
-            if (otroConMismoCorreo) return BadRequest("Ya existe otro empleado con el mismo correo.");
+            // Validar puesto si se proporciona
+            if (dto.PuestoId.HasValue)
+            {
+                var puesto = await _context.Puestos.Include(p => p.Departamento).FirstOrDefaultAsync(p => p.Id == dto.PuestoId);
+                if (puesto == null) 
+                    return BadRequest(new ProblemDetails { Title = "Puesto inválido", Detail = "El puesto seleccionado no existe." });
+                if (!puesto.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Puesto inactivo", Detail = "El puesto seleccionado está inactivo." });
+                
+                // Validar que el puesto pertenece al departamento si ambos están especificados
+                if (dto.DepartamentoId.HasValue && puesto.DepartamentoId != dto.DepartamentoId)
+                    return UnprocessableEntity(new ProblemDetails { Title = "Inconsistencia departamento-puesto", Detail = "El puesto seleccionado no pertenece al departamento especificado." });
+            }
 
+            // Validar duplicados excluyendo el empleado actual
+            if (!string.IsNullOrWhiteSpace(dto.DPI))
+            {
+                var otroConMismoDPI = await _context.Empleados.AnyAsync(e => e.Id != id && e.DPI == dto.DPI);
+                if (otroConMismoDPI) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "DPI duplicado", Detail = "Ya existe otro empleado con el mismo DPI." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.NIT))
+            {
+                var otroConMismoNIT = await _context.Empleados.AnyAsync(e => e.Id != id && e.NIT == dto.NIT);
+                if (otroConMismoNIT) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "NIT duplicado", Detail = "Ya existe otro empleado con el mismo NIT." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Correo))
+            {
+                var otroConMismoCorreo = await _context.Empleados.AnyAsync(e => e.Id != id && e.Correo == dto.Correo);
+                if (otroConMismoCorreo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Correo duplicado", Detail = "Ya existe otro empleado con el mismo correo." });
+            }
+
+            // Actualizar campos (excepto EstadoLaboral, que se maneja por separado)
             empleado.NombreCompleto = dto.NombreCompleto;
             empleado.Correo = dto.Correo;
             empleado.Telefono = dto.Telefono;
             empleado.Direccion = dto.Direccion;
             empleado.FechaNacimiento = dto.FechaNacimiento;
             empleado.FechaContratacion = dto.FechaContratacion;
-            empleado.EstadoLaboral = dto.EstadoLaboral;
             empleado.DPI = dto.DPI;
             empleado.NIT = dto.NIT;
             empleado.SalarioMensual = dto.SalarioMensual;
-            empleado.DepartamentoId = dto.DepartamentoId != 0 ? dto.DepartamentoId : null;
+            empleado.DepartamentoId = dto.DepartamentoId;
             empleado.PuestoId = dto.PuestoId;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Cambiar estado laboral de un empleado
+        /// </summary>
+        /// <param name="id">ID del empleado</param>
+        /// <param name="dto">Nuevo estado: ACTIVO, SUSPENDIDO o RETIRADO</param>
+        /// <returns>204 NoContent si la operación fue exitosa</returns>
+        /// <remarks>
+        /// Ejemplo de request body:
+        /// 
+        ///     PUT /api/Empleados/5/estado
+        ///     {
+        ///       "estadoLaboral": "SUSPENDIDO"
+        ///     }
+        /// 
+        /// </remarks>
+        [HttpPut("{id}/estado")]
+        [Authorize(Roles = "Admin,RRHH")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CambiarEstadoEmpleado(int id, CambiarEstadoEmpleadoDto dto)
+        {
+            var empleado = await _context.Empleados.FindAsync(id);
+            if (empleado == null)
+                return NotFound(new ProblemDetails { Title = "Empleado no encontrado", Detail = $"No existe un empleado con ID {id}." });
+
+            // El DTO ya valida que sea ACTIVO, SUSPENDIDO o RETIRADO
+            empleado.EstadoLaboral = dto.EstadoLaboral;
 
             await _context.SaveChangesAsync();
 
@@ -262,11 +372,11 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ValidarDuplicados([FromBody] EmpleadoCreacionDto dto)
+        public async Task<IActionResult> ValidarDuplicados([FromBody] EmpleadoCreateUpdateDto dto)
         {
-            var dpiExiste = await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
-            var nitExiste = await _context.Empleados.AnyAsync(e => e.NIT == dto.NIT);
-            var correoExiste = await _context.Empleados.AnyAsync(e => e.Correo == dto.Correo);
+            var dpiExiste = !string.IsNullOrWhiteSpace(dto.DPI) && await _context.Empleados.AnyAsync(e => e.DPI == dto.DPI);
+            var nitExiste = !string.IsNullOrWhiteSpace(dto.NIT) && await _context.Empleados.AnyAsync(e => e.NIT == dto.NIT);
+            var correoExiste = !string.IsNullOrWhiteSpace(dto.Correo) && await _context.Empleados.AnyAsync(e => e.Correo == dto.Correo);
 
             return Ok(new
             {
@@ -295,7 +405,10 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(empleados);
         }
 
+        // DELETE: Comentado según requerimientos - usar cambiar estado en su lugar
+        // [HttpDelete("{id}")]
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")] // Solo Admin puede eliminar físicamente
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -346,7 +459,11 @@ namespace ProyectoNomina.Backend.Controllers
                 NIT = empleado.NIT,
                 DPI = empleado.DPI,
                 Correo = empleado.Correo,
-                DepartamentoId = empleado.DepartamentoId.GetValueOrDefault(),
+                Telefono = empleado.Telefono,
+                Direccion = empleado.Direccion,
+                FechaContratacion = empleado.FechaContratacion,
+                SalarioMensual = empleado.SalarioMensual,
+                DepartamentoId = empleado.DepartamentoId,
                 PuestoId = empleado.PuestoId,
                 EstadoLaboral = empleado.EstadoLaboral
             });

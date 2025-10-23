@@ -50,22 +50,97 @@ namespace ProyectoNomina.Backend.Data
                 entity.HasIndex(u => u.Correo).IsUnique();
             });
 
+            // ===== Configuración de Empleados =====
+            modelBuilder.Entity<Empleado>(entity =>
+            {
+                entity.Property(e => e.NombreCompleto)
+                      .HasMaxLength(200)
+                      .IsRequired();
+
+                entity.Property(e => e.Correo)
+                      .HasMaxLength(256);
+
+                entity.Property(e => e.Telefono)
+                      .HasMaxLength(20);
+
+                entity.Property(e => e.Direccion)
+                      .HasMaxLength(500);
+
+                entity.Property(e => e.DPI)
+                      .HasMaxLength(13);
+
+                entity.Property(e => e.NIT)
+                      .HasMaxLength(15);
+
+                entity.Property(e => e.EstadoLaboral)
+                      .HasMaxLength(20)
+                      .HasDefaultValue("ACTIVO");
+
+                entity.Property(e => e.SalarioMensual)
+                      .HasPrecision(18, 2);
+
+                // Índices según especificación
+                entity.HasIndex(e => e.DPI);
+                entity.HasIndex(e => e.Correo);
+            });
+
+            // ===== Configuración de Departamentos =====
+            modelBuilder.Entity<Departamento>(entity =>
+            {
+                entity.Property(d => d.Nombre)
+                      .HasMaxLength(100)
+                      .IsRequired();
+
+                entity.Property(d => d.Activo)
+                      .HasDefaultValue(true);
+
+                // Índice para búsquedas por estado activo
+                entity.HasIndex(d => d.Activo);
+            });
+
+            // ===== Configuración de Puestos =====
+            modelBuilder.Entity<Puesto>(entity =>
+            {
+                entity.Property(p => p.Nombre)
+                      .HasMaxLength(100)
+                      .IsRequired();
+
+                entity.Property(p => p.SalarioBase)
+                      .HasPrecision(18, 2);
+
+                entity.Property(p => p.Activo)
+                      .HasDefaultValue(true);
+
+                // Índices según especificación: Puesto(DepartamentoId, Activo)
+                entity.HasIndex(p => new { p.DepartamentoId, p.Activo });
+            });
+
+            // ===== Relaciones =====
+            
+            // Puesto -> Departamento (Restrict para evitar borrados en cascada)
             modelBuilder.Entity<Puesto>()
-  .HasOne(p => p.Departamento)
-  .WithMany(d => d.Puestos)
-  .HasForeignKey(p => p.DepartamentoId)
-  .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(p => p.Departamento)
+                .WithMany(d => d.Puestos)
+                .HasForeignKey(p => p.DepartamentoId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Clave compuesta para UsuarioRol
-            modelBuilder.Entity<UsuarioRol>()
-                .HasKey(ur => new { ur.UsuarioId, ur.RolId });
-
-            // Relación 1:N entre Departamento y Empleado
+            // Empleado -> Departamento (Restrict)
             modelBuilder.Entity<Empleado>()
                 .HasOne(e => e.Departamento)
                 .WithMany(d => d.Empleados)
                 .HasForeignKey(e => e.DepartamentoId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Empleado -> Puesto (Restrict)
+            modelBuilder.Entity<Empleado>()
+                .HasOne(e => e.Puesto)
+                .WithMany(p => p.Empleados)
+                .HasForeignKey(e => e.PuestoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Clave compuesta para UsuarioRol
+            modelBuilder.Entity<UsuarioRol>()
+                .HasKey(ur => new { ur.UsuarioId, ur.RolId });
 
             // Relación 1:1 entre Usuario y Empleado (opcional)
             modelBuilder.Entity<Usuario>()

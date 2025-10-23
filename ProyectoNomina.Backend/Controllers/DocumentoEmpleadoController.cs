@@ -37,7 +37,22 @@ namespace ProyectoNomina.Backend.Controllers
             _blobOpt = blobOpt.Value;
         }
 
-        // POST /api/DocumentosEmpleado/{empleadoId}
+        /// <summary>
+        /// Subir archivo para expediente de empleado (multipart/form-data)
+        /// </summary>
+        /// <param name="empleadoId">ID del empleado</param>
+        /// <param name="file">Archivo a subir (máximo 100 MB)</param>
+        /// <param name="tipoDocumentoId">Tipo de documento</param>
+        /// <returns>201 Created con metadatos, 413 si excede límite, 422 validaciones, 404 si empleado no existe</returns>
+        /// <remarks>
+        /// Límite de tamaño: 100 MB por archivo.
+        /// Formatos soportados: PDF, DOC, DOCX, JPG, PNG, etc.
+        /// 
+        /// Ejemplo de form-data:
+        /// - file: [archivo seleccionado]
+        /// - tipoDocumentoId: 1
+        /// 
+        /// </remarks>
         [HttpPost("{empleadoId:int}")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(100_000_000)] // 100 MB → 413 si excede
@@ -179,8 +194,43 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(documentos);
         }
 
-        // GET /api/DocumentosEmpleado/{id}
-        [HttpGet("{id:int}")]
+        /// <summary>
+        /// Obtener lista de documentos de un empleado específico
+        /// </summary>
+        /// <param name="empleadoId">ID del empleado</param>
+        /// <returns>200 con lista de documentos ordenados por fecha de subida (más recientes primero)</returns>
+        [HttpGet("{empleadoId:int}")]
+        [ProducesResponseType(typeof(IEnumerable<DocumentoEmpleadoDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<DocumentoEmpleadoDto>>> GetDocumentosPorEmpleado(int empleadoId)
+        {
+            // Verificar que el empleado existe
+            var empleadoExiste = await _context.Empleados.AnyAsync(e => e.Id == empleadoId);
+            if (!empleadoExiste)
+                return NotFound(new ProblemDetails { Title = "Empleado no encontrado", Detail = $"No existe un empleado con ID {empleadoId}." });
+
+            var documentos = await _context.DocumentosEmpleado
+                .AsNoTracking()
+                .Include(d => d.TipoDocumento)
+                .Where(d => d.EmpleadoId == empleadoId)
+                .OrderByDescending(d => d.FechaSubida)
+                .Select(d => new DocumentoEmpleadoDto
+                {
+                    Id = d.Id,
+                    EmpleadoId = d.EmpleadoId,
+                    TipoDocumentoId = d.TipoDocumentoId,
+                    NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
+                    RutaArchivo = d.RutaArchivo,
+                    FechaSubida = d.FechaSubida
+                })
+                .ToListAsync();
+
+            return Ok(documentos);
+        }
+
+        // GET /api/DocumentosEmpleado/documento/{id} - Obtener documento por ID
+        [HttpGet("documento/{id:int}")]
         [ProducesResponseType(typeof(DocumentoEmpleadoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<DocumentoEmpleadoDto>> GetDocumento(int id)

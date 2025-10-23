@@ -117,30 +117,8 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(existe);
         }
 
-        [HttpPost("login")]
-        [AllowAnonymous]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-        public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto credenciales)
-        {
-            var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Correo == credenciales.Correo);
-
-            if (usuario == null || !BCrypt.Net.BCrypt.Verify(credenciales.Contraseña, usuario.ClaveHash))
-                return Unauthorized("Credenciales inválidas.");
-
-            var token = _jwtService.GenerarToken(usuario);
-
-            return Ok(new LoginResponseDto
-            {
-                Token = token,
-                NombreUsuario = usuario.NombreCompleto,
-                Rol = usuario.Rol
-            });
-        }
-
+        // Login movido a AuthController según especificaciones del prompt
+        
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

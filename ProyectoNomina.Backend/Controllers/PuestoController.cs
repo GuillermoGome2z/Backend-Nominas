@@ -16,28 +16,28 @@ namespace ProyectoNomina.Backend.Controllers
         private readonly AppDbContext _context;
         public PuestosController(AppDbContext context) => _context = context;
 
-        // GET: api/Puestos
+        /// <summary>
+        /// Obtiene puestos con filtros: departamentoId?, soloActivos?=true|false
+        /// </summary>
         [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IEnumerable<PuestoDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<PuestoDto>>> GetPuestos(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] bool? activo = null,
-            [FromQuery] int? departamentoId = null)
+            [FromQuery] int? departamentoId = null,
+            [FromQuery] bool soloActivos = true) // Por defecto solo activos según especificación
         {
-            page = page < 1 ? 1 : page;
-            pageSize = pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize);
+            var q = _context.Puestos.AsNoTracking().AsQueryable();
 
-            var q = _context.Puestos.AsNoTracking();
-            if (activo.HasValue) q = q.Where(p => p.Activo == activo.Value);
-            if (departamentoId.HasValue) q = q.Where(p => p.DepartamentoId == departamentoId.Value);
-
-            var total = await q.CountAsync();
+            // Filtros según especificación
+            if (departamentoId.HasValue) 
+                q = q.Where(p => p.DepartamentoId == departamentoId.Value);
+            
+            if (soloActivos) 
+                q = q.Where(p => p.Activo);
 
             var data = await q
-                .OrderBy(p => p.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+                .OrderBy(p => p.Nombre) // Ordenar por nombre
                 .Select(p => new PuestoDto
                 {
                     Id = p.Id,
@@ -48,7 +48,6 @@ namespace ProyectoNomina.Backend.Controllers
                 })
                 .ToListAsync();
 
-            Response.Headers["X-Total-Count"] = total.ToString();
             return Ok(data);
         }
 
@@ -73,18 +72,27 @@ namespace ProyectoNomina.Backend.Controllers
 
         // POST: api/Puestos
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(PuestoDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<PuestoDto>> PostPuesto([FromBody] PuestoDto dto)
         {
+            // Validaciones básicas
             if (string.IsNullOrWhiteSpace(dto.Nombre))
-                return BadRequest(new { mensaje = "El nombre del puesto es obligatorio." });
+                return BadRequest(new ProblemDetails { Title = "Nombre requerido", Detail = "El nombre del puesto es obligatorio." });
 
+            if (dto.SalarioBase < 0)
+                return UnprocessableEntity(new ProblemDetails { Title = "Salario inválido", Detail = "El salario base debe ser mayor o igual a 0." });
+
+            // Validar departamento si se proporciona
             if (dto.DepartamentoId.HasValue)
             {
                 var dep = await _context.Departamentos.FindAsync(dto.DepartamentoId.Value);
-                if (dep == null) return BadRequest(new { mensaje = "Departamento no válido." });
-                if (!dep.Activo) return BadRequest(new { mensaje = "El departamento está INACTIVO." });
+                if (dep == null) 
+                    return BadRequest(new ProblemDetails { Title = "Departamento inválido", Detail = "El departamento seleccionado no existe." });
+                if (!dep.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Departamento inactivo", Detail = "El departamento seleccionado está inactivo." });
             }
 
             var p = new Puesto
@@ -98,43 +106,62 @@ namespace ProyectoNomina.Backend.Controllers
             _context.Puestos.Add(p);
             await _context.SaveChangesAsync();
 
-            dto.Id = p.Id;
-            dto.Activo = p.Activo;
-            dto.DepartamentoId = p.DepartamentoId;
+            var result = new PuestoDto
+            {
+                Id = p.Id,
+                Nombre = p.Nombre,
+                SalarioBase = p.SalarioBase,
+                Activo = p.Activo,
+                DepartamentoId = p.DepartamentoId
+            };
 
-            return CreatedAtAction(nameof(GetPuesto), new { id = dto.Id }, dto);
+            return CreatedAtAction(nameof(GetPuesto), new { id = result.Id }, result);
         }
 
         // PUT: api/Puestos/5
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PutPuesto(int id, [FromBody] PuestoDto dto)
         {
-            if (id != dto.Id) return BadRequest(new { mensaje = "ID de puesto no válido." });
+            if (id != dto.Id) 
+                return BadRequest(new ProblemDetails { Title = "ID inválido", Detail = "El ID en la URL no coincide con el del cuerpo." });
 
             var p = await _context.Puestos.FindAsync(id);
-            if (p == null) return NotFound();
+            if (p == null) 
+                return NotFound(new ProblemDetails { Title = "Puesto no encontrado", Detail = $"No existe un puesto con ID {id}." });
 
+            // Validaciones básicas
             if (string.IsNullOrWhiteSpace(dto.Nombre))
-                return BadRequest(new { mensaje = "El nombre del puesto es obligatorio." });
+                return BadRequest(new ProblemDetails { Title = "Nombre requerido", Detail = "El nombre del puesto es obligatorio." });
 
+            if (dto.SalarioBase < 0)
+                return UnprocessableEntity(new ProblemDetails { Title = "Salario inválido", Detail = "El salario base debe ser mayor o igual a 0." });
+
+            // Validar departamento si se proporciona
             if (dto.DepartamentoId.HasValue)
             {
                 var dep = await _context.Departamentos.FindAsync(dto.DepartamentoId.Value);
-                if (dep == null) return BadRequest(new { mensaje = "Departamento no válido." });
-                if (!dep.Activo) return BadRequest(new { mensaje = "El departamento está INACTIVO." });
+                if (dep == null) 
+                    return BadRequest(new ProblemDetails { Title = "Departamento inválido", Detail = "El departamento seleccionado no existe." });
+                if (!dep.Activo) 
+                    return UnprocessableEntity(new ProblemDetails { Title = "Departamento inactivo", Detail = "El departamento seleccionado está inactivo." });
             }
 
-            // Si se intenta DESACTIVAR, verifica que no haya empleados ACTIVOS ligados
+            // Si se intenta desactivar, verificar que no haya empleados activos asociados
             if (p.Activo && dto.Activo == false)
             {
                 var tieneActivos = await _context.Empleados
                     .AnyAsync(e => e.PuestoId == id && e.EstadoLaboral == "ACTIVO");
                 if (tieneActivos)
-                    return Conflict(new { mensaje = "No se puede desactivar el puesto: hay empleados ACTIVOS asociados." });
+                    return Conflict(new ProblemDetails 
+                    { 
+                        Title = "No se puede desactivar", 
+                        Detail = "El puesto tiene empleados activos asociados." 
+                    });
             }
 
             p.Nombre = dto.Nombre;
@@ -143,6 +170,63 @@ namespace ProyectoNomina.Backend.Controllers
             p.DepartamentoId = dto.DepartamentoId;
 
             await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Activar un puesto
+        /// </summary>
+        /// <param name="id">ID del puesto</param>
+        /// <returns>204 NoContent si la operación fue exitosa</returns>
+        [HttpPut("{id}/activar")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ActivarPuesto(int id)
+        {
+            var puesto = await _context.Puestos.FindAsync(id);
+            if (puesto == null)
+                return NotFound(new ProblemDetails { Title = "Puesto no encontrado", Detail = $"No existe un puesto con ID {id}." });
+
+            puesto.Activo = true;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Desactivar un puesto
+        /// </summary>
+        /// <param name="id">ID del puesto</param>
+        /// <returns>204 NoContent si exitoso, 409 Conflict si tiene empleados activos</returns>
+        /// <remarks>
+        /// No se puede desactivar si tiene empleados activos asociados.
+        /// </remarks>
+        [HttpPut("{id}/desactivar")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DesactivarPuesto(int id)
+        {
+            var puesto = await _context.Puestos.FindAsync(id);
+            if (puesto == null)
+                return NotFound(new ProblemDetails { Title = "Puesto no encontrado", Detail = $"No existe un puesto con ID {id}." });
+
+            // Verificar que no tenga empleados ACTIVOS asociados
+            var tieneEmpleadosActivos = await _context.Empleados
+                .AnyAsync(e => e.PuestoId == id && e.EstadoLaboral == "ACTIVO");
+
+            if (tieneEmpleadosActivos)
+                return Conflict(new ProblemDetails 
+                { 
+                    Title = "No se puede desactivar", 
+                    Detail = "El puesto tiene empleados activos asociados." 
+                });
+
+            puesto.Activo = false;
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
 
