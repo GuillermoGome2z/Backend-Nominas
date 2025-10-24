@@ -79,7 +79,7 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet("excel")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ExportarExcelGeneral([FromQuery] string? estadoLaboral = null)
+        public IActionResult ExportarExcelGeneral([FromQuery] string? estadoLaboral = null)
         {
             return Ok(new { message = "Endpoint Excel disponible", redirect = "/api/reportes/empleados.xlsx" });
         }
@@ -87,7 +87,7 @@ namespace ProyectoNomina.Backend.Controllers
         [HttpGet("pdf")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ExportarPdfGeneral([FromQuery] string? estadoLaboral = null)
+        public IActionResult ExportarPdfGeneral([FromQuery] string? estadoLaboral = null)
         {
             return Ok(new { message = "Endpoint PDF disponible", redirect = "/api/reportes/Expedientes/pdf" });
         }

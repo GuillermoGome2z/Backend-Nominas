@@ -97,7 +97,7 @@ namespace ProyectoNomina.Backend.Controllers
                         EstadoLaboral = e.EstadoLaboral,
                         Departamento = e.Departamento != null ? e.Departamento.Nombre : "Sin Departamento",
                         Puesto = e.Puesto != null ? e.Puesto.Nombre : "Sin Puesto",
-                        TotalDocumentos = e.Documentos.Count(),
+                        TotalDocumentos = e.Documentos != null ? e.Documentos.Count() : 0,
                         FechaContratacion = e.FechaContratacion,
                         Activo = e.EstadoLaboral == "ACTIVO"
                     })
@@ -224,7 +224,7 @@ namespace ProyectoNomina.Backend.Controllers
                     DepartamentoId = empleado.DepartamentoId,
                     Puesto = empleado.Puesto?.Nombre,
                     PuestoId = empleado.PuestoId,
-                    TotalDocumentos = empleado.Documentos.Count(),
+                    TotalDocumentos = empleado.Documentos?.Count() ?? 0,
                     Activo = empleado.EstadoLaboral == "ACTIVO"
                 });
             }
