@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Backend.Services.Reportes;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
@@ -23,7 +24,7 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ⭐ CONFIGURACIÓN PUERTO FIJO
+            //  CONFIGURACIÓN PUERTO FIJO
             builder.WebHost.UseUrls("http://localhost:5009");
 
             // Licencia QuestPDF (reportes PDF)
@@ -81,6 +82,7 @@ namespace ProyectoNomina.Backend
             builder.Services.AddScoped<JwtService>();
             builder.Services.AddScoped<NominaService>();
             builder.Services.AddScoped<ReporteService>();
+            builder.Services.AddScoped<ExpedientesReportService>();
             builder.Services.AddScoped<AuditoriaService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
@@ -211,7 +213,7 @@ namespace ProyectoNomina.Backend
            // app.UseHttpsRedirection();
             app.UseCors("CorsPolicy");
 
-            // ⬇️ CORREGIDO: agregar 'Vary: Origin' justo antes de iniciar la respuesta
+            //agregar 'Vary: Origin' justo antes de iniciar la respuesta
             app.Use(async (ctx, next) =>
             {
                 ctx.Response.OnStarting(() =>

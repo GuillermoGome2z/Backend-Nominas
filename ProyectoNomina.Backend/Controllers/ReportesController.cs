@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Backend.Services.Reportes;
 using ProyectoNomina.Shared.Models.DTOs;
 using ProyectoNomina.Backend.Models;
 
@@ -20,11 +21,13 @@ namespace ProyectoNomina.Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ReporteService _reporteService;
+        private readonly ExpedientesReportService _expedientesService;
 
-        public ReportesController(AppDbContext context, ReporteService reporteService)
+        public ReportesController(AppDbContext context, ReporteService reporteService, ExpedientesReportService expedientesService)
         {
             _context = context;
             _reporteService = reporteService;
+            _expedientesService = expedientesService;
         }
 
         // ============================
@@ -163,46 +166,47 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
-        [HttpGet("Expedientes/pdf")]
+        [HttpGet("expedientes/pdf")]
         [Produces("application/pdf")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GenerarPdfExpedientes()
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GenerarPdfExpedientes([FromQuery] string? estado = null, [FromQuery] int? departamentoId = null)
         {
-            var empleados = await _context.Empleados.ToListAsync();
-            var tiposRequeridos = await _context.TiposDocumento
-                .Where(t => t.EsRequerido)
-                .Select(t => t.Id)
-                .ToListAsync();
-
-            var reporte = new List<ReporteExpedienteDto>();
-
-            foreach (var emp in empleados)
+            try
             {
-                var entregados = await _context.DocumentosEmpleado
-                    .Where(d => d.EmpleadoId == emp.Id)
-                    .Select(d => d.TipoDocumentoId)
-                    .Distinct()
-                    .ToListAsync();
-
-                var faltantes = tiposRequeridos.Except(entregados).ToList();
-
-                var estado = faltantes.Count == 0 ? "Completo"
-                           : entregados.Count == 0 ? "Incompleto"
-                           : "En proceso";
-
-                reporte.Add(new ReporteExpedienteDto
+                var expedientes = await _expedientesService.ObtenerExpedientesAsync(estado, departamentoId);
+                
+                if (!expedientes.Any())
                 {
-                    Empleado = emp.NombreCompleto,
-                    EstadoExpediente = estado,
-                    DocumentosRequeridos = tiposRequeridos.Count,
-                    DocumentosPresentados = entregados.Count,
-                    DocumentosFaltantes = faltantes.Count
-                });
-            }
+                    return NotFound("No se encontraron expedientes con los filtros especificados.");
+                }
 
-            var pdf = _reporteService.GenerarReporteExpediente(reporte);
-            return File(pdf, "application/pdf", "ReporteExpediente.pdf");
+                var pdf = ReportesExpedientesPdfBuilder.Generar(expedientes);
+                
+                var fileName = $"reporte_expedientes_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                return File(pdf, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Error al generar el reporte PDF", error = ex.Message });
+            }
+        }
+
+        [HttpGet("expedientes/estadisticas")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ObtenerEstadisticasExpedientes([FromQuery] int? departamentoId = null)
+        {
+            try
+            {
+                var estadisticas = await _expedientesService.ObtenerEstadisticasAsync(departamentoId);
+                return Ok(estadisticas);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Error al obtener estadísticas", error = ex.Message });
+            }
         }
 
         [HttpGet("InformacionAcademica/pdf")]
