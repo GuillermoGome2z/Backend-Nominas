@@ -18,6 +18,8 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public string? NombreEmpleado { get; init; }
 
         [Required] public string RutaArchivo { get; init; } = string.Empty;
+        public string? NombreOriginal { get; init; }
+        public long? Tamano { get; init; }
         public DateTime FechaSubida { get; init; }
     }
 }

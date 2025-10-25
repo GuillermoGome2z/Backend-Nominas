@@ -141,6 +141,8 @@ namespace ProyectoNomina.Backend.Controllers
                 EmpleadoId = documento.EmpleadoId,
                 TipoDocumentoId = documento.TipoDocumentoId,
                 RutaArchivo = documento.RutaArchivo,
+                NombreOriginal = documento.NombreOriginal,
+                Tamano = documento.Tamano,
                 FechaSubida = documento.FechaSubida
             };
 
@@ -185,6 +187,8 @@ namespace ProyectoNomina.Backend.Controllers
                     TipoDocumentoId = d.TipoDocumentoId,
                     NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
                     RutaArchivo = d.RutaArchivo,
+                    NombreOriginal = d.NombreOriginal,
+                    Tamano = d.Tamano,
                     FechaSubida = d.FechaSubida,
                     NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : null
                 })
@@ -222,6 +226,8 @@ namespace ProyectoNomina.Backend.Controllers
                     TipoDocumentoId = d.TipoDocumentoId,
                     NombreTipo = d.TipoDocumento != null ? d.TipoDocumento.Nombre : null,
                     RutaArchivo = d.RutaArchivo,
+                    NombreOriginal = d.NombreOriginal,
+                    Tamano = d.Tamano,
                     FechaSubida = d.FechaSubida
                 })
                 .ToListAsync();
@@ -249,6 +255,8 @@ namespace ProyectoNomina.Backend.Controllers
                 EmpleadoId = doc.EmpleadoId,
                 TipoDocumentoId = doc.TipoDocumentoId,
                 RutaArchivo = doc.RutaArchivo,
+                NombreOriginal = doc.NombreOriginal,
+                Tamano = doc.Tamano,
                 FechaSubida = doc.FechaSubida,
                 NombreEmpleado = doc.Empleado?.NombreCompleto,
                 NombreTipo = doc.TipoDocumento?.Nombre
