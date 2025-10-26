@@ -602,66 +602,84 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // POST /api/nominas/calcular - Calcular nóminas existentes
+        // POST /api/nominas/calcular - Calcular preview de nómina para empleados según filtros
         // ============================================================
         [HttpPost("calcular")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CalcularNominas([FromBody] CalcularNominasDto? dto = null, CancellationToken ct = default)
+        public async Task<IActionResult> CalcularNominas([FromBody] NominaCalculoRequest request, CancellationToken ct = default)
         {
             try
             {
-                var query = _context.Nominas.AsQueryable();
+                // 1. Validar que el período sea válido
+                if (string.IsNullOrWhiteSpace(request.Periodo))
+                    return BadRequest(new { message = "El período es requerido" });
 
-                if (dto?.NominaIds?.Any() == true)
+                // 2. Construir query base de empleados activos
+                var query = _context.Empleados
+                    .Where(e => e.EstadoLaboral == "ACTIVO")
+                    .AsQueryable();
+
+                // 3. Aplicar filtros según lo que venga
+                if (request.DepartamentoIds?.Any() == true)
                 {
-                    query = query.Where(n => dto.NominaIds.Contains(n.Id));
-                }
-                else if (!string.IsNullOrEmpty(dto?.Periodo))
-                {
-                    query = query.Where(n => n.Periodo == dto.Periodo);
-                }
-                else if (dto?.FechaInicio.HasValue == true && dto?.FechaFin.HasValue == true)
-                {
-                    query = query.Where(n => n.FechaInicio >= dto.FechaInicio && n.FechaFin <= dto.FechaFin);
-                }
-                // Si no hay filtros, calcular todas las nóminas en estado BORRADOR
-                else
-                {
-                    query = query.Where(n => n.Estado == "BORRADOR");
+                    query = query.Where(e => request.DepartamentoIds.Contains(e.DepartamentoId ?? 0));
                 }
 
-                var nominas = await query.ToListAsync(ct);
-                
-                if (!nominas.Any())
+                if (request.EmpleadoIds?.Any() == true)
                 {
-                    return BadRequest(new { message = "No se encontraron nóminas para calcular" });
+                    query = query.Where(e => request.EmpleadoIds.Contains(e.Id));
                 }
 
-                var resultados = new List<object>();
-                foreach (var nomina in nominas)
-                {
-                    await _nominaService.Calcular(nomina);
-                    resultados.Add(new { 
-                        NominaId = nomina.Id,
-                        Periodo = nomina.Periodo,
-                        TotalEmpleados = nomina.DetallesNomina?.Count ?? 0,
-                        MontoTotal = nomina.MontoTotal,
-                        Estado = "Calculado"
-                    });
-                }
+                // 4. Obtener empleados con sus relaciones
+                var empleados = await query
+                    .Include(e => e.Departamento)
+                    .Include(e => e.Puesto)
+                    .ToListAsync(ct);
 
-                await _context.SaveChangesAsync(ct);
-                
-                return Ok(new { 
-                    message = "Nóminas calculadas exitosamente",
-                    resultados = resultados
+                // 5. Validar que haya empleados
+                if (!empleados.Any())
+                    return BadRequest(new { message = "No se encontraron empleados activos con los filtros especificados" });
+
+                // 6. Calcular deducciones y totales
+                decimal totalBruto = 0;
+                decimal totalDeducciones = 0;
+                decimal totalNeto = 0;
+
+                var detallesPorDepartamento = empleados
+                    .GroupBy(e => e.Departamento?.Nombre ?? "Sin Departamento")
+                    .Select(g => new
+                    {
+                        Departamento = g.Key,
+                        Empleados = g.Count(),
+                        TotalBruto = g.Sum(e => e.SalarioMensual),
+                        TotalDeducciones = Math.Round(g.Sum(e => e.SalarioMensual) * 0.1283m, 2), // IGSS 4.83% + ISR promedio 8%
+                        TotalNeto = Math.Round(g.Sum(e => e.SalarioMensual) * 0.8717m, 2) // 87.17% neto
+                    })
+                    .OrderByDescending(d => d.TotalBruto)
+                    .ToList();
+
+                totalBruto = empleados.Sum(e => e.SalarioMensual);
+                totalDeducciones = Math.Round(totalBruto * 0.1283m, 2); // 12.83% promedio (IGSS + ISR básico)
+                totalNeto = totalBruto - totalDeducciones;
+
+                // 7. Devolver respuesta
+                return Ok(new
+                {
+                    Periodo = request.Periodo,
+                    TipoNomina = request.TipoNomina ?? "ORDINARIA",
+                    TotalEmpleados = empleados.Count,
+                    TotalBruto = totalBruto,
+                    TotalDeducciones = totalDeducciones,
+                    TotalNeto = totalNeto,
+                    DetallesPorDepartamento = detallesPorDepartamento,
+                    FechaCalculo = DateTime.Now
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al calcular nóminas", error = ex.Message });
+                return StatusCode(500, new { message = "Error al calcular nómina", error = ex.Message });
             }
         }
 
@@ -1073,6 +1091,14 @@ namespace ProyectoNomina.Backend.Controllers
 
         // Parámetros legales "inline" (opcional). Si no se envían, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
         public List<ParametroLegalInlineDto>? ParametrosLegales { get; set; }
+    }
+
+    public class NominaCalculoRequest
+    {
+        public string Periodo { get; set; } = string.Empty;
+        public string? TipoNomina { get; set; }
+        public List<int> DepartamentoIds { get; set; } = new();
+        public List<int> EmpleadoIds { get; set; } = new();
     }
 
     public class CalcularNominasDto
