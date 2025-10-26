@@ -9,8 +9,19 @@ namespace ProyectoNomina.Shared.Models.DTOs
 {
     public class CrearNominaDto
     {
-        [Required(ErrorMessage = "La descripción es obligatoria.")]
-        [StringLength(100, ErrorMessage = "La descripción no puede exceder los 100 caracteres.")]
-        public string Descripcion { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El período es requerido")]
+        [RegularExpression(@"^\d{4}-(0[1-9]|1[0-2])$", 
+            ErrorMessage = "El período debe tener formato YYYY-MM (ej: 2025-10)")]
+        public string Periodo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El tipo de nómina es requerido")]
+        public string TipoNomina { get; set; } = string.Empty;
+
+        public List<int>? DepartamentoIds { get; set; }
+        
+        public List<int>? EmpleadoIds { get; set; }
+
+        [MaxLength(500, ErrorMessage = "Las observaciones no pueden exceder los 500 caracteres")]
+        public string? Observaciones { get; set; }
     }
 }

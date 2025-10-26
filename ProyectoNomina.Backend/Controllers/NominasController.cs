@@ -264,7 +264,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // POST /api/Nominas  (crear registro vacío)
+        // POST /api/Nominas  (crear nómina)
         // ============================================================
         [HttpPost]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status201Created)]
@@ -273,10 +273,55 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto, CancellationToken ct = default)
         {
+            // Validar que no exista una nómina con el mismo período
+            var existeNomina = await _context.Nominas
+                .AnyAsync(n => n.Periodo == dto.Periodo, ct);
+
+            if (existeNomina)
+            {
+                return Conflict(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Nómina duplicada",
+                    Detail = $"Ya existe una nómina para el período {dto.Periodo}"
+                });
+            }
+
+            // Construir query base de empleados activos
+            var query = _context.Empleados
+                .Where(e => e.EstadoLaboral == "ACTIVO")
+                .AsQueryable();
+
+            // Aplicar filtros según lo que venga
+            if (dto.DepartamentoIds?.Any() == true)
+            {
+                query = query.Where(e => dto.DepartamentoIds.Contains(e.DepartamentoId ?? 0));
+            }
+
+            if (dto.EmpleadoIds?.Any() == true)
+            {
+                query = query.Where(e => dto.EmpleadoIds.Contains(e.Id));
+            }
+
+            var empleados = await query.ToListAsync(ct);
+
+            if (!empleados.Any())
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Sin empleados",
+                    Detail = "No se encontraron empleados activos con los filtros especificados"
+                });
+            }
+
+            // Crear la nómina
             var nomina = new Nomina
             {
-                Descripcion = dto.Descripcion,
-                FechaGeneracion = DateTime.Now
+                Periodo = dto.Periodo,
+                Descripcion = dto.Observaciones ?? $"Nómina {dto.TipoNomina} - {dto.Periodo}",
+                FechaGeneracion = DateTime.Now,
+                Estado = "BORRADOR"
             };
 
             _context.Nominas.Add(nomina);
