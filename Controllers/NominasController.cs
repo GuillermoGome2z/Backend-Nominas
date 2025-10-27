@@ -278,20 +278,40 @@ namespace ProyectoNomina.Backend.Controllers
                     Id = d.Id,
                     NominaId = d.NominaId,
                     EmpleadoId = d.EmpleadoId,
-                    SalarioBruto = d.SalarioBruto,
-                    Deducciones = d.Deducciones,
-                    Bonificaciones = d.Bonificaciones,
-                    SalarioNeto = d.SalarioNeto,
-                    DesgloseDeducciones = d.DesgloseDeducciones,
+                    
+                    // ===== CAMPOS OBLIGATORIOS PARA EXPORTACIÓN =====
                     NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : string.Empty,
                     NombreDepartamento = d.Empleado != null && d.Empleado.Departamento != null ? d.Empleado.Departamento.Nombre : null,
                     NombrePuesto = d.Empleado != null && d.Empleado.Puesto != null ? d.Empleado.Puesto.Nombre : null,
-                    // Desglose detallado de deducciones
+                    SalarioBase = d.Empleado != null ? d.Empleado.SalarioMensual : 0m,
+                    BonoDecreto = CalcularBonoDecreto(nomina.TipoNomina), // Q250 solo para ordinarias
+                    TotalDevengado = d.TotalDevengado > 0 ? d.TotalDevengado : d.SalarioBruto,
                     Igss = d.IgssEmpleado,
                     Isr = d.Isr,
+                    TotalDeducciones = d.TotalDeducciones > 0 ? d.TotalDeducciones : d.Deducciones,
+                    SalarioNeto = d.SalarioNeto,
+
+                    // ===== CAMPOS OPCIONALES PERO IMPORTANTES =====
+                    Bonificaciones = d.Bonificaciones,
+                    Comisiones = d.Comisiones,
+                    HorasExtraValor = d.MontoHorasExtras,
                     Prestamos = d.Prestamos,
                     Anticipos = d.Anticipos,
-                    OtrasDeducciones = d.OtrasDeducciones
+                    OtrasDeducciones = d.OtrasDeducciones,
+                    BaseIgssCalculada = CalcularBaseIgss(d.SalarioBruto, nomina.TipoNomina),
+                    ExencionAplicada = EsExentoIgss(nomina.TipoNomina),
+
+                    // ===== CAMPOS DE COMPATIBILIDAD (LEGACY) =====
+                    SalarioBruto = d.SalarioBruto,
+                    Deducciones = d.Deducciones,
+                    DesgloseDeducciones = d.DesgloseDeducciones,
+
+                    // ===== CAMPOS INFORMATIVOS ADICIONALES =====
+                    TipoNomina = nomina.TipoNomina,
+                    FechaProceso = nomina.FechaGeneracion,
+                    HorasOrdinarias = d.HorasOrdinarias,
+                    HorasExtras = d.HorasExtras,
+                    TarifaHora = d.TarifaHora
                 })
                 .OrderBy(i => i.NombreEmpleado)
                 .ToList();
@@ -1253,6 +1273,39 @@ namespace ProyectoNomina.Backend.Controllers
             {
                 return StatusCode(500, new { message = "Error al enviar emails", error = ex.Message });
             }
+        }
+        
+        // ===== MÉTODOS AUXILIARES PARA CÁLCULOS GUATEMALA 2025 =====
+        
+        /// <summary>
+        /// Calcula el Bono Decreto 37-2001 según el tipo de nómina
+        /// </summary>
+        private static decimal CalcularBonoDecreto(string? tipoNomina)
+        {
+            // Bono Decreto Q250 solo se aplica a nóminas ORDINARIAS
+            return tipoNomina == "ORDINARIA" ? 250.00m : 0m;
+        }
+
+        /// <summary>
+        /// Calcula la base IGSS considerando el límite máximo de Q5,000
+        /// </summary>
+        private static decimal CalcularBaseIgss(decimal salarioBruto, string? tipoNomina)
+        {
+            // IGSS no se aplica a Aguinaldo y Bono14 en Guatemala
+            if (tipoNomina == "AGUINALDO" || tipoNomina == "BONO14")
+                return 0m;
+
+            // Límite máximo IGSS: Q5,000
+            return Math.Min(salarioBruto, 5000m);
+        }
+
+        /// <summary>
+        /// Determina si el tipo de nómina está exento de IGSS
+        /// </summary>
+        private static bool EsExentoIgss(string? tipoNomina)
+        {
+            // Aguinaldo y Bono14 están exentos de IGSS en Guatemala
+            return tipoNomina == "AGUINALDO" || tipoNomina == "BONO14";
         }
     }
 

@@ -337,10 +337,29 @@ namespace ProyectoNomina.Backend.Services
             return await query.ToListAsync();
         }
 
-        private async Task<decimal> ObtenerBonificacionesAsync(int empleadoId) => 0m; // TODO: Implementar
-        private async Task<decimal> ObtenerPrestamosAsync(int empleadoId) => 0m; // TODO: Implementar  
-        private async Task<decimal> ObtenerAnticiposAsync(int empleadoId) => 0m; // TODO: Implementar
-        private async Task<decimal> ObtenerOtrasDeduccionesAsync(int empleadoId) => 0m; // TODO: Implementar
+        private async Task<decimal> ObtenerBonificacionesAsync(int empleadoId)
+        {
+            await Task.CompletedTask; // TODO: Implementar
+            return 0m;
+        }
+        
+        private async Task<decimal> ObtenerPrestamosAsync(int empleadoId)
+        {
+            await Task.CompletedTask; // TODO: Implementar
+            return 0m;
+        }
+        
+        private async Task<decimal> ObtenerAnticiposAsync(int empleadoId)
+        {
+            await Task.CompletedTask; // TODO: Implementar
+            return 0m;
+        }
+        
+        private async Task<decimal> ObtenerOtrasDeduccionesAsync(int empleadoId)
+        {
+            await Task.CompletedTask; // TODO: Implementar
+            return 0m;
+        }
 
         private async Task CalcularAportesPatronalesAsync(Nomina nomina, PeriodoNominaInput input)
         {
