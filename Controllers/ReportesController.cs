@@ -126,6 +126,40 @@ namespace ProyectoNomina.Backend.Controllers
             return Ok(reporte);
         }
 
+        [HttpGet("nominas-consolidado/pdf")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GenerarReporteConsolidadoPdf([FromQuery] string? tipoNomina = null)
+        {
+            try
+            {
+                var query = _context.Nominas
+                    .Include(n => n.Detalles)
+                        .ThenInclude(d => d.Empleado)
+                    .AsQueryable();
+
+                // Filtrar por tipo de nómina si se especifica
+                if (!string.IsNullOrWhiteSpace(tipoNomina))
+                {
+                    query = query.Where(n => n.TipoNomina == tipoNomina);
+                }
+
+                var nominas = await query.ToListAsync();
+
+                if (!nominas.Any())
+                {
+                    return NotFound("No se encontraron nóminas para generar el reporte.");
+                }
+
+                var pdfBytes = _reporteService.GenerarReporteConsolidadoNominas(nominas);
+                return File(pdfBytes, "application/pdf", $"Reporte_Consolidado_Nominas_{DateTime.Now:yyyyMMdd}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al generar reporte consolidado", error = ex.Message });
+            }
+        }
+
         [HttpGet("Expedientes")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

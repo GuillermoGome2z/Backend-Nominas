@@ -27,8 +27,11 @@ namespace ProyectoNomina.Backend
             //  CONFIGURACIÓN PUERTO FIJO
             builder.WebHost.UseUrls("http://localhost:5009");
 
-            // Licencia QuestPDF (reportes PDF)
+            // Configuración QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
+            
+            // Configurar codificación UTF-8 para el sistema
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
             // 1) DB
             builder.Services.AddDbContext<AppDbContext>(options =>
