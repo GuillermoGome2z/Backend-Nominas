@@ -265,6 +265,21 @@ namespace ProyectoNomina.Backend.Data
                 
                 entity.HasIndex(a => a.NominaId).IsUnique();
             });
+            
+            // ===== Nomina =====
+            modelBuilder.Entity<Nomina>(entity =>
+            {
+                entity.HasKey(n => n.Id);
+                
+                // Índice único compuesto para evitar duplicados
+                entity.HasIndex(n => new { n.Periodo, n.TipoNomina })
+                      .IsUnique()
+                      .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                
+                // Índices adicionales para búsquedas
+                entity.HasIndex(n => n.Estado);
+                entity.HasIndex(n => new { n.Anio, n.Mes });
+            });
 
             base.OnModelCreating(modelBuilder);
         }

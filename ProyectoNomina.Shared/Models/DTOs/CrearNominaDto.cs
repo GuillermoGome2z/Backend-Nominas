@@ -16,6 +16,8 @@ namespace ProyectoNomina.Shared.Models.DTOs
 
         [Required(ErrorMessage = "El tipo de nómina es requerido")]
         public string TipoNomina { get; set; } = string.Empty;
+        
+        public DateTime? FechaCorte { get; set; }
 
         public List<int>? DepartamentoIds { get; set; }
         

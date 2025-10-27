@@ -79,22 +79,58 @@ namespace ProyectoNomina.Backend.Controllers
 
             var total = await query.CountAsync(ct);
 
-            // Proyecci�n a DTO "ligero" (Id, Descripcion, FechaGeneracion)
+            // Proyección a DTO completo con todos los campos calculados
             var nominas = await query
+                .Include(n => n.DetallesNomina)
+                .Include(n => n.AportesPatronales)
                 .OrderByDescending(n => n.FechaGeneracion)
                 .ThenBy(n => n.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(n => new NominaDto
-                {
-                    Id = n.Id,
-                    Descripcion = n.Descripcion,
-                    FechaGeneracion = n.FechaGeneracion
-                })
                 .ToListAsync(ct);
 
+            var nominasDTO = nominas.Select(n => new
+            {
+                n.Id,
+                n.Descripcion,
+                n.FechaGeneracion,
+                Periodo = n.Periodo ?? $"{n.Anio}-{n.Mes:D2}",
+                n.Anio,
+                n.Mes,
+                n.Quincena,
+                n.TipoPeriodo,
+                n.TipoNomina,
+                n.Estado,
+                n.FechaInicio,
+                n.FechaFin,
+                n.FechaCorte,
+                n.FechaAprobacion,
+                n.FechaPago,
+                
+                // Totales calculados
+                CantidadEmpleados = n.DetallesNomina?.Count ?? n.CantidadEmpleados,
+                n.TotalBruto,
+                n.TotalDeducciones,
+                n.TotalBonificaciones,
+                n.TotalNeto,
+                n.TotalIgssEmpleado,
+                n.TotalIsr,
+                n.MontoTotal,
+                
+                // Aportes patronales
+                TotalIgssPatronal = n.AportesPatronales?.TotalIgssPatronal ?? 0,
+                TotalIrtra = n.AportesPatronales?.TotalIrtra ?? 0,
+                TotalIntecap = n.AportesPatronales?.TotalIntecap ?? 0,
+                TotalAportesPatronales = n.AportesPatronales?.TotalAportesPatronales ?? 0,
+                
+                // Control
+                n.CreadoPor,
+                n.AprobadoPor,
+                n.Observaciones
+            }).ToList();
+
             Response.Headers["X-Total-Count"] = total.ToString();
-            return Ok(nominas);
+            return Ok(nominasDTO);
         }
 
         // ============================================================
@@ -105,8 +141,9 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<Nomina>> GetNomina(int id, CancellationToken ct = default)
         {
-            // Solo obtenemos la n�mina sin detalles para evitar error en BORRADOR
+            // Obtener la nómina con aportes patronales
             var nomina = await _context.Nominas
+                .Include(n => n.AportesPatronales)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
@@ -274,17 +311,17 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto, CancellationToken ct = default)
         {
-            // Validar que no exista una n�mina con el mismo per�odo
+            // Validar que no exista una nómina con el mismo período y tipo
             var existeNomina = await _context.Nominas
-                .AnyAsync(n => n.Periodo == dto.Periodo, ct);
+                .AnyAsync(n => n.Periodo == dto.Periodo && n.TipoNomina == dto.TipoNomina, ct);
 
             if (existeNomina)
             {
                 return Conflict(new ProblemDetails
                 {
                     Status = StatusCodes.Status409Conflict,
-                    Title = "N�mina duplicada",
-                    Detail = $"Ya existe una n�mina para el per�odo {dto.Periodo}"
+                    Title = "Nómina duplicada",
+                    Detail = $"Ya existe una nómina {dto.TipoNomina} para el período {dto.Periodo}"
                 });
             }
 
@@ -316,19 +353,120 @@ namespace ProyectoNomina.Backend.Controllers
                 });
             }
 
-            // Crear la n�mina
+            // Crear la nómina con todos los campos
             var nomina = new Nomina
             {
                 Periodo = dto.Periodo,
-                Descripcion = dto.Observaciones ?? $"N�mina {dto.TipoNomina} - {dto.Periodo}",
+                TipoNomina = dto.TipoNomina ?? "ORDINARIA",
+                Descripcion = dto.Observaciones ?? $"Nómina {dto.TipoNomina ?? "ORDINARIA"} - {dto.Periodo}",
+                Observaciones = dto.Observaciones,
                 FechaGeneracion = DateTime.Now,
-                Estado = "BORRADOR"
+                FechaCorte = dto.FechaCorte ?? DateTime.Now,
+                Estado = "BORRADOR",
+                CantidadEmpleados = empleados.Count,
+                CreadoPor = User.FindFirst("sub")?.Value ?? User.Identity?.Name,
+                
+                // Extraer Año y Mes del Periodo (formato "2025-10")
+                Anio = !string.IsNullOrEmpty(dto.Periodo) && dto.Periodo.Length >= 4 
+                    ? int.Parse(dto.Periodo.Substring(0, 4)) 
+                    : (int?)null,
+                Mes = !string.IsNullOrEmpty(dto.Periodo) && dto.Periodo.Length >= 7 
+                    ? int.Parse(dto.Periodo.Substring(5, 2)) 
+                    : (int?)null
             };
 
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync(ct);
 
-            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nomina);
+            // ============================================================
+            // CALCULAR DETALLES POR CADA EMPLEADO
+            // ============================================================
+            foreach (var empleado in empleados)
+            {
+                var detalle = new DetalleNomina
+                {
+                    NominaId = nomina.Id,
+                    EmpleadoId = empleado.Id,
+                    
+                    // Salario base
+                    SalarioBruto = empleado.SalarioMensual,
+                    
+                    // Cálculo IGSS Empleado (4.83%)
+                    IgssEmpleado = Math.Round(empleado.SalarioMensual * 0.0483m, 2),
+                    
+                    // Cálculo ISR básico (simplificado - 5% sobre salario > 5000)
+                    Isr = empleado.SalarioMensual > 5000 
+                        ? Math.Round((empleado.SalarioMensual - 5000) * 0.05m, 2) 
+                        : 0,
+                    
+                    // Totales calculados
+                    TotalDevengado = empleado.SalarioMensual,
+                    Deducciones = 0, // Se calculará después
+                    Bonificaciones = 0,
+                    SalarioNeto = 0 // Se calculará después
+                };
+                
+                // Calcular total deducciones
+                detalle.TotalDeducciones = detalle.IgssEmpleado + detalle.Isr;
+                detalle.Deducciones = detalle.TotalDeducciones;
+                
+                // Calcular salario neto
+                detalle.LiquidoAPagar = detalle.TotalDevengado - detalle.TotalDeducciones;
+                detalle.SalarioNeto = detalle.LiquidoAPagar;
+                
+                _context.DetalleNominas.Add(detalle);
+            }
+            
+            await _context.SaveChangesAsync(ct);
+
+            // ============================================================
+            // RECALCULAR TOTALES DE LA NÓMINA
+            // ============================================================
+            nomina.TotalBruto = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.TotalDevengado, ct);
+                
+            nomina.TotalIgssEmpleado = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.IgssEmpleado, ct);
+                
+            nomina.TotalIsr = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.Isr, ct);
+                
+            nomina.TotalDeducciones = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.TotalDeducciones, ct);
+                
+            nomina.TotalNeto = nomina.TotalBruto - nomina.TotalDeducciones;
+            nomina.MontoTotal = nomina.TotalNeto;
+            
+            // Calcular aportes patronales
+            var aportesPatronales = new NominaAportesPatronales
+            {
+                NominaId = nomina.Id,
+                TotalIgssPatronal = Math.Round(nomina.TotalBruto * 0.1067m, 2), // 10.67%
+                TotalIrtra = Math.Round(nomina.TotalBruto * 0.01m, 2), // 1%
+                TotalIntecap = Math.Round(nomina.TotalBruto * 0.01m, 2), // 1%
+                CalculadoEn = DateTime.UtcNow,
+                CalculadoPor = User.FindFirst("sub")?.Value ?? User.Identity?.Name
+            };
+            
+            aportesPatronales.TotalAportesPatronales = 
+                aportesPatronales.TotalIgssPatronal +
+                aportesPatronales.TotalIrtra +
+                aportesPatronales.TotalIntecap;
+            
+            _context.NominaAportesPatronales.Add(aportesPatronales);
+            
+            await _context.SaveChangesAsync(ct);
+
+            // Cargar la nómina completa con sus relaciones
+            var nominaCompleta = await _context.Nominas
+                .Include(n => n.AportesPatronales)
+                .FirstOrDefaultAsync(n => n.Id == nomina.Id, ct);
+
+            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nominaCompleta);
         }
 
         // ============================================================
@@ -796,33 +934,44 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // PUT /api/nominas/{id}/aprobar - Aprobar n�mina
+        // PUT /api/nominas/{id}/aprobar - Aprobar nómina
         // ============================================================
         [HttpPut("{id}/aprobar")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Nomina), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> AprobarNomina(int id, CancellationToken ct = default)
+        public async Task<ActionResult<Nomina>> AprobarNomina(
+            int id, 
+            [FromBody] AprobarNominaDto dto,
+            CancellationToken ct = default)
         {
             var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
             if (nomina == null)
-                return NotFound(new { message = "N�mina no encontrada" });
+                return NotFound(new { message = "Nómina no encontrada" });
 
-            if (nomina.Estado != "BORRADOR" && nomina.Estado != "PENDIENTE")
-                return BadRequest(new { message = "Solo se pueden aprobar n�minas en estado BORRADOR o PENDIENTE" });
+            // Validar que esté en estado BORRADOR
+            if (nomina.Estado != "BORRADOR")
+                return BadRequest(new { message = "Solo se pueden aprobar nóminas en estado BORRADOR" });
 
+            // Actualizar estado
             nomina.Estado = "APROBADA";
-            nomina.FechaAprobacion = DateTime.UtcNow;
+            nomina.FechaAprobacion = DateTime.Now;
+            
+            // Actualizar observaciones si se proporcionan
+            if (!string.IsNullOrWhiteSpace(dto.Observaciones))
+            {
+                nomina.Observaciones = dto.Observaciones;
+            }
+            
+            // Guardar usuario que aprobó
+            var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
+            nomina.AprobadoPor = userId;
             
             await _context.SaveChangesAsync(ct);
 
-            return Ok(new { 
-                message = "N�mina aprobada exitosamente",
-                nominaId = id,
-                estado = nomina.Estado,
-                fechaAprobacion = nomina.FechaAprobacion
-            });
+            // Devolver la nómina completa actualizada
+            return Ok(nomina);
         }
 
         // ============================================================
