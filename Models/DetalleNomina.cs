@@ -26,6 +26,51 @@ namespace ProyectoNomina.Backend.Models
 
         [Precision(18, 2)]
         public decimal TarifaExtra { get; set; }
+        
+        // ===== Desgloses detallados de percepciones =====
+        [Precision(18, 2)]
+        public decimal HorasOrdinarias { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal HorasExtras { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal MontoHorasExtras { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal Comisiones { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal OtrosIngresos { get; set; }
+        
+        // ===== Desgloses detallados de deducciones =====
+        [Precision(18, 2)]
+        public decimal IgssEmpleado { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal Isr { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal DescuentosVarios { get; set; }
+        
+        // ===== Deducciones específicas =====
+        [Precision(18, 2)]
+        public decimal Prestamos { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal Anticipos { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal OtrasDeducciones { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal TotalDevengado { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal TotalDeducciones { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal LiquidoAPagar { get; set; }
 
         // ===== Ya existentes =====
         [Precision(18, 2)]
@@ -41,5 +86,8 @@ namespace ProyectoNomina.Backend.Models
         public decimal SalarioNeto { get; set; }
 
         public string DesgloseDeducciones { get; set; } = string.Empty;
+        
+        // Relación con líneas de detalle
+        public ICollection<NominaDetalleLinea> Lineas { get; set; } = new List<NominaDetalleLinea>();
     }
 }

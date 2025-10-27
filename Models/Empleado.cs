@@ -65,5 +65,9 @@ namespace ProyectoNomina.Backend.Models
 
         // Relación 1:1 con Usuario
         public Usuario? Usuario { get; set; }
+        
+        // Relación 1:1 con EmpleadoParametros (configuración de nómina)
+        [JsonIgnore]
+        public EmpleadoParametros? Parametros { get; set; }
     }
 }

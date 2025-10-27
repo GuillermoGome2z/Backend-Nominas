@@ -113,6 +113,77 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("Bonificaciones");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.ConceptoNomina", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AfectaIgss")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AfectaIsr")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CuentaContable")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Formula")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ModificadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Tipo", "Activo");
+
+                    b.ToTable("ConceptosNomina");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Deduccion", b =>
                 {
                     b.Property<int>("Id")
@@ -172,11 +243,23 @@ namespace ProyectoNomina.Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("Anticipos")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("Bonificaciones")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("Comisiones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("Deducciones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DescuentosVarios")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -191,12 +274,48 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("HorasExtras")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("HorasOrdinarias")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("HorasRegulares")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IgssEmpleado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Isr")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("LiquidoAPagar")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MontoHorasExtras")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("NominaId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("OtrasDeducciones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OtrosIngresos")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Prestamos")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SalarioBruto")
                         .HasPrecision(18, 2)
@@ -211,6 +330,14 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TarifaHora")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalDeducciones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalDevengado")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -387,6 +514,105 @@ namespace ProyectoNomina.Backend.Migrations
                     b.ToTable("Empleados");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.EmpleadoParametros", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AfiliadoIgss")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("BancoNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CuentaBancaria")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("DescuentosFijosMensuales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ExentoIsr")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("FechaAfiliacionIgss")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FormaPago")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("JornadaMensualHoras")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ModificadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MotivoExencion")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NumeroIgss")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ObservacionesDescuentos")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("RecibeBonoDecreto")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("SalarioHora")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("TipoCuenta")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("VigenteDesde")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("VigenteHasta")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpleadoId")
+                        .IsUnique();
+
+                    b.HasIndex("VigenteDesde");
+
+                    b.HasIndex("EmpleadoId", "Activo");
+
+                    b.ToTable("EmpleadoParametros");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.InformacionAcademica", b =>
                 {
                     b.Property<int>("Id")
@@ -428,18 +654,39 @@ namespace ProyectoNomina.Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("Anio")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AprobadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CantidadEmpleados")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CerradoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Estado")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime?>("FechaAnulacion")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCorte")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaFin")
@@ -454,6 +701,9 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Property<DateTime?>("FechaPago")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("Mes")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("MontoTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -461,8 +711,26 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Property<string>("MotivoAnulacion")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<string>("Periodo")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("Quincena")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoNomina")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TipoPeriodo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<decimal>("TotalBonificaciones")
                         .HasPrecision(18, 2)
@@ -476,13 +744,152 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("TotalIgssEmpleado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIsr")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("TotalNeto")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Estado");
+
+                    b.HasIndex("Anio", "Mes");
+
+                    b.HasIndex("Periodo", "TipoNomina")
+                        .IsUnique()
+                        .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+
                     b.ToTable("Nominas");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.NominaAportesPatronales", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CalculadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CalculadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DetalleJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("NominaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAguinaldo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAportesPatronales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalBono14")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIgssPatronal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIndemnizacion")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIntecap")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIrtra")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalVacaciones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NominaId")
+                        .IsUnique();
+
+                    b.ToTable("NominaAportesPatronales");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.NominaDetalleLinea", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Base")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CodigoConcepto")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("EsManual")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Monto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("NominaDetalleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Tasa")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NominaDetalleId", "Tipo", "Orden");
+
+                    b.ToTable("NominaDetalleLineas");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.ObservacionExpediente", b =>
@@ -566,7 +973,13 @@ namespace ProyectoNomina.Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("Expira")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RenovadoEn")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("Revocado")
@@ -588,6 +1001,101 @@ namespace ProyectoNomina.Backend.Migrations
                     b.HasIndex("UsuarioId", "Revocado", "Expira");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.ReglasLaborales", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("BonoDecretoMonto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("HorasExtrasNocturnasPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("HorasExtrasPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("IgssEmpleadoPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("IgssMaximoBase")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IgssPatronalPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("IntecapPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("IrtraPct")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("IsrEscalaJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("JornadaOrdinariaHorasMes")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ModificadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModificadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Pais")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<string>("PoliticaRedondeo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("RedondeoDecimales")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("SalarioMinimoMensual")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("VigenteDesde")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("VigenteHasta")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Pais", "VigenteDesde", "Activo");
+
+                    b.ToTable("ReglasLaborales");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Rol", b =>
@@ -789,6 +1297,17 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Navigation("Puesto");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.EmpleadoParametros", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
+                        .WithOne("Parametros")
+                        .HasForeignKey("ProyectoNomina.Backend.Models.EmpleadoParametros", "EmpleadoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empleado");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.InformacionAcademica", b =>
                 {
                     b.HasOne("ProyectoNomina.Backend.Models.Empleado", "Empleado")
@@ -798,6 +1317,28 @@ namespace ProyectoNomina.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Empleado");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.NominaAportesPatronales", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.Nomina", "Nomina")
+                        .WithOne("AportesPatronales")
+                        .HasForeignKey("ProyectoNomina.Backend.Models.NominaAportesPatronales", "NominaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Nomina");
+                });
+
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.NominaDetalleLinea", b =>
+                {
+                    b.HasOne("ProyectoNomina.Backend.Models.DetalleNomina", "NominaDetalle")
+                        .WithMany("Lineas")
+                        .HasForeignKey("NominaDetalleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("NominaDetalle");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.ObservacionExpediente", b =>
@@ -871,6 +1412,11 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Navigation("Puestos");
                 });
 
+            modelBuilder.Entity("ProyectoNomina.Backend.Models.DetalleNomina", b =>
+                {
+                    b.Navigation("Lineas");
+                });
+
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Empleado", b =>
                 {
                     b.Navigation("Bonificaciones");
@@ -883,11 +1429,15 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.Navigation("Estudios");
 
+                    b.Navigation("Parametros");
+
                     b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ProyectoNomina.Backend.Models.Nomina", b =>
                 {
+                    b.Navigation("AportesPatronales");
+
                     b.Navigation("DetallesNomina");
                 });
 

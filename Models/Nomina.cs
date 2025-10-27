@@ -14,10 +14,36 @@ namespace ProyectoNomina.Backend.Models
         // Propiedades para el período de la nómina
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
-        public string? Periodo { get; set; } // Ej: "2025-01", "2025-02"
-
+        
+        // Periodo en formato "2025-10"
+        [MaxLength(20)]
+        public string? Periodo { get; set; }
+        
+        // Campos adicionales para control de período
+        public int? Anio { get; set; }
+        
+        [Range(1, 12)]
+        public int? Mes { get; set; }
+        
+        [Range(1, 2)]
+        public int? Quincena { get; set; }
+        
+        [Required]
+        [MaxLength(20)]
+        public string TipoPeriodo { get; set; } = "Mensual"; // "Mensual" | "Quincenal"
+        
+        [Required]
+        public DateTime FechaCorte { get; set; }
+        
+        // Tipo de nómina
+        [Required]
+        [MaxLength(30)]
+        public string TipoNomina { get; set; } = "ORDINARIA"; // ORDINARIA, EXTRAORDINARIA, AGUINALDO, BONO14
+        
         // Estados de la nómina
-        public string Estado { get; set; } = "BORRADOR"; // BORRADOR, PENDIENTE, APROBADA, PAGADA, ANULADA
+        [Required]
+        [MaxLength(20)]
+        public string Estado { get; set; } = "BORRADOR"; // BORRADOR, APROBADA, PAGADA, ANULADA
 
         // Fechas de control de estado
         public DateTime? FechaAprobacion { get; set; }
@@ -40,9 +66,34 @@ namespace ProyectoNomina.Backend.Models
 
         [Precision(18, 2)]
         public decimal TotalNeto { get; set; }
+        
+        // Totales de deducciones específicas (suma de todos los empleados)
+        [Precision(18, 2)]
+        public decimal TotalIgssEmpleado { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal TotalIsr { get; set; }
+        
+        // Cantidad de empleados en la nómina
+        public int CantidadEmpleados { get; set; }
+        
+        // Control de usuarios
+        [MaxLength(100)]
+        public string? CreadoPor { get; set; }
+        
+        [MaxLength(100)]
+        public string? AprobadoPor { get; set; }
+        
+        [MaxLength(1000)]
+        public string? Observaciones { get; set; }
+        
+        public DateTime? CerradoEn { get; set; }
 
         // Relaciones
         public ICollection<DetalleNomina> DetallesNomina { get; set; } = new List<DetalleNomina>();
+        
+        // Aportes patronales (1:1)
+        public NominaAportesPatronales? AportesPatronales { get; set; }
         
         // Alias para compatibilidad con código existente
         [NotMapped]

@@ -85,6 +85,17 @@ namespace ProyectoNomina.Backend.Controllers
             if (dto.SalarioBase < 0)
                 return UnprocessableEntity(new ProblemDetails { Title = "Salario inválido", Detail = "El salario base debe ser mayor o igual a 0." });
 
+            // Validar que no exista otro puesto con el mismo nombre (case-insensitive)
+            var nombreExiste = await _context.Puestos
+                .AnyAsync(p => p.Nombre.ToLower() == dto.Nombre.ToLower());
+            
+            if (nombreExiste)
+                return Conflict(new ProblemDetails 
+                { 
+                    Title = "Puesto duplicado", 
+                    Detail = $"Ya existe un puesto con el nombre '{dto.Nombre}'." 
+                });
+
             // Validar departamento si se proporciona
             if (dto.DepartamentoId.HasValue)
             {
@@ -140,6 +151,17 @@ namespace ProyectoNomina.Backend.Controllers
 
             if (dto.SalarioBase < 0)
                 return UnprocessableEntity(new ProblemDetails { Title = "Salario inválido", Detail = "El salario base debe ser mayor o igual a 0." });
+
+            // Validar que no exista otro puesto con el mismo nombre (excluyendo el actual)
+            var nombreExiste = await _context.Puestos
+                .AnyAsync(pu => pu.Nombre.ToLower() == dto.Nombre.ToLower() && pu.Id != id);
+            
+            if (nombreExiste)
+                return Conflict(new ProblemDetails 
+                { 
+                    Title = "Puesto duplicado", 
+                    Detail = $"Ya existe otro puesto con el nombre '{dto.Nombre}'." 
+                });
 
             // Validar departamento si se proporciona
             if (dto.DepartamentoId.HasValue)

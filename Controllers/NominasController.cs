@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Data;
@@ -29,7 +29,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // GET /api/Nominas  (paginado + filtros + 422 por rango inválido) → ahora responde DTO
+        // GET /api/Nominas  (paginado + filtros + 422 por rango inv�lido) ? ahora responde DTO
         // ============================================================
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
@@ -44,12 +44,12 @@ namespace ProyectoNomina.Backend.Controllers
             [FromQuery] DateTime? fechaFin = null,
             CancellationToken ct = default)
         {
-            // saneo de paginación
+            // saneo de paginaci�n
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
 
-            // validación rango fechas → 422
+            // validaci�n rango fechas ? 422
             if (fechaInicio.HasValue && fechaFin.HasValue && fechaInicio.Value.Date > fechaFin.Value.Date)
             {
                 return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -79,22 +79,58 @@ namespace ProyectoNomina.Backend.Controllers
 
             var total = await query.CountAsync(ct);
 
-            // Proyección a DTO "ligero" (Id, Descripcion, FechaGeneracion)
+            // Proyección a DTO completo con todos los campos calculados
             var nominas = await query
+                .Include(n => n.DetallesNomina)
+                .Include(n => n.AportesPatronales)
                 .OrderByDescending(n => n.FechaGeneracion)
                 .ThenBy(n => n.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(n => new NominaDto
-                {
-                    Id = n.Id,
-                    Descripcion = n.Descripcion,
-                    FechaGeneracion = n.FechaGeneracion
-                })
                 .ToListAsync(ct);
 
+            var nominasDTO = nominas.Select(n => new
+            {
+                n.Id,
+                n.Descripcion,
+                n.FechaGeneracion,
+                Periodo = n.Periodo ?? $"{n.Anio}-{n.Mes:D2}",
+                n.Anio,
+                n.Mes,
+                n.Quincena,
+                n.TipoPeriodo,
+                n.TipoNomina,
+                n.Estado,
+                n.FechaInicio,
+                n.FechaFin,
+                n.FechaCorte,
+                n.FechaAprobacion,
+                n.FechaPago,
+                
+                // Totales calculados
+                CantidadEmpleados = n.DetallesNomina?.Count ?? n.CantidadEmpleados,
+                n.TotalBruto,
+                n.TotalDeducciones,
+                n.TotalBonificaciones,
+                n.TotalNeto,
+                n.TotalIgssEmpleado,
+                n.TotalIsr,
+                n.MontoTotal,
+                
+                // Aportes patronales
+                TotalIgssPatronal = n.AportesPatronales?.TotalIgssPatronal ?? 0,
+                TotalIrtra = n.AportesPatronales?.TotalIrtra ?? 0,
+                TotalIntecap = n.AportesPatronales?.TotalIntecap ?? 0,
+                TotalAportesPatronales = n.AportesPatronales?.TotalAportesPatronales ?? 0,
+                
+                // Control
+                n.CreadoPor,
+                n.AprobadoPor,
+                n.Observaciones
+            }).ToList();
+
             Response.Headers["X-Total-Count"] = total.ToString();
-            return Ok(nominas);
+            return Ok(nominasDTO);
         }
 
         // ============================================================
@@ -105,10 +141,10 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<Nomina>> GetNomina(int id, CancellationToken ct = default)
         {
+            // Obtener la nómina con aportes patronales
             var nomina = await _context.Nominas
+                .Include(n => n.AportesPatronales)
                 .AsNoTracking()
-                .Include(n => n.Detalles)
-                    .ThenInclude(d => d.Empleado)
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null) return NotFound();
@@ -134,7 +170,7 @@ namespace ProyectoNomina.Backend.Controllers
 
             var baseQuery = _context.Nominas
                 .AsNoTracking()
-                .Include(n => n.Detalles)
+                .Include(n => n.DetallesNomina)
                     .ThenInclude(d => d.Empleado);
 
             var total = await baseQuery.CountAsync(ct);
@@ -149,7 +185,7 @@ namespace ProyectoNomina.Backend.Controllers
                     Id = n.Id,
                     Descripcion = n.Descripcion,
                     FechaGeneracion = n.FechaGeneracion,
-                    Detalles = n.Detalles.Select(d => new DetalleNominaDto
+                    Detalles = n.DetallesNomina.Select(d => new DetalleNominaDto
                     {
                         EmpleadoId = d.EmpleadoId,
                         NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : "",
@@ -167,7 +203,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // GET /api/Nominas/listado  (DTO simple + paginado) – se mantiene por compatibilidad
+        // GET /api/Nominas/listado  (DTO simple + paginado) � se mantiene por compatibilidad
         // ============================================================
         [HttpGet("listado")]
         [ProducesResponseType(typeof(IEnumerable<NominaDto>), StatusCodes.Status200OK)]
@@ -205,8 +241,10 @@ namespace ProyectoNomina.Backend.Controllers
 
         // ============================================================
         // GET /api/Nominas/{id}/detalle?empleadoId=123 (opcional)
+        // GET /api/Nominas/{id}/detalles?empleadoId=123 (alias plural)
         // ============================================================
         [HttpGet("{id:int}/detalle")]
+        [HttpGet("{id:int}/detalles")] // Alias plural para compatibilidad con frontend
         [ProducesResponseType(typeof(NominaDetalleDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<NominaDetalleDto>> GetDetalle(int id, [FromQuery] int? empleadoId = null, CancellationToken ct = default)
@@ -222,12 +260,19 @@ namespace ProyectoNomina.Backend.Controllers
                 .AsNoTracking()
                 .Where(d => d.NominaId == id)
                 .Include(d => d.Empleado)
+                    .ThenInclude(e => e.Departamento)
+                .Include(d => d.Empleado)
+                    .ThenInclude(e => e.Puesto)
                 .AsQueryable();
 
             if (empleadoId.HasValue)
                 qDetalles = qDetalles.Where(d => d.EmpleadoId == empleadoId.Value);
 
-            var items = await qDetalles
+            // Cargar los datos primero
+            var detallesData = await qDetalles.ToListAsync(ct);
+
+            // Crear los DTOs con la información cargada
+            var items = detallesData
                 .Select(d => new DetalleNominaDto
                 {
                     Id = d.Id,
@@ -238,15 +283,24 @@ namespace ProyectoNomina.Backend.Controllers
                     Bonificaciones = d.Bonificaciones,
                     SalarioNeto = d.SalarioNeto,
                     DesgloseDeducciones = d.DesgloseDeducciones,
-                    NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : string.Empty
+                    NombreEmpleado = d.Empleado != null ? d.Empleado.NombreCompleto : string.Empty,
+                    NombreDepartamento = d.Empleado != null && d.Empleado.Departamento != null ? d.Empleado.Departamento.Nombre : null,
+                    NombrePuesto = d.Empleado != null && d.Empleado.Puesto != null ? d.Empleado.Puesto.Nombre : null,
+                    // Desglose detallado de deducciones
+                    Igss = d.IgssEmpleado,
+                    Isr = d.Isr,
+                    Prestamos = d.Prestamos,
+                    Anticipos = d.Anticipos,
+                    OtrasDeducciones = d.OtrasDeducciones
                 })
                 .OrderBy(i => i.NombreEmpleado)
-                .ToListAsync(ct);
+                .ToList();
 
-            var totalBruto = await qDetalles.SumAsync(d => (decimal?)d.SalarioBruto, ct) ?? 0m;
-            var totalDeducciones = await qDetalles.SumAsync(d => (decimal?)d.Deducciones, ct) ?? 0m;
-            var totalBonificaciones = await qDetalles.SumAsync(d => (decimal?)d.Bonificaciones, ct) ?? 0m;
-            var totalNeto = await qDetalles.SumAsync(d => (decimal?)d.SalarioNeto, ct) ?? 0m;
+            // Calcular totales desde los datos cargados
+            var totalBruto = detallesData.Sum(d => d.SalarioBruto);
+            var totalDeducciones = detallesData.Sum(d => d.Deducciones);
+            var totalBonificaciones = detallesData.Sum(d => d.Bonificaciones);
+            var totalNeto = detallesData.Sum(d => d.SalarioNeto);
 
             var dto = new NominaDetalleDto
             {
@@ -264,7 +318,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // POST /api/Nominas  (crear registro vacío)
+        // POST /api/Nominas  (crear n�mina)
         // ============================================================
         [HttpPost]
         [ProducesResponseType(typeof(Nomina), StatusCodes.Status201Created)]
@@ -273,16 +327,162 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> PostNomina([FromBody] CrearNominaDto dto, CancellationToken ct = default)
         {
+            // Validar que no exista una nómina con el mismo período y tipo
+            var existeNomina = await _context.Nominas
+                .AnyAsync(n => n.Periodo == dto.Periodo && n.TipoNomina == dto.TipoNomina, ct);
+
+            if (existeNomina)
+            {
+                return Conflict(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Nómina duplicada",
+                    Detail = $"Ya existe una nómina {dto.TipoNomina} para el período {dto.Periodo}"
+                });
+            }
+
+            // Construir query base de empleados activos
+            var query = _context.Empleados
+                .Where(e => e.EstadoLaboral == "ACTIVO")
+                .AsQueryable();
+
+            // Aplicar filtros seg�n lo que venga
+            if (dto.DepartamentoIds?.Any() == true)
+            {
+                query = query.Where(e => dto.DepartamentoIds.Contains(e.DepartamentoId ?? 0));
+            }
+
+            if (dto.EmpleadoIds?.Any() == true)
+            {
+                query = query.Where(e => dto.EmpleadoIds.Contains(e.Id));
+            }
+
+            var empleados = await query.ToListAsync(ct);
+
+            if (!empleados.Any())
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Sin empleados",
+                    Detail = "No se encontraron empleados activos con los filtros especificados"
+                });
+            }
+
+            // Crear la nómina con todos los campos
             var nomina = new Nomina
             {
-                Descripcion = dto.Descripcion,
-                FechaGeneracion = DateTime.Now
+                Periodo = dto.Periodo,
+                TipoNomina = dto.TipoNomina ?? "ORDINARIA",
+                Descripcion = dto.Observaciones ?? $"Nómina {dto.TipoNomina ?? "ORDINARIA"} - {dto.Periodo}",
+                Observaciones = dto.Observaciones,
+                FechaGeneracion = DateTime.Now,
+                FechaCorte = dto.FechaCorte ?? DateTime.Now,
+                Estado = "BORRADOR",
+                CantidadEmpleados = empleados.Count,
+                CreadoPor = User.FindFirst("sub")?.Value ?? User.Identity?.Name,
+                
+                // Extraer Año y Mes del Periodo (formato "2025-10")
+                Anio = !string.IsNullOrEmpty(dto.Periodo) && dto.Periodo.Length >= 4 
+                    ? int.Parse(dto.Periodo.Substring(0, 4)) 
+                    : (int?)null,
+                Mes = !string.IsNullOrEmpty(dto.Periodo) && dto.Periodo.Length >= 7 
+                    ? int.Parse(dto.Periodo.Substring(5, 2)) 
+                    : (int?)null
             };
 
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync(ct);
 
-            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nomina);
+            // ============================================================
+            // CALCULAR DETALLES POR CADA EMPLEADO
+            // ============================================================
+            foreach (var empleado in empleados)
+            {
+                var detalle = new DetalleNomina
+                {
+                    NominaId = nomina.Id,
+                    EmpleadoId = empleado.Id,
+                    
+                    // Salario base
+                    SalarioBruto = empleado.SalarioMensual,
+                    
+                    // Cálculo IGSS Empleado (4.83%)
+                    IgssEmpleado = Math.Round(empleado.SalarioMensual * 0.0483m, 2),
+                    
+                    // Cálculo ISR básico (simplificado - 5% sobre salario > 5000)
+                    Isr = empleado.SalarioMensual > 5000 
+                        ? Math.Round((empleado.SalarioMensual - 5000) * 0.05m, 2) 
+                        : 0,
+                    
+                    // Totales calculados
+                    TotalDevengado = empleado.SalarioMensual,
+                    Deducciones = 0, // Se calculará después
+                    Bonificaciones = 0,
+                    SalarioNeto = 0 // Se calculará después
+                };
+                
+                // Calcular total deducciones
+                detalle.TotalDeducciones = detalle.IgssEmpleado + detalle.Isr;
+                detalle.Deducciones = detalle.TotalDeducciones;
+                
+                // Calcular salario neto
+                detalle.LiquidoAPagar = detalle.TotalDevengado - detalle.TotalDeducciones;
+                detalle.SalarioNeto = detalle.LiquidoAPagar;
+                
+                _context.DetalleNominas.Add(detalle);
+            }
+            
+            await _context.SaveChangesAsync(ct);
+
+            // ============================================================
+            // RECALCULAR TOTALES DE LA NÓMINA
+            // ============================================================
+            nomina.TotalBruto = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.TotalDevengado, ct);
+                
+            nomina.TotalIgssEmpleado = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.IgssEmpleado, ct);
+                
+            nomina.TotalIsr = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.Isr, ct);
+                
+            nomina.TotalDeducciones = await _context.DetalleNominas
+                .Where(d => d.NominaId == nomina.Id)
+                .SumAsync(d => d.TotalDeducciones, ct);
+                
+            nomina.TotalNeto = nomina.TotalBruto - nomina.TotalDeducciones;
+            nomina.MontoTotal = nomina.TotalNeto;
+            
+            // Calcular aportes patronales
+            var aportesPatronales = new NominaAportesPatronales
+            {
+                NominaId = nomina.Id,
+                TotalIgssPatronal = Math.Round(nomina.TotalBruto * 0.1067m, 2), // 10.67%
+                TotalIrtra = Math.Round(nomina.TotalBruto * 0.01m, 2), // 1%
+                TotalIntecap = Math.Round(nomina.TotalBruto * 0.01m, 2), // 1%
+                CalculadoEn = DateTime.UtcNow,
+                CalculadoPor = User.FindFirst("sub")?.Value ?? User.Identity?.Name
+            };
+            
+            aportesPatronales.TotalAportesPatronales = 
+                aportesPatronales.TotalIgssPatronal +
+                aportesPatronales.TotalIrtra +
+                aportesPatronales.TotalIntecap;
+            
+            _context.NominaAportesPatronales.Add(aportesPatronales);
+            
+            await _context.SaveChangesAsync(ct);
+
+            // Cargar la nómina completa con sus relaciones
+            var nominaCompleta = await _context.Nominas
+                .Include(n => n.AportesPatronales)
+                .FirstOrDefaultAsync(n => n.Id == nomina.Id, ct);
+
+            return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, nominaCompleta);
         }
 
         // ============================================================
@@ -295,7 +495,7 @@ namespace ProyectoNomina.Backend.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GenerarNominaPorRango([FromBody] GenerarNominaRangoDto dto, CancellationToken ct = default)
         {
-            // Validaciones de rango → 422
+            // Validaciones de rango ? 422
             if (!dto.FechaInicio.HasValue || !dto.FechaFin.HasValue)
             {
                 return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -318,7 +518,7 @@ namespace ProyectoNomina.Backend.Controllers
             var nomina = new Nomina
             {
                 Descripcion = string.IsNullOrWhiteSpace(dto.Descripcion)
-                    ? $"Nómina {inicio:yyyy-MM-dd} a {fin:yyyy-MM-dd}"
+                    ? $"N�mina {inicio:yyyy-MM-dd} a {fin:yyyy-MM-dd}"
                     : dto.Descripcion!.Trim(),
                 FechaGeneracion = DateTime.Now
             };
@@ -326,19 +526,19 @@ namespace ProyectoNomina.Backend.Controllers
             _context.Nominas.Add(nomina);
             await _context.SaveChangesAsync(ct);
 
-            // Se mantiene tu lógica actual (retrocompatible)
+            // Se mantiene tu l�gica actual (retrocompatible)
             await _nominaService.Calcular(nomina);
             await _context.SaveChangesAsync(ct);
 
             return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, new
             {
-                mensaje = "✅ Nómina generada y calculada correctamente.",
+                mensaje = "? N�mina generada y calculada correctamente.",
                 nominaId = nomina.Id
             });
         }
 
         // ============================================================
-        // POST /api/Nominas/generar-v2  (crear + calcular V2 con horas/comisiones/parámetros)
+        // POST /api/Nominas/generar-v2  (crear + calcular V2 con horas/comisiones/par�metros)
         // Body: GenerarNominaV2Dto
         // ============================================================
         [HttpPost("generar-v2")]
@@ -366,7 +566,7 @@ namespace ProyectoNomina.Backend.Controllers
                 }));
             }
 
-            // Validaciones básicas de horas/comisiones
+            // Validaciones b�sicas de horas/comisiones
             if (dto.Horas != null)
             {
                 foreach (var h in dto.Horas)
@@ -392,7 +592,7 @@ namespace ProyectoNomina.Backend.Controllers
                     if (c.Monto < 0)
                         return UnprocessableEntity(new ValidationProblemDetails(new Dictionary<string, string[]>
                         {
-                            [$"empleado:{c.EmpleadoId}"] = new[] { "La comisión no puede ser negativa." }
+                            [$"empleado:{c.EmpleadoId}"] = new[] { "La comisi�n no puede ser negativa." }
                         }));
                 }
             }
@@ -400,7 +600,7 @@ namespace ProyectoNomina.Backend.Controllers
             var nomina = new Nomina
             {
                 Descripcion = string.IsNullOrWhiteSpace(dto.Descripcion)
-                    ? $"Nómina {inicio:yyyy-MM-dd} a {fin:yyyy-MM-dd}"
+                    ? $"N�mina {inicio:yyyy-MM-dd} a {fin:yyyy-MM-dd}"
                     : dto.Descripcion!.Trim(),
                 FechaGeneracion = DateTime.Now
             };
@@ -438,7 +638,7 @@ namespace ProyectoNomina.Backend.Controllers
                     .ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
             }
 
-            // Resolver de parámetros legales (inline opcional)
+            // Resolver de par�metros legales (inline opcional)
             NominaService.ParametrosResolver? resolver = null;
             if (dto.ParametrosLegales != null && dto.ParametrosLegales.Any())
             {
@@ -454,7 +654,7 @@ namespace ProyectoNomina.Backend.Controllers
                 };
             }
 
-            // Calcular con V2 (si no hay resolver/horas/comisiones, hace fallback y queda como tu versión actual)
+            // Calcular con V2 (si no hay resolver/horas/comisiones, hace fallback y queda como tu versi�n actual)
             await _nominaService.CalcularV2(
                 nomina: nomina,
                 periodoInicio: inicio,
@@ -468,7 +668,7 @@ namespace ProyectoNomina.Backend.Controllers
 
             return CreatedAtRoute("GetNominaById", new { id = nomina.Id }, new
             {
-                mensaje = "✅ Nómina (V2) generada y calculada correctamente.",
+                mensaje = "? N�mina (V2) generada y calculada correctamente.",
                 nominaId = nomina.Id
             });
         }
@@ -483,14 +683,14 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<IActionResult> ProcesarNominaExistente(int id, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
-                .Include(n => n.Detalles)
+                .Include(n => n.DetallesNomina)
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
-                return NotFound("❌ Nómina no encontrada.");
+                return NotFound("? N�mina no encontrada.");
 
             // Limpiar detalles anteriores si existen
-            _context.DetalleNominas.RemoveRange(nomina.Detalles);
+            _context.DetalleNominas.RemoveRange(nomina.DetallesNomina);
             await _context.SaveChangesAsync(ct);
 
             await _nominaService.Calcular(nomina);
@@ -498,7 +698,7 @@ namespace ProyectoNomina.Backend.Controllers
 
             return Ok(new
             {
-                mensaje = "✅ Nómina procesada correctamente.",
+                mensaje = "? N�mina procesada correctamente.",
                 nominaId = nomina.Id
             });
         }
@@ -515,19 +715,19 @@ namespace ProyectoNomina.Backend.Controllers
             try
             {
                 var nomina = await _context.Nominas
-                    .Include(n => n.Detalles)
+                    .Include(n => n.DetallesNomina)
                         .ThenInclude(d => d.Empleado)
                     .FirstOrDefaultAsync(n => n.Id == id, ct);
 
                 if (nomina == null)
-                    return NotFound("No se encontró la nómina.");
+                    return NotFound("No se encontr� la n�mina.");
 
                 var pdfBytes = reporteService.GenerarReporteNominaPdf(nomina);
                 return File(pdfBytes, "application/pdf", $"Nomina_{id}.pdf");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"⚠️ Error al generar PDF: {ex.Message}");
+                return StatusCode(500, $"?? Error al generar PDF: {ex.Message}");
             }
         }
 
@@ -541,12 +741,12 @@ namespace ProyectoNomina.Backend.Controllers
         public async Task<IActionResult> GenerarExcel(int id, [FromServices] ReporteService reporteService, CancellationToken ct = default)
         {
             var nomina = await _context.Nominas
-                .Include(n => n.Detalles)
+                .Include(n => n.DetallesNomina)
                     .ThenInclude(d => d.Empleado)
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
-                return NotFound("Nómina no encontrada.");
+                return NotFound("N�mina no encontrada.");
 
             var excelBytes = reporteService.GenerarReporteNominaExcel(nomina);
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Nomina_{id}.xlsx");
@@ -602,36 +802,124 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // POST /api/nominas/calcular - Calcular nóminas existentes
+        // POST /api/nominas/calcular - Calcular preview de n�mina para empleados seg�n filtros
         // ============================================================
         [HttpPost("calcular")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CalcularNominas([FromBody] CalcularNominasDto dto, CancellationToken ct = default)
+        public async Task<IActionResult> CalcularNominas([FromBody] NominaCalculoRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                // 1. Validar que el per�odo sea v�lido
+                if (string.IsNullOrWhiteSpace(request.Periodo))
+                    return BadRequest(new { message = "El per�odo es requerido" });
+
+                // 2. Construir query base de empleados activos
+                var query = _context.Empleados
+                    .Where(e => e.EstadoLaboral == "ACTIVO")
+                    .AsQueryable();
+
+                // 3. Aplicar filtros seg�n lo que venga
+                if (request.DepartamentoIds?.Any() == true)
+                {
+                    query = query.Where(e => request.DepartamentoIds.Contains(e.DepartamentoId ?? 0));
+                }
+
+                if (request.EmpleadoIds?.Any() == true)
+                {
+                    query = query.Where(e => request.EmpleadoIds.Contains(e.Id));
+                }
+
+                // 4. Obtener empleados con sus relaciones
+                var empleados = await query
+                    .Include(e => e.Departamento)
+                    .Include(e => e.Puesto)
+                    .ToListAsync(ct);
+
+                // 5. Validar que haya empleados
+                if (!empleados.Any())
+                    return BadRequest(new { message = "No se encontraron empleados activos con los filtros especificados" });
+
+                // 6. Calcular deducciones y totales
+                decimal totalBruto = 0;
+                decimal totalDeducciones = 0;
+                decimal totalNeto = 0;
+
+                var detallesPorDepartamento = empleados
+                    .GroupBy(e => e.Departamento?.Nombre ?? "Sin Departamento")
+                    .Select(g => new
+                    {
+                        Departamento = g.Key,
+                        Empleados = g.Count(),
+                        TotalBruto = g.Sum(e => e.SalarioMensual),
+                        TotalDeducciones = Math.Round(g.Sum(e => e.SalarioMensual) * 0.1283m, 2), // IGSS 4.83% + ISR promedio 8%
+                        TotalNeto = Math.Round(g.Sum(e => e.SalarioMensual) * 0.8717m, 2) // 87.17% neto
+                    })
+                    .OrderByDescending(d => d.TotalBruto)
+                    .ToList();
+
+                totalBruto = empleados.Sum(e => e.SalarioMensual);
+                totalDeducciones = Math.Round(totalBruto * 0.1283m, 2); // 12.83% promedio (IGSS + ISR b�sico)
+                totalNeto = totalBruto - totalDeducciones;
+
+                // 7. Devolver respuesta
+                return Ok(new
+                {
+                    Periodo = request.Periodo,
+                    TipoNomina = request.TipoNomina ?? "ORDINARIA",
+                    TotalEmpleados = empleados.Count,
+                    TotalBruto = totalBruto,
+                    TotalDeducciones = totalDeducciones,
+                    TotalNeto = totalNeto,
+                    DetallesPorDepartamento = detallesPorDepartamento,
+                    FechaCalculo = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al calcular n�mina", error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        // GET /api/nominas/calcular - Calcular n�minas (versi�n GET para frontend)
+        // ============================================================
+        [HttpGet("calcular")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CalcularNominasGet([FromQuery] string? periodo = null, [FromQuery] string? estado = null, CancellationToken ct = default)
         {
             try
             {
                 var query = _context.Nominas.AsQueryable();
-
-                if (dto.NominaIds?.Any() == true)
+                
+                if (!string.IsNullOrEmpty(periodo))
                 {
-                    query = query.Where(n => dto.NominaIds.Contains(n.Id));
+                    query = query.Where(n => n.Periodo == periodo);
                 }
-                else if (dto.Periodo != null)
+                
+                if (!string.IsNullOrEmpty(estado))
                 {
-                    query = query.Where(n => n.Periodo == dto.Periodo);
+                    query = query.Where(n => n.Estado == estado);
                 }
-                else if (dto.FechaInicio.HasValue && dto.FechaFin.HasValue)
+                else
                 {
-                    query = query.Where(n => n.FechaInicio >= dto.FechaInicio && n.FechaFin <= dto.FechaFin);
+                    // Por defecto, calcular n�minas en BORRADOR
+                    query = query.Where(n => n.Estado == "BORRADOR");
                 }
 
                 var nominas = await query.ToListAsync(ct);
                 
                 if (!nominas.Any())
                 {
-                    return BadRequest(new { message = "No se encontraron nóminas para calcular" });
+                    return Ok(new { 
+                        message = "No se encontraron n�minas para calcular",
+                        resultados = new object[0],
+                        totalCalculadas = 0
+                    });
                 }
 
                 var resultados = new List<object>();
@@ -650,13 +938,14 @@ namespace ProyectoNomina.Backend.Controllers
                 await _context.SaveChangesAsync(ct);
                 
                 return Ok(new { 
-                    message = "Nóminas calculadas exitosamente",
-                    resultados = resultados
+                    message = "N�minas calculadas exitosamente",
+                    resultados = resultados,
+                    totalCalculadas = resultados.Count
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al calcular nóminas", error = ex.Message });
+                return StatusCode(500, new { message = "Error al calcular n�minas", error = ex.Message });
             }
         }
 
@@ -664,34 +953,45 @@ namespace ProyectoNomina.Backend.Controllers
         // PUT /api/nominas/{id}/aprobar - Aprobar nómina
         // ============================================================
         [HttpPut("{id}/aprobar")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Nomina), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> AprobarNomina(int id, CancellationToken ct = default)
+        public async Task<ActionResult<Nomina>> AprobarNomina(
+            int id, 
+            [FromBody] AprobarNominaDto dto,
+            CancellationToken ct = default)
         {
             var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
             if (nomina == null)
                 return NotFound(new { message = "Nómina no encontrada" });
 
-            if (nomina.Estado != "BORRADOR" && nomina.Estado != "PENDIENTE")
-                return BadRequest(new { message = "Solo se pueden aprobar nóminas en estado BORRADOR o PENDIENTE" });
+            // Validar que esté en estado BORRADOR
+            if (nomina.Estado != "BORRADOR")
+                return BadRequest(new { message = "Solo se pueden aprobar nóminas en estado BORRADOR" });
 
+            // Actualizar estado
             nomina.Estado = "APROBADA";
-            nomina.FechaAprobacion = DateTime.UtcNow;
+            nomina.FechaAprobacion = DateTime.Now;
+            
+            // Actualizar observaciones si se proporcionan
+            if (!string.IsNullOrWhiteSpace(dto.Observaciones))
+            {
+                nomina.Observaciones = dto.Observaciones;
+            }
+            
+            // Guardar usuario que aprobó
+            var userId = User.FindFirst("sub")?.Value ?? User.Identity?.Name;
+            nomina.AprobadoPor = userId;
             
             await _context.SaveChangesAsync(ct);
 
-            return Ok(new { 
-                message = "Nómina aprobada exitosamente",
-                nominaId = id,
-                estado = nomina.Estado,
-                fechaAprobacion = nomina.FechaAprobacion
-            });
+            // Devolver la nómina completa actualizada
+            return Ok(nomina);
         }
 
         // ============================================================
-        // PUT /api/nominas/{id}/pagar - Marcar nómina como pagada
+        // PUT /api/nominas/{id}/pagar - Marcar n�mina como pagada
         // ============================================================
         [HttpPut("{id}/pagar")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -702,10 +1002,10 @@ namespace ProyectoNomina.Backend.Controllers
         {
             var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
             if (nomina == null)
-                return NotFound(new { message = "Nómina no encontrada" });
+                return NotFound(new { message = "N�mina no encontrada" });
 
             if (nomina.Estado != "APROBADA")
-                return BadRequest(new { message = "Solo se pueden pagar nóminas en estado APROBADA" });
+                return BadRequest(new { message = "Solo se pueden pagar n�minas en estado APROBADA" });
 
             nomina.Estado = "PAGADA";
             nomina.FechaPago = DateTime.UtcNow;
@@ -713,7 +1013,7 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync(ct);
 
             return Ok(new { 
-                message = "Nómina marcada como pagada exitosamente",
+                message = "N�mina marcada como pagada exitosamente",
                 nominaId = id,
                 estado = nomina.Estado,
                 fechaPago = nomina.FechaPago
@@ -721,7 +1021,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // PUT /api/nominas/{id}/anular - Anular nómina
+        // PUT /api/nominas/{id}/anular - Anular n�mina
         // ============================================================
         [HttpPut("{id}/anular")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -732,13 +1032,13 @@ namespace ProyectoNomina.Backend.Controllers
         {
             var nomina = await _context.Nominas.FindAsync(new object?[] { id }, ct);
             if (nomina == null)
-                return NotFound(new { message = "Nómina no encontrada" });
+                return NotFound(new { message = "N�mina no encontrada" });
 
             if (nomina.Estado == "ANULADA")
-                return BadRequest(new { message = "La nómina ya está anulada" });
+                return BadRequest(new { message = "La n�mina ya est� anulada" });
 
             if (nomina.Estado == "PAGADA")
-                return BadRequest(new { message = "No se puede anular una nómina que ya ha sido pagada" });
+                return BadRequest(new { message = "No se puede anular una n�mina que ya ha sido pagada" });
 
             nomina.Estado = "ANULADA";
             nomina.FechaAnulacion = DateTime.UtcNow;
@@ -747,7 +1047,7 @@ namespace ProyectoNomina.Backend.Controllers
             await _context.SaveChangesAsync(ct);
 
             return Ok(new { 
-                message = "Nómina anulada exitosamente",
+                message = "N�mina anulada exitosamente",
                 nominaId = id,
                 estado = nomina.Estado,
                 fechaAnulacion = nomina.FechaAnulacion,
@@ -756,7 +1056,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // GET /api/nominas/stats - Estadísticas de nóminas
+        // GET /api/nominas/stats - Estad�sticas de n�minas
         // ============================================================
         [HttpGet("stats")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -772,8 +1072,24 @@ namespace ProyectoNomina.Backend.Controllers
                     query = query.Where(n => n.Periodo == periodo);
                 }
 
+                var totalNominas = await query.CountAsync(ct);
+                
+                if (totalNominas == 0)
+                {
+                    return Ok(new {
+                        periodo = periodo ?? "Todos los per�odos",
+                        resumen = new {
+                            totalNominas = 0,
+                            montoGlobalTotal = 0m,
+                            empleadosConNomina = 0
+                        },
+                        estadisticasPorEstado = new object[0],
+                        fechaConsulta = DateTime.UtcNow
+                    });
+                }
+
                 var estadisticas = await query
-                    .GroupBy(n => n.Estado)
+                    .GroupBy(n => n.Estado ?? "SIN_ESTADO")
                     .Select(g => new {
                         Estado = g.Key,
                         Cantidad = g.Count(),
@@ -781,17 +1097,24 @@ namespace ProyectoNomina.Backend.Controllers
                     })
                     .ToListAsync(ct);
 
-                var totalNominas = await query.CountAsync(ct);
-                var montoGlobalTotal = await query.SumAsync(n => n.MontoTotal, ct);
+                var montoGlobalTotal = estadisticas.Sum(e => e.MontoTotal);
                 
-                var empleadosConNomina = await query
-                    .SelectMany(n => n.DetallesNomina)
-                    .Select(d => d.EmpleadoId)
-                    .Distinct()
-                    .CountAsync(ct);
+                var empleadosConNomina = 0;
+                try 
+                {
+                    empleadosConNomina = await _context.DetalleNominas
+                        .Where(d => query.Any(n => n.Id == d.NominaId))
+                        .Select(d => d.EmpleadoId)
+                        .Distinct()
+                        .CountAsync(ct);
+                }
+                catch
+                {
+                    // Si falla la consulta de empleados, continuar con 0
+                }
 
                 return Ok(new {
-                    periodo = periodo ?? "Todos los períodos",
+                    periodo = periodo ?? "Todos los per�odos",
                     resumen = new {
                         totalNominas = totalNominas,
                         montoGlobalTotal = montoGlobalTotal,
@@ -803,12 +1126,12 @@ namespace ProyectoNomina.Backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al obtener estadísticas", error = ex.Message });
+                return StatusCode(500, new { message = "Error al obtener estad�sticas", error = ex.Message });
             }
         }
 
         // ============================================================
-        // GET /api/nominas/{id}/export/{formato} - Exportar nómina
+        // GET /api/nominas/{id}/export/{formato} - Exportar n�mina
         // ============================================================
         [HttpGet("{id}/export/{formato}")]
         [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
@@ -828,7 +1151,7 @@ namespace ProyectoNomina.Backend.Controllers
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
-                return NotFound(new { message = "Nómina no encontrada" });
+                return NotFound(new { message = "N�mina no encontrada" });
 
             try
             {
@@ -852,7 +1175,7 @@ namespace ProyectoNomina.Backend.Controllers
         }
 
         // ============================================================
-        // POST /api/nominas/{id}/enviar-email - Enviar nómina por email
+        // POST /api/nominas/{id}/enviar-email - Enviar n�mina por email
         // ============================================================
         [HttpPost("{id}/enviar-email")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -867,10 +1190,10 @@ namespace ProyectoNomina.Backend.Controllers
                 .FirstOrDefaultAsync(n => n.Id == id, ct);
 
             if (nomina == null)
-                return NotFound(new { message = "Nómina no encontrada" });
+                return NotFound(new { message = "N�mina no encontrada" });
 
             if (nomina.Estado != "APROBADA" && nomina.Estado != "PAGADA")
-                return BadRequest(new { message = "Solo se pueden enviar nóminas aprobadas o pagadas" });
+                return BadRequest(new { message = "Solo se pueden enviar n�minas aprobadas o pagadas" });
 
             try
             {
@@ -878,7 +1201,7 @@ namespace ProyectoNomina.Backend.Controllers
 
                 if (dto.EnviarATodos)
                 {
-                    // Enviar a todos los empleados de la nómina
+                    // Enviar a todos los empleados de la n�mina
                     foreach (var detalle in nomina.DetallesNomina)
                     {
                         if (!string.IsNullOrEmpty(detalle.Empleado.Correo))
@@ -901,7 +1224,7 @@ namespace ProyectoNomina.Backend.Controllers
                 }
                 else if (!string.IsNullOrEmpty(dto.Email))
                 {
-                    // Enviar a email específico
+                    // Enviar a email espec�fico
                     var enviado = await _nominaService.EnviarNominaPorEmailAsync(
                         nomina, 
                         dto.Email, 
@@ -920,7 +1243,7 @@ namespace ProyectoNomina.Backend.Controllers
                 }
 
                 return Ok(new {
-                    message = "Proceso de envío completado",
+                    message = "Proceso de env�o completado",
                     nominaId = id,
                     resultados = resultados,
                     totalEnviados = resultados.Count(r => (bool)r.GetType().GetProperty("Enviado")?.GetValue(r)!)
@@ -940,7 +1263,7 @@ namespace ProyectoNomina.Backend.Controllers
     {
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
-        public int? DepartamentoId { get; set; }   // si tu servicio lo usa, puedes leerlo allí
+        public int? DepartamentoId { get; set; }   // si tu servicio lo usa, puedes leerlo all�
         public string? Descripcion { get; set; }
     }
 
@@ -977,8 +1300,16 @@ namespace ProyectoNomina.Backend.Controllers
         public List<HorasEmpleadoDto>? Horas { get; set; }
         public List<ComisionEmpleadoDto>? Comisiones { get; set; }
 
-        // Parámetros legales "inline" (opcional). Si no se envían, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
+        // Par�metros legales "inline" (opcional). Si no se env�an, el servicio usa los defaults (IGSS 4.83%, IRTRA 0, ISR 0)
         public List<ParametroLegalInlineDto>? ParametrosLegales { get; set; }
+    }
+
+    public class NominaCalculoRequest
+    {
+        public string Periodo { get; set; } = string.Empty;
+        public string? TipoNomina { get; set; }
+        public List<int> DepartamentoIds { get; set; } = new();
+        public List<int> EmpleadoIds { get; set; } = new();
     }
 
     public class CalcularNominasDto

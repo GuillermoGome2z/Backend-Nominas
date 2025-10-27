@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProyectoNomina.Backend.Data;
 using ProyectoNomina.Backend.Services;
+using ProyectoNomina.Backend.Services.Reportes;
 using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
@@ -13,14 +14,18 @@ using Microsoft.AspNetCore.Http.Features;
 using ProyectoNomina.Backend.Middleware;
 using ProyectoNomina.Backend.Options;
 using System.Net;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace ProyectoNomina.Backend
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            //  CONFIGURACIÓN PUERTO FIJO
+            builder.WebHost.UseUrls("http://localhost:5009");
 
             // Licencia QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
@@ -67,7 +72,7 @@ namespace ProyectoNomina.Backend
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          // .AllowCredentials() // descomenta si usas cookies/credenciales en el front
+                          .AllowCredentials() // Habilitado para JWT en headers
                           // expone cabeceras para paginación/descarga y refresh
                           .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
                 });
@@ -76,7 +81,9 @@ namespace ProyectoNomina.Backend
             // 4) Servicios
             builder.Services.AddScoped<JwtService>();
             builder.Services.AddScoped<NominaService>();
+            builder.Services.AddScoped<IPayrollService, PayrollService>();
             builder.Services.AddScoped<ReporteService>();
+            builder.Services.AddScoped<ExpedientesReportService>();
             builder.Services.AddScoped<AuditoriaService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
@@ -163,6 +170,13 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
+            // 7.5) Seed initial data
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await ReglasLaboralesSeeder.SeedAsync(dbContext);
+            }
+
             // 8) Forwarded Headers (si vas detrás de proxy; ajusta KnownProxies/Networks según tu infra)
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
@@ -181,7 +195,7 @@ namespace ProyectoNomina.Backend
                 {
                     await next();
                 }
-                catch (BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
+                catch (Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
                 {
                     context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
                     context.Response.ContentType = "application/problem+json";
@@ -207,7 +221,7 @@ namespace ProyectoNomina.Backend
            // app.UseHttpsRedirection();
             app.UseCors("CorsPolicy");
 
-            // ⬇️ CORREGIDO: agregar 'Vary: Origin' justo antes de iniciar la respuesta
+            //agregar 'Vary: Origin' justo antes de iniciar la respuesta
             app.Use(async (ctx, next) =>
             {
                 ctx.Response.OnStarting(() =>
