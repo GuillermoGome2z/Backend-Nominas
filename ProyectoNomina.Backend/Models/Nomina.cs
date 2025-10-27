@@ -15,9 +15,32 @@ namespace ProyectoNomina.Backend.Models
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
         public string? Periodo { get; set; } // Ej: "2025-01", "2025-02"
+        
+        // Campos adicionales para control de período
+        [Required]
+        [MaxLength(20)]
+        public string TipoPeriodo { get; set; } = "Mensual"; // "Mensual" | "Quincenal"
+        
+        [Required]
+        public int Anio { get; set; }
+        
+        [Required]
+        [Range(1, 12)]
+        public int Mes { get; set; }
+        
+        [Range(1, 2)]
+        public int? Quincena { get; set; } // 1 o 2, solo para TipoPeriodo = "Quincenal"
+        
+        [Required]
+        public DateTime FechaCorte { get; set; }
+        
+        [MaxLength(100)]
+        public string? CreadoPor { get; set; }
+        
+        public DateTime? CerradoEn { get; set; }
 
         // Estados de la nómina
-        public string Estado { get; set; } = "BORRADOR"; // BORRADOR, PENDIENTE, APROBADA, PAGADA, ANULADA
+        public string Estado { get; set; } = "BORRADOR"; // BORRADOR, PROCESADA, CERRADA
 
         // Fechas de control de estado
         public DateTime? FechaAprobacion { get; set; }
@@ -43,6 +66,9 @@ namespace ProyectoNomina.Backend.Models
 
         // Relaciones
         public ICollection<DetalleNomina> DetallesNomina { get; set; } = new List<DetalleNomina>();
+        
+        // Aportes patronales (1:1)
+        public NominaAportesPatronales? AportesPatronales { get; set; }
         
         // Alias para compatibilidad con código existente
         [NotMapped]

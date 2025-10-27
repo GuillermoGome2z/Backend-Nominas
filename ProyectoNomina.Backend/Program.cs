@@ -20,7 +20,7 @@ namespace ProyectoNomina.Backend
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -168,6 +168,13 @@ namespace ProyectoNomina.Backend
             builder.Services.Configure<IISServerOptions>(o => o.MaxRequestBodySize = 20 * 1024 * 1024);
 
             var app = builder.Build();
+
+            // 7.5) Seed initial data
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await ReglasLaboralesSeeder.SeedAsync(dbContext);
+            }
 
             // 8) Forwarded Headers (si vas detrás de proxy; ajusta KnownProxies/Networks según tu infra)
             app.UseForwardedHeaders(new ForwardedHeadersOptions

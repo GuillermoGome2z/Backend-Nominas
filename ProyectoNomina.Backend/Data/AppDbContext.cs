@@ -25,6 +25,13 @@ namespace ProyectoNomina.Backend.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<ObservacionExpediente> ObservacionesExpediente { get; set; }
         public DbSet<DetalleNominaHistorial> DetalleNominaHistorial { get; set; }
+        
+        // Nuevas tablas para sistema de nóminas completo
+        public DbSet<ReglasLaborales> ReglasLaborales { get; set; }
+        public DbSet<NominaDetalleLinea> NominaDetalleLineas { get; set; }
+        public DbSet<ConceptoNomina> ConceptosNomina { get; set; }
+        public DbSet<EmpleadoParametros> EmpleadoParametros { get; set; }
+        public DbSet<NominaAportesPatronales> NominaAportesPatronales { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -195,6 +202,68 @@ namespace ProyectoNomina.Backend.Data
 
                 et.HasIndex(o => new { o.EmpleadoId, o.DocumentoEmpleadoId });
                 et.HasIndex(o => o.FechaCreacion);
+            });
+
+            // ===== ReglasLaborales =====
+            modelBuilder.Entity<ReglasLaborales>(entity =>
+            {
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Pais).HasMaxLength(2).IsRequired();
+                entity.Property(r => r.IsrEscalaJson).IsRequired();
+                entity.Property(r => r.PoliticaRedondeo).HasMaxLength(10).IsRequired();
+                
+                entity.HasIndex(r => new { r.Pais, r.VigenteDesde, r.Activo });
+            });
+
+            // ===== NominaDetalleLinea =====
+            modelBuilder.Entity<NominaDetalleLinea>(entity =>
+            {
+                entity.HasKey(l => l.Id);
+                
+                entity.HasOne(l => l.NominaDetalle)
+                      .WithMany(d => d.Lineas)
+                      .HasForeignKey(l => l.NominaDetalleId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(l => new { l.NominaDetalleId, l.Tipo, l.Orden });
+            });
+
+            // ===== ConceptoNomina =====
+            modelBuilder.Entity<ConceptoNomina>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Codigo).HasMaxLength(50).IsRequired();
+                entity.Property(c => c.Nombre).HasMaxLength(200).IsRequired();
+                
+                entity.HasIndex(c => c.Codigo).IsUnique();
+                entity.HasIndex(c => new { c.Tipo, c.Activo });
+            });
+
+            // ===== EmpleadoParametros =====
+            modelBuilder.Entity<EmpleadoParametros>(entity =>
+            {
+                entity.HasKey(p => p.Id);
+                
+                entity.HasOne(p => p.Empleado)
+                      .WithOne(e => e.Parametros)
+                      .HasForeignKey<EmpleadoParametros>(p => p.EmpleadoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(p => new { p.EmpleadoId, p.Activo });
+                entity.HasIndex(p => p.VigenteDesde);
+            });
+
+            // ===== NominaAportesPatronales =====
+            modelBuilder.Entity<NominaAportesPatronales>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                
+                entity.HasOne(a => a.Nomina)
+                      .WithOne(n => n.AportesPatronales)
+                      .HasForeignKey<NominaAportesPatronales>(a => a.NominaId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(a => a.NominaId).IsUnique();
             });
 
             base.OnModelCreating(modelBuilder);
