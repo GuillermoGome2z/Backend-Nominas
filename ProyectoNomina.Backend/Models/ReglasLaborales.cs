@@ -27,6 +27,10 @@ namespace ProyectoNomina.Backend.Models
         [Precision(18, 6)]
         public decimal IgssPatronalPct { get; set; } // 10.67% para Guatemala
 
+        // ===== Límite máximo IGSS =====
+        [Precision(18, 2)]
+        public decimal IgssMaximoBase { get; set; } = 5000m; // Q5,000 máximo para IGSS
+
         // ===== Aportes patronales adicionales =====
         [Precision(18, 6)]
         public decimal IrtraPct { get; set; } // IRTRA 1%

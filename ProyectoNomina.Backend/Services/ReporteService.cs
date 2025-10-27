@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -13,6 +14,144 @@ namespace ProyectoNomina.Backend.Services
 {
     public class ReporteService
     {
+        /// <summary>
+        /// Configuración de fuente para caracteres especiales en español
+        /// </summary>
+        private static TextStyle ConfigurarFuenteEspanol(TextStyle style)
+        {
+            // Usar fuentes que soporten caracteres UTF-8 correctamente
+            return style.FontFamily(Fonts.Arial);
+        }
+
+        /// <summary>
+        /// Genera un reporte consolidado de múltiples nóminas con formato profesional
+        /// </summary>
+        public byte[] GenerarReporteConsolidadoNominas(List<Nomina> nominas)
+        {
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(30);
+                    page.Size(PageSizes.A4);
+
+                    // Encabezado profesional
+                    page.Header().Column(header =>
+                    {
+                        header.Item().AlignCenter().Text("REPORTE CONSOLIDADO DE NÓMINAS")
+                            .FontSize(18).Bold().FontFamily(Fonts.Arial);
+                        
+                        header.Item().AlignCenter().Text("REPÚBLICA DE GUATEMALA")
+                            .FontSize(14).SemiBold().FontFamily(Fonts.Arial);
+                        
+                        header.Item().AlignCenter().Text("Sistema de Gestión de Nóminas - 2025")
+                            .FontSize(12).FontFamily(Fonts.Arial);
+                        
+                        header.Item().PaddingTop(10).Row(row =>
+                        {
+                            row.RelativeItem().Text($"Fecha de Generación: {DateTime.Now:dd/MM/yyyy}")
+                                .FontSize(10).FontFamily(Fonts.Arial);
+                            row.RelativeItem().AlignRight().Text($"Hora: {DateTime.Now:HH:mm:ss} p. m.")
+                                .FontSize(10).FontFamily(Fonts.Arial);
+                        });
+                    });
+
+                    page.Content().PaddingTop(20).Column(content =>
+                    {
+                        // Totales consolidados
+                        var totalNominas = nominas.Count;
+                        var totalEmpleados = nominas.SelectMany(n => n.Detalles).Select(d => d.EmpleadoId).Distinct().Count();
+                        var totalDevengado = nominas.SelectMany(n => n.Detalles).Sum(d => d.TotalDevengado);
+                        var totalDeducciones = nominas.SelectMany(n => n.Detalles).Sum(d => d.TotalDeducciones);
+                        var totalNeto = nominas.SelectMany(n => n.Detalles).Sum(d => d.SalarioNeto);
+
+                        content.Item().PaddingBottom(15).Text("TOTALES CONSOLIDADOS")
+                            .FontSize(14).Bold().FontFamily(Fonts.Arial);
+
+                        content.Item().PaddingBottom(10).Column(totales =>
+                        {
+                            totales.Item().Text($"Total de Nóminas Procesadas: {totalNominas}")
+                                .FontSize(12).FontFamily(Fonts.Arial);
+                            totales.Item().Text($"Total de Empleados: {totalEmpleados}")
+                                .FontSize(12).FontFamily(Fonts.Arial);
+                            totales.Item().Text($"Total Devengado: Q{totalDevengado:N2}")
+                                .FontSize(12).FontFamily(Fonts.Arial);
+                            totales.Item().Text($"Total Deducciones: Q{totalDeducciones:N2}")
+                                .FontSize(12).FontFamily(Fonts.Arial);
+                            totales.Item().Text($"Total Neto a Pagar: Q{totalNeto:N2}")
+                                .FontSize(12).Bold().FontFamily(Fonts.Arial);
+                        });
+
+                        // Análisis por tipo de nómina
+                        content.Item().PaddingTop(20).PaddingBottom(15).Text("ANÁLISIS POR TIPO DE NÓMINA")
+                            .FontSize(14).Bold().FontFamily(Fonts.Arial);
+
+                        var analisisNominas = nominas
+                            .GroupBy(n => n.TipoNomina ?? "Ordinaria")
+                            .Select(g => new
+                            {
+                                TipoNomina = g.Key,
+                                Cantidad = g.Count(),
+                                Empleados = g.SelectMany(n => n.Detalles).Select(d => d.EmpleadoId).Distinct().Count(),
+                                TotalDevengado = g.SelectMany(n => n.Detalles).Sum(d => d.TotalDevengado),
+                                TotalDeducciones = g.SelectMany(n => n.Detalles).Sum(d => d.TotalDeducciones),
+                                TotalNeto = g.SelectMany(n => n.Detalles).Sum(d => d.SalarioNeto),
+                                PromedioEmpleado = g.SelectMany(n => n.Detalles).Average(d => d.SalarioNeto)
+                            })
+                            .ToList();
+
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(2); // Tipo de Nómina
+                                columns.RelativeColumn(1); // Cant.
+                                columns.RelativeColumn(1); // Empleados
+                                columns.RelativeColumn(2); // Total Devengado
+                                columns.RelativeColumn(2); // Total Deducciones
+                                columns.RelativeColumn(2); // Total Neto
+                                columns.RelativeColumn(2); // Promedio/Emp
+                            });
+
+                            // Encabezado de tabla con fondo verde
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyleHeader).Text("Tipo de Nómina").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Cant.").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Empleados").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Total Devengado").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Total Deducciones").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Total Neto").FontFamily(Fonts.Arial);
+                                header.Cell().Element(CellStyleHeader).Text("Promedio/Emp.").FontFamily(Fonts.Arial);
+                            });
+
+                            foreach (var analisis in analisisNominas)
+                            {
+                                table.Cell().Element(CellStyleData).Text(analisis.TipoNomina).FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text(analisis.Cantidad.ToString()).FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text(analisis.Empleados.ToString()).FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text($"Q{analisis.TotalDevengado:N2}").FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text($"Q{analisis.TotalDeducciones:N2}").FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text($"Q{analisis.TotalNeto:N2}").FontFamily(Fonts.Arial);
+                                table.Cell().Element(CellStyleData).Text($"Q{analisis.PromedioEmpleado:N2}").FontFamily(Fonts.Arial);
+                            }
+                        });
+                    });
+
+                    // Pie de página profesional
+                    page.Footer().AlignCenter().Column(footer =>
+                    {
+                        footer.Item().Text("Reporte consolidado generado conforme a las leyes laborales de Guatemala 2025 | Decreto 1441, Código de Trabajo")
+                            .FontSize(8).FontFamily(Fonts.Arial);
+                        footer.Item().Text($"Página 1 de 1 | Generado: {DateTime.Now:dd/MM/yyyy}, {DateTime.Now:HH:mm:ss} p. m.     Sistema de Nóminas Guatemala")
+                            .FontSize(8).FontFamily(Fonts.Arial);
+                    });
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
         // Reporte 1 Nómina Procesada
         public byte[] GenerarReporteNominaPdf(Nomina nomina)
         {
@@ -21,7 +160,7 @@ namespace ProyectoNomina.Backend.Services
                 container.Page(page =>
                 {
                     page.Margin(30);
-                    page.Header().Text("Reporte de Nómina").FontSize(20).Bold().AlignCenter();
+                    page.Header().Text("Reporte de Nómina").FontSize(20).Bold().FontFamily(Fonts.Arial).AlignCenter();
 
                     page.Content().Column(col =>
                     {
@@ -448,11 +587,32 @@ namespace ProyectoNomina.Backend.Services
             return doc.GeneratePdf();
         }
 
-        //  Estilo común de celdas
+        //  Estilos de celdas
         private static IContainer CellStyle(IContainer container)
         {
             return container
                 .Padding(5)
+                .Border(1)
+                .BorderColor(Colors.Grey.Medium)
+                .AlignCenter()
+                .AlignMiddle();
+        }
+
+        private static IContainer CellStyleHeader(IContainer container)
+        {
+            return container
+                .Padding(8)
+                .Border(1)
+                .BorderColor(Colors.Grey.Medium)
+                .Background(Colors.Green.Lighten2)
+                .AlignCenter()
+                .AlignMiddle();
+        }
+
+        private static IContainer CellStyleData(IContainer container)
+        {
+            return container
+                .Padding(6)
                 .Border(1)
                 .BorderColor(Colors.Grey.Medium)
                 .AlignCenter()

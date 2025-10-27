@@ -65,6 +65,8 @@ public class ReglasLaboralesSeeder
             IgssEmpleadoPct = 0.0483m,
             // Aporte patronal: 10.67% sobre salario ordinario
             IgssPatronalPct = 0.1067m,
+            // Límite máximo base imponible IGSS: Q5,000
+            IgssMaximoBase = 5000m,
 
             // IRTRA (Instituto de Recreación de los Trabajadores de la Empresa Privada de Guatemala)
             // 1% sobre total de planilla ordinaria (patronal)

@@ -27,6 +27,13 @@ namespace ProyectoNomina.Shared.Models.DTOs
         // Resumen
         public int TotalEmpleados { get; set; }
         public string? Observaciones { get; set; }
+
+        // Propiedades adicionales requeridas por PayrollService
+        public string TipoNomina { get; set; } = "ORDINARIA";
+        public string Periodo { get; set; } = string.Empty;
+        public decimal TotalBruto { get; set; }
+        public decimal TotalNeto { get; set; }
+        public int CantidadEmpleados { get; set; }
     }
 
     /// <summary>
@@ -66,6 +73,13 @@ namespace ProyectoNomina.Shared.Models.DTOs
         public decimal IgssPatronal { get; set; }
         public decimal Irtra { get; set; }
         public decimal Intecap { get; set; }
+
+        // Propiedades adicionales requeridas por PayrollService
+        public decimal SalarioBruto { get; set; }
+        public decimal SalarioNeto { get; set; }
+        public decimal Prestamos { get; set; }
+        public decimal Anticipos { get; set; }
+        public decimal OtrasDeducciones { get; set; }
     }
 
     /// <summary>

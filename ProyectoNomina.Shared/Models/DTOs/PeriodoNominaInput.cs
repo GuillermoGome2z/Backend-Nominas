@@ -54,5 +54,25 @@ namespace ProyectoNomina.Shared.Models.DTOs
         /// Incluir solo empleados activos
         /// </summary>
         public bool SoloActivos { get; set; } = true;
+
+        /// <summary>
+        /// Tipo de nómina: ORDINARIA, EXTRAORDINARIA, AGUINALDO, BONO14
+        /// </summary>
+        public string TipoNomina { get; set; } = "ORDINARIA";
+
+        /// <summary>
+        /// Período en formato "YYYY-MM" 
+        /// </summary>
+        public string Periodo { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Fecha de inicio del período
+        /// </summary>
+        public DateTime FechaInicio { get; set; }
+
+        /// <summary>
+        /// Fecha de fin del período
+        /// </summary>
+        public DateTime FechaFin { get; set; }
     }
 }

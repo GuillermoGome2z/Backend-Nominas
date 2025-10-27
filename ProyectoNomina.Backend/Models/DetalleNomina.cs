@@ -53,6 +53,16 @@ namespace ProyectoNomina.Backend.Models
         [Precision(18, 2)]
         public decimal DescuentosVarios { get; set; }
         
+        // ===== Deducciones específicas =====
+        [Precision(18, 2)]
+        public decimal Prestamos { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal Anticipos { get; set; }
+        
+        [Precision(18, 2)]
+        public decimal OtrasDeducciones { get; set; }
+        
         [Precision(18, 2)]
         public decimal TotalDevengado { get; set; }
         

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProyectoNomina.Backend.Data;
 
@@ -11,9 +12,11 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027154846_AddDeduccionesDetailToDetalleNomina")]
+    partial class AddDeduccionesDetailToDetalleNomina
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1036,10 +1039,6 @@ namespace ProyectoNomina.Backend.Migrations
                     b.Property<decimal>("IgssEmpleadoPct")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
-
-                    b.Property<decimal>("IgssMaximoBase")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("IgssPatronalPct")
                         .HasPrecision(18, 6)
