@@ -1,26 +1,25 @@
 # Nixpacks configuration for .NET 8 deployment
 
 [phases.setup]
-nixPkgs = ["wget", "ca-certificates", "icu"]
+aptPkgs = ["wget", "ca-certificates"]
 
 [phases.build]
 cmds = [
-  "echo '=== Installing .NET 8 SDK manually ==='",
-  "wget https://download.visualstudio.microsoft.com/download/pr/68f9db80-9fcb-4c65-8516-1eca8bc8c076/3b07de712f68f0e9ed9e6149fe17e0b4/dotnet-sdk-8.0.403-linux-x64.tar.gz",
+  "echo '=== Installing .NET 8 SDK ==='",
+  "wget -q https://download.visualstudio.microsoft.com/download/pr/68f9db80-9fcb-4c65-8516-1eca8bc8c076/3b07de712f68f0e9ed9e6149fe17e0b4/dotnet-sdk-8.0.403-linux-x64.tar.gz",
   "mkdir -p $HOME/.dotnet",
-  "tar zxf dotnet-sdk-8.0.403-linux-x64.tar.gz -C $HOME/.dotnet",
+  "tar -xzf dotnet-sdk-8.0.403-linux-x64.tar.gz -C $HOME/.dotnet",
   "export PATH=$HOME/.dotnet:$PATH",
   "export DOTNET_ROOT=$HOME/.dotnet",
-  "echo '=== .NET Version ==='",
+  "echo '=== Verifying .NET installation ==='",
   "$HOME/.dotnet/dotnet --version",
-  "echo '=== Environment ==='", 
-  "echo PATH: $PATH",
-  "echo DOTNET_ROOT: $DOTNET_ROOT",
+  "$HOME/.dotnet/dotnet --info",
+  "echo '=== Current directory and files ==='", 
   "pwd && ls -la",
-  "echo '=== Restoring packages ==='",
-  "$HOME/.dotnet/dotnet restore ProyectoNomina.Backend/ProyectoNomina.Backend.csproj",
-  "echo '=== Publishing application ==='",
-  "$HOME/.dotnet/dotnet publish ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release -o ./dist"
+  "echo '=== Restoring project dependencies ==='",
+  "$HOME/.dotnet/dotnet restore ProyectoNomina.Backend/ProyectoNomina.Backend.csproj --verbosity minimal",
+  "echo '=== Building and publishing application ==='",
+  "$HOME/.dotnet/dotnet publish ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release -o ./dist --verbosity minimal"
 ]
 
 [start]
@@ -28,3 +27,4 @@ cmd = "cd dist && ~/.dotnet/dotnet ProyectoNomina.Backend.dll --urls http://0.0.
 
 [variables]
 ASPNETCORE_ENVIRONMENT = "Production"
+DOTNET_ROOT = "$HOME/.dotnet"
