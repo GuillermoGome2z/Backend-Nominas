@@ -24,8 +24,8 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            //  CONFIGURACIÓN PUERTO FIJO
-            builder.WebHost.UseUrls("http://localhost:5009");
+            // NO PORT BINDING - Railway maneja PORT env variable
+            // builder.WebHost.UseUrls("http://localhost:5009");  // REMOVIDO para Railway
 
             // Configuración QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
@@ -33,15 +33,14 @@ namespace ProyectoNomina.Backend
             // Configurar codificación UTF-8 para el sistema
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-            // 1) DB
+            // 1) DB - POSTGRESQL
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2) JWT (defensive config + validaciones estrictas)
-            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-            var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JwtSettings:Issuer no configurado");
-            var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JwtSettings:Audience no configurado");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey no configurado");
+            // 2) JWT (Railway-compatible config)
+            var issuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer no configurado");
+            var audience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience no configurado");
+            var secretKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key no configurado");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -59,9 +58,13 @@ namespace ProyectoNomina.Backend
                     };
                 });
 
-            // 3) CORS (lee orígenes desde appsettings)
-            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                                 ?? new[] { "http://localhost:5173" }; // Vite por defecto
+            // 3) CORS ESTRICTO (Railway-compatible)
+            var corsOriginsConfig = builder.Configuration["Cors:AllowedOrigins"];
+            var allowedOrigins = string.IsNullOrEmpty(corsOriginsConfig) 
+                ? new[] { "http://localhost:5173" } // Desarrollo
+                : corsOriginsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(o => o.Trim())
+                                   .ToArray();
 
             // Azure Blob temporalmente deshabilitado - usando almacenamiento local
             // builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
@@ -70,7 +73,7 @@ namespace ProyectoNomina.Backend
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("CorsPolicy", policy =>
+                options.AddPolicy("cors", policy =>
                 {
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
@@ -173,6 +176,16 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
+            // AUTO-MIGRATION EN PRODUCCIÓN (Railway)
+            if (app.Environment.IsProduction())
+            {
+                using (var scope = app.Services.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    await db.Database.MigrateAsync();
+                }
+            }
+
             // 7.5) Seed initial data
             using (var scope = app.Services.CreateScope())
             {
@@ -188,7 +201,11 @@ namespace ProyectoNomina.Backend
                 // KnownNetworks = { new IPNetwork(IPAddress.Parse("10.0.0.0"), 8) }
             });
 
-            // 9) Middlewares
+            // 9) Error handling
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseExceptionHandler("/error");
+            }
             app.UseGlobalErrorHandler();
 
             // Middleware para convertir request demasiado grande en 413 con ProblemDetails
@@ -221,8 +238,8 @@ namespace ProyectoNomina.Backend
                 app.UseHsts();
             }
 
-           // app.UseHttpsRedirection();
-            app.UseCors("CorsPolicy");
+            app.UseHttpsRedirection();
+            app.UseCors("cors");
 
             //agregar 'Vary: Origin' justo antes de iniciar la respuesta
             app.Use(async (ctx, next) =>
@@ -250,8 +267,8 @@ namespace ProyectoNomina.Backend
             // 10) Endpoints
             app.MapControllers();
 
-            // Health y redirección a Swagger
-            app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
+            // Health endpoint para Railway
+            app.MapGet("/health", () => Results.Ok("OK"));
             app.MapGet("/", () => Results.Redirect("/swagger"));
 
             app.Run();

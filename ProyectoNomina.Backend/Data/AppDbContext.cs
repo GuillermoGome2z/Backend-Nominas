@@ -186,7 +186,7 @@ namespace ProyectoNomina.Backend.Data
                   .IsRequired();
 
                 et.Property(o => o.FechaCreacion)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("now()");
 
                 // FK obligatoria -> Empleado (elige una sola política para evitar conflictos)
                 et.HasOne<Empleado>()

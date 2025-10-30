@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["dotnet-sdk_8"]
+
+[phases.build]
+cmds = [
+  "dotnet restore ./ProyectoNomina.Backend",
+  "dotnet publish ./ProyectoNomina.Backend -c Release -o /app/out"
+]
+
+[start]
+cmd = "ASPNETCORE_URLS=http://0.0.0.0:${PORT:-8080} dotnet /app/out/ProyectoNomina.Backend.dll"
