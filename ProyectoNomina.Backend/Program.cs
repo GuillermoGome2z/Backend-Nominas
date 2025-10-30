@@ -271,6 +271,54 @@ namespace ProyectoNomina.Backend
             app.MapGet("/health", () => Results.Ok("OK"));
             app.MapGet("/", () => Results.Redirect("/swagger"));
 
+            // Manejar argumentos de línea de comandos para migraciones
+            if (args.Length > 0 && args[0] == "--migrate")
+            {
+                Console.WriteLine("=== Aplicando migraciones de base de datos ===");
+                using var scope = app.Services.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                try
+                {
+                    await dbContext.Database.MigrateAsync();
+                    Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error aplicando migraciones: {ex.Message}");
+                    throw;
+                }
+                return;
+            }
+
+            // Auto-migrar en Railway si no es desarrollo
+            if (!app.Environment.IsDevelopment())
+            {
+                Console.WriteLine("=== Verificando y aplicando migraciones automáticamente ===");
+                using var scope = app.Services.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                try
+                {
+                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                    if (pendingMigrations.Any())
+                    {
+                        Console.WriteLine($"Aplicando {pendingMigrations.Count()} migraciones pendientes...");
+                        await dbContext.Database.MigrateAsync();
+                        Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                    }
+                    else
+                    {
+                        Console.WriteLine("No hay migraciones pendientes");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error en auto-migración: {ex.Message}");
+                    // No lanzar la excepción para permitir que la app se inicie
+                }
+            }
+
             app.Run();
         }
     }
