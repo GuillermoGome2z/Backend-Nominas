@@ -1,11 +1,18 @@
 [phases.setup]
 nixPkgs = ["dotnet-sdk_8"]
 
-[phases.build]
+[phases.install]
+cmds = ["echo 'Installing .NET 8 dependencies'"]
+
+[phases.build] 
 cmds = [
-  "dotnet restore ./ProyectoNomina.Backend",
-  "dotnet publish ./ProyectoNomina.Backend -c Release -o /app/out"
+  "dotnet restore ProyectoNomina.Backend/ProyectoNomina.Backend.csproj",
+  "dotnet build ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release --no-restore",
+  "dotnet publish ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release -o out --no-restore"
 ]
 
 [start]
-cmd = "ASPNETCORE_URLS=http://0.0.0.0:${PORT:-8080} dotnet /app/out/ProyectoNomina.Backend.dll"
+cmd = "cd out && dotnet ProyectoNomina.Backend.dll"
+
+[variables]
+PORT = "8080"
