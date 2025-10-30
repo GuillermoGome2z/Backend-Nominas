@@ -12,8 +12,8 @@ using ProyectoNomina.Backend.Data;
 namespace ProyectoNomina.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251030202821_InicialPostgres")]
-    partial class InicialPostgres
+    [Migration("20251030235057_InicialPostgreSQL")]
+    partial class InicialPostgreSQL
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -764,7 +764,7 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.HasIndex("Periodo", "TipoNomina")
                         .IsUnique()
-                        .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                        .HasFilter("\"Periodo\" IS NOT NULL AND \"Estado\" <> 'ANULADA'");
 
                     b.ToTable("Nominas");
                 });

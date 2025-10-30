@@ -274,7 +274,7 @@ namespace ProyectoNomina.Backend.Data
                 // Índice único compuesto para evitar duplicados
                 entity.HasIndex(n => new { n.Periodo, n.TipoNomina })
                       .IsUnique()
-                      .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                      .HasFilter("\"Periodo\" IS NOT NULL AND \"Estado\" <> 'ANULADA'");
                 
                 // Índices adicionales para búsquedas
                 entity.HasIndex(n => n.Estado);

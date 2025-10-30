@@ -761,7 +761,7 @@ namespace ProyectoNomina.Backend.Migrations
 
                     b.HasIndex("Periodo", "TipoNomina")
                         .IsUnique()
-                        .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                        .HasFilter("\"Periodo\" IS NOT NULL AND \"Estado\" <> 'ANULADA'");
 
                     b.ToTable("Nominas");
                 });

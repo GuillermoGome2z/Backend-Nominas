@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ProyectoNomina.Backend.Migrations
 {
     /// <inheritdoc />
-    public partial class InicialPostgres : Migration
+    public partial class InicialPostgreSQL : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -756,7 +756,7 @@ namespace ProyectoNomina.Backend.Migrations
                 table: "Nominas",
                 columns: new[] { "Periodo", "TipoNomina" },
                 unique: true,
-                filter: "[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                filter: "\"Periodo\" IS NOT NULL AND \"Estado\" <> 'ANULADA'");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ObservacionesExpediente_DocumentoEmpleadoId",
