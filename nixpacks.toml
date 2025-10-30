@@ -1,18 +1,14 @@
+# Nixpacks configuration for .NET 8 deployment
 [phases.setup]
-nixPkgs = ["dotnet-sdk_8"]
+nixPkgs = ["dotnet-sdk_8", "nodejs_18"]
 
-[phases.install]
-cmds = ["echo 'Installing .NET 8 dependencies'"]
-
-[phases.build] 
+[phases.build]
 cmds = [
-  "dotnet restore ProyectoNomina.Backend/ProyectoNomina.Backend.csproj",
-  "dotnet build ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release --no-restore",
-  "dotnet publish ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release -o out --no-restore"
+  "dotnet --version",
+  "ls -la",
+  "dotnet restore ProyectoNomina.Backend/ProyectoNomina.Backend.csproj --verbosity normal",
+  "dotnet publish ProyectoNomina.Backend/ProyectoNomina.Backend.csproj -c Release -o ./dist --no-restore --verbosity normal"
 ]
 
 [start]
-cmd = "cd out && dotnet ProyectoNomina.Backend.dll"
-
-[variables]
-PORT = "8080"
+cmd = "cd dist && dotnet ProyectoNomina.Backend.dll --urls http://0.0.0.0:$PORT"

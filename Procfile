@@ -1,1 +1,1 @@
-web: cd out && dotnet ProyectoNomina.Backend.dll --urls http://0.0.0.0:$PORT
+web: cd dist && dotnet ProyectoNomina.Backend.dll --urls http://0.0.0.0:$PORT
