@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ProyectoNomina.Backend.Migrations
 {
     /// <inheritdoc />
-    public partial class InicialPostgreSQL : Migration
+    public partial class InicialPostgreSQL_FixDateTime : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -20,7 +20,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Accion = table.Column<string>(type: "text", nullable: false),
                     Usuario = table.Column<string>(type: "text", nullable: false),
-                    Fecha = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Fecha = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     Detalles = table.Column<string>(type: "text", nullable: false),
                     Endpoint = table.Column<string>(type: "text", nullable: false),
                     Metodo = table.Column<string>(type: "text", nullable: false)
@@ -46,9 +46,9 @@ namespace ProyectoNomina.Backend.Migrations
                     Orden = table.Column<int>(type: "integer", nullable: false),
                     Descripcion = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     CuentaContable = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CreadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ModificadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModificadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     ModificadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
@@ -76,21 +76,21 @@ namespace ProyectoNomina.Backend.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    FechaGeneracion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    FechaGeneracion = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     Descripcion = table.Column<string>(type: "text", nullable: false),
-                    FechaInicio = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    FechaFin = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FechaInicio = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    FechaFin = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     Periodo = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     Anio = table.Column<int>(type: "integer", nullable: true),
                     Mes = table.Column<int>(type: "integer", nullable: true),
                     Quincena = table.Column<int>(type: "integer", nullable: true),
                     TipoPeriodo = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    FechaCorte = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    FechaCorte = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TipoNomina = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
                     Estado = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    FechaAprobacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    FechaPago = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    FechaAnulacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FechaAprobacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    FechaPago = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    FechaAnulacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     MotivoAnulacion = table.Column<string>(type: "text", nullable: true),
                     MontoTotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalBruto = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
@@ -103,7 +103,7 @@ namespace ProyectoNomina.Backend.Migrations
                     CreadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     AprobadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Observaciones = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
-                    CerradoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    CerradoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -117,8 +117,8 @@ namespace ProyectoNomina.Backend.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Pais = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: false),
-                    VigenteDesde = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    VigenteHasta = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    VigenteDesde = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    VigenteHasta = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     IgssEmpleadoPct = table.Column<decimal>(type: "numeric(18,6)", precision: 18, scale: 6, nullable: false),
                     IgssPatronalPct = table.Column<decimal>(type: "numeric(18,6)", precision: 18, scale: 6, nullable: false),
                     IgssMaximoBase = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
@@ -133,9 +133,9 @@ namespace ProyectoNomina.Backend.Migrations
                     SalarioMinimoMensual = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     JornadaOrdinariaHorasMes = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Activo = table.Column<bool>(type: "boolean", nullable: false),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CreadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ModificadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModificadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     ModificadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
@@ -210,7 +210,7 @@ namespace ProyectoNomina.Backend.Migrations
                     TotalIndemnizacion = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalAportesPatronales = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     DetalleJson = table.Column<string>(type: "text", nullable: true),
-                    CalculadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CalculadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CalculadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
@@ -235,10 +235,10 @@ namespace ProyectoNomina.Backend.Migrations
                     Telefono = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     Direccion = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     SalarioMensual = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    FechaContratacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    FechaContratacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     DPI = table.Column<string>(type: "character varying(13)", maxLength: 13, nullable: true),
                     NIT = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: true),
-                    FechaNacimiento = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FechaNacimiento = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     EstadoLaboral = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "ACTIVO"),
                     DepartamentoId = table.Column<int>(type: "integer", nullable: true),
                     PuestoId = table.Column<int>(type: "integer", nullable: true)
@@ -269,7 +269,7 @@ namespace ProyectoNomina.Backend.Migrations
                     EmpleadoId = table.Column<int>(type: "integer", nullable: false),
                     Monto = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Motivo = table.Column<string>(type: "text", nullable: false),
-                    Fecha = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Fecha = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -382,14 +382,14 @@ namespace ProyectoNomina.Backend.Migrations
                     EmpleadoId = table.Column<int>(type: "integer", nullable: false),
                     TipoDocumentoId = table.Column<int>(type: "integer", nullable: false),
                     RutaArchivo = table.Column<string>(type: "text", nullable: false),
-                    FechaSubida = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    FechaSubida = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     NombreOriginal = table.Column<string>(type: "text", nullable: true),
                     Tamano = table.Column<long>(type: "bigint", nullable: true),
                     ContentType = table.Column<string>(type: "text", nullable: true),
                     Hash = table.Column<string>(type: "text", nullable: true),
                     SubidoPorUsuarioId = table.Column<int>(type: "integer", nullable: true),
                     Observaciones = table.Column<string>(type: "text", nullable: true),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -417,7 +417,7 @@ namespace ProyectoNomina.Backend.Migrations
                     EmpleadoId = table.Column<int>(type: "integer", nullable: false),
                     AfiliadoIgss = table.Column<bool>(type: "boolean", nullable: false),
                     NumeroIgss = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    FechaAfiliacionIgss = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FechaAfiliacionIgss = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     ExentoIsr = table.Column<bool>(type: "boolean", nullable: false),
                     MotivoExencion = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     JornadaMensualHoras = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
@@ -429,12 +429,12 @@ namespace ProyectoNomina.Backend.Migrations
                     RecibeBonoDecreto = table.Column<bool>(type: "boolean", nullable: false),
                     DescuentosFijosMensuales = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ObservacionesDescuentos = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    VigenteDesde = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    VigenteHasta = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    VigenteDesde = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    VigenteHasta = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     Activo = table.Column<bool>(type: "boolean", nullable: false),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CreadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ModificadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModificadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     ModificadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
@@ -457,7 +457,7 @@ namespace ProyectoNomina.Backend.Migrations
                     EmpleadoId = table.Column<int>(type: "integer", nullable: false),
                     Titulo = table.Column<string>(type: "text", nullable: false),
                     Institucion = table.Column<string>(type: "text", nullable: false),
-                    FechaGraduacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    FechaGraduacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TipoCertificacion = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -504,7 +504,7 @@ namespace ProyectoNomina.Backend.Migrations
                     ValorAnterior = table.Column<string>(type: "text", nullable: true),
                     ValorNuevo = table.Column<string>(type: "text", nullable: true),
                     UsuarioId = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
-                    Fecha = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Fecha = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -533,7 +533,7 @@ namespace ProyectoNomina.Backend.Migrations
                     EsManual = table.Column<bool>(type: "boolean", nullable: false),
                     Observaciones = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     Orden = table.Column<int>(type: "integer", nullable: false),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CreadoPor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
@@ -557,8 +557,8 @@ namespace ProyectoNomina.Backend.Migrations
                     DocumentoEmpleadoId = table.Column<int>(type: "integer", nullable: true),
                     Texto = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
                     UsuarioId = table.Column<int>(type: "integer", nullable: false),
-                    FechaCreacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
-                    FechaActualizacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    FechaCreacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "now()"),
+                    FechaActualizacion = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -585,10 +585,10 @@ namespace ProyectoNomina.Backend.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UsuarioId = table.Column<int>(type: "integer", nullable: false),
                     Token = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    Expira = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Expira = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     Revocado = table.Column<bool>(type: "boolean", nullable: false),
-                    CreadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    RenovadoEn = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    CreadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    RenovadoEn = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
                 constraints: table =>
                 {

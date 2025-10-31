@@ -57,7 +57,7 @@ public class ReglasLaboralesSeeder
         var reglasGuatemala = new ReglasLaborales
         {
             Pais = "GT",
-            VigenteDesde = new DateTime(2025, 1, 1),
+            VigenteDesde = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             VigenteHasta = null, // Sin fecha de vencimiento (activa indefinidamente)
 
             // IGSS (Instituto Guatemalteco de Seguridad Social)

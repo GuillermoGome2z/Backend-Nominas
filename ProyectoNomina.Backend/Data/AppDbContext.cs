@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Models;
+using System.Linq;
 
 namespace ProyectoNomina.Backend.Data
 {
@@ -35,6 +36,18 @@ namespace ProyectoNomina.Backend.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Configurar DateTime para PostgreSQL - usar timestamp without time zone para compatibilidad
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                var dateTimeProperties = entityType.GetProperties()
+                    .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?));
+
+                foreach (var property in dateTimeProperties)
+                {
+                    property.SetColumnType("timestamp without time zone");
+                }
+            }
+
             // ===== Usuario =====
             modelBuilder.Entity<Usuario>(entity =>
             {

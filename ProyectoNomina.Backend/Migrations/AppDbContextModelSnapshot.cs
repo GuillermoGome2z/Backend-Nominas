@@ -34,7 +34,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("Fecha")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Monto")
                         .HasPrecision(18, 2)
@@ -72,7 +72,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Fecha")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Metodo")
                         .IsRequired()
@@ -136,7 +136,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreadoPor")
                         .HasMaxLength(100)
@@ -155,7 +155,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("ModificadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModificadoPor")
                         .HasMaxLength(100)
@@ -367,7 +367,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("Fecha")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("UsuarioId")
                         .HasMaxLength(128)
@@ -398,13 +398,13 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("FechaSubida")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Hash")
                         .HasColumnType("text");
@@ -468,10 +468,10 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasDefaultValue("ACTIVO");
 
                     b.Property<DateTime>("FechaContratacion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("FechaNacimiento")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("NIT")
                         .HasMaxLength(15)
@@ -530,7 +530,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreadoPor")
                         .HasMaxLength(100)
@@ -551,7 +551,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("FechaAfiliacionIgss")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("FormaPago")
                         .IsRequired()
@@ -563,7 +563,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime?>("ModificadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModificadoPor")
                         .HasMaxLength(100)
@@ -593,10 +593,10 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("VigenteDesde")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("VigenteHasta")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -622,7 +622,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("FechaGraduacion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Institucion")
                         .IsRequired()
@@ -662,7 +662,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("CerradoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreadoPor")
                         .HasMaxLength(100)
@@ -678,25 +678,25 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("FechaAnulacion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("FechaAprobacion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("FechaCorte")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("FechaFin")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("FechaGeneracion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("FechaInicio")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("FechaPago")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("Mes")
                         .HasColumnType("integer");
@@ -775,7 +775,7 @@ namespace ProyectoNomina.Backend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CalculadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CalculadoPor")
                         .HasMaxLength(100)
@@ -845,7 +845,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreadoPor")
                         .HasMaxLength(100)
@@ -904,11 +904,11 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("FechaActualizacion")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("FechaCreacion")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("Texto")
@@ -971,13 +971,13 @@ namespace ProyectoNomina.Backend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Expira")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("RenovadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("Revocado")
                         .HasColumnType("boolean");
@@ -1016,7 +1016,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreadoPor")
                         .HasMaxLength(100)
@@ -1059,7 +1059,7 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime?>("ModificadoEn")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModificadoPor")
                         .HasMaxLength(100)
@@ -1083,10 +1083,10 @@ namespace ProyectoNomina.Backend.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("VigenteDesde")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("VigenteHasta")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
