@@ -176,13 +176,51 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
-            // AUTO-MIGRATION EN PRODUCCIÓN (Railway)
+            // AUTO-MIGRATION EN PRODUCCIÓN (Railway) - enfoque simple
             if (app.Environment.IsProduction())
             {
                 using (var scope = app.Services.CreateScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    await db.Database.MigrateAsync();
+                    try 
+                    {
+                        Console.WriteLine("=== Verificando estado de la base de datos ===");
+                        
+                        // Intentar conectar a la base de datos
+                        var canConnect = await db.Database.CanConnectAsync();
+                        Console.WriteLine($"Conexión a BD: {(canConnect ? "OK" : "FALLÓ")}");
+
+                        // Verificar migraciones pendientes
+                        var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+                        Console.WriteLine($"Migraciones pendientes: {pendingMigrations.Count()}");
+
+                        if (pendingMigrations.Any())
+                        {
+                            Console.WriteLine("Aplicando migraciones...");
+                            await db.Database.MigrateAsync();
+                            Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                        }
+                        else
+                        {
+                            Console.WriteLine("=== Base de datos actualizada ===");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Error en migración: {ex.Message}");
+                        
+                        // Si las tablas ya existen, simplemente continuamos
+                        if (ex.Message.Contains("already exists") || ex.Message.Contains("42P07"))
+                        {
+                            Console.WriteLine("=== Las tablas ya existen, continuando... ===");
+                            // No hacer nada, las tablas están ahí y eso es lo importante
+                        }
+                        else
+                        {
+                            Console.WriteLine("=== Error crítico, pero continuando... ===");
+                            // Continuar de todos modos para no impedir el inicio
+                        }
+                    }
                 }
             }
 
