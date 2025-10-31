@@ -36,7 +36,7 @@ namespace ProyectoNomina.Backend.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Configurar DateTime para PostgreSQL - usar timestamp without time zone para compatibilidad
+            // Configurar DateTime para PostgreSQL - usar timestamp with time zone para UTC
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 var dateTimeProperties = entityType.GetProperties()
@@ -44,7 +44,7 @@ namespace ProyectoNomina.Backend.Data
 
                 foreach (var property in dateTimeProperties)
                 {
-                    property.SetColumnType("timestamp without time zone");
+                    property.SetColumnType("timestamp with time zone");
                 }
             }
 
