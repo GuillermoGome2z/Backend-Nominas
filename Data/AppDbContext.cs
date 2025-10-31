@@ -36,17 +36,6 @@ namespace ProyectoNomina.Backend.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Configurar DateTime para PostgreSQL - usar timestamp with time zone para UTC
-            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-            {
-                var dateTimeProperties = entityType.GetProperties()
-                    .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?));
-
-                foreach (var property in dateTimeProperties)
-                {
-                    property.SetColumnType("timestamp with time zone");
-                }
-            }
 
             // ===== Usuario =====
             modelBuilder.Entity<Usuario>(entity =>
@@ -199,7 +188,7 @@ namespace ProyectoNomina.Backend.Data
                   .IsRequired();
 
                 et.Property(o => o.FechaCreacion)
-                  .HasDefaultValueSql("now()");
+                  .HasDefaultValueSql("GETDATE()");
 
                 // FK obligatoria -> Empleado (elige una sola política para evitar conflictos)
                 et.HasOne<Empleado>()
