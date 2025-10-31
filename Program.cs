@@ -8,13 +8,10 @@ using ProyectoNomina.Backend.Filters;
 using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.Features;
 using ProyectoNomina.Backend.Middleware;
 using ProyectoNomina.Backend.Options;
-using System.Net;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace ProyectoNomina.Backend
 {
@@ -24,33 +21,64 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configuración de puerto para Railway
+            // En producción (Railway) escucha en el puerto asignado por el entorno
             if (builder.Environment.IsProduction())
             {
                 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
                 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-                Console.WriteLine($"=== Railway Production Mode - Listening on port {port} ===");
+                Console.WriteLine($"=== Production - Listening on {port} ===");
             }
 
-            // Configuración QuestPDF (reportes PDF)
+            // QuestPDF
             QuestPDF.Settings.License = LicenseType.Community;
-            
-            // Configurar codificación UTF-8 para el sistema
-            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            // 1) DB - POSTGRESQL
+            // ***** CAMBIO NECESARIO: construir la cadena de conexión *****
+            string BuildPgConnFromEnvOrConfig(WebApplicationBuilder b)
+            {
+                var url = Environment.GetEnvironmentVariable("DATABASE_URL");
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    // Ej: postgresql://user:pass@host:port/dbname
+                    var uri = new Uri(url);
+                    var userInfo = uri.UserInfo.Split(':', 2);
+
+                    var npg = new Npgsql.NpgsqlConnectionStringBuilder
+                    {
+                        Host = uri.Host,
+                        Port = uri.Port,
+                        Database = uri.AbsolutePath.Trim('/'),
+                        Username = userInfo[0],
+                        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
+                        SslMode = Npgsql.SslMode.Require,
+                        TrustServerCertificate = true
+                    };
+                    return npg.ToString();
+                }
+
+                // Fallback para desarrollo local
+                var fromConfig = b.Configuration.GetConnectionString("DefaultConnection");
+                if (string.IsNullOrWhiteSpace(fromConfig))
+                    throw new InvalidOperationException(
+                        "No hay cadena de conexión. Define DATABASE_URL en Railway o ConnectionStrings:DefaultConnection para local.");
+                return fromConfig;
+            }
+
+            var pgConn = BuildPgConnFromEnvOrConfig(builder);
+
+            // 1) DB (PostgreSQL)
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(pgConn));
 
-            // 2) JWT (Railway-compatible config)
+            // 2) JWT
             var issuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer no configurado");
             var audience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience no configurado");
             var secretKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key no configurado");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
+                .AddJwtBearer(opt =>
                 {
-                    options.TokenValidationParameters = new TokenValidationParameters
+                    opt.TokenValidationParameters = new TokenValidationParameters
                     {
                         ValidateIssuer = true,
                         ValidateAudience = true,
@@ -59,33 +87,34 @@ namespace ProyectoNomina.Backend
                         ValidIssuer = issuer,
                         ValidAudience = audience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                        ClockSkew = TimeSpan.Zero // endurece expiración JWT
+                        ClockSkew = TimeSpan.Zero
                     };
                 });
 
-            // 3) CORS ESTRICTO (Railway-compatible)
-            var corsOriginsConfig = builder.Configuration["Cors:AllowedOrigins"];
-            var allowedOrigins = string.IsNullOrEmpty(corsOriginsConfig) 
-                ? new[] { "http://localhost:5173" } // Desarrollo
-                : corsOriginsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                   .Select(o => o.Trim())
-                                   .ToArray();
+            // 3) CORS (acepta string o array en Cors:AllowedOrigins)
+            string[] allowedOrigins;
+            var arr = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+            if (arr != null && arr.Length > 0)
+                allowedOrigins = arr;
+            else
+            {
+                var s = builder.Configuration["Cors:AllowedOrigins"];
+                allowedOrigins = string.IsNullOrWhiteSpace(s)
+                    ? new[] { "http://localhost:5173" }
+                    : s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
 
-            // Azure Blob temporalmente deshabilitado - usando almacenamiento local
-            // builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
-            // builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
             builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("cors", policy =>
+                options.AddPolicy("cors", p =>
                 {
-                    policy.WithOrigins(allowedOrigins)
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials() // Habilitado para JWT en headers
-                          // expone cabeceras para paginación/descarga y refresh
-                          .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
+                    p.WithOrigins(allowedOrigins)
+                     .AllowAnyHeader()
+                     .AllowAnyMethod()
+                     .AllowCredentials()
+                     .WithExposedHeaders("Content-Disposition", "X-Refresh-Token", "X-Total-Count");
                 });
             });
 
@@ -98,46 +127,41 @@ namespace ProyectoNomina.Backend
             builder.Services.AddScoped<AuditoriaService>();
             builder.Services.AddScoped<AuditoriaActionFilter>();
             builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+            builder.Services.AddScoped<IDetalleNominaAuditService, DetalleNominaAuditService>();
 
-            // ====== NUEVO: servicios para historial de DetalleNomina ======
-            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();              // NUEVO
-            builder.Services.AddScoped<IDetalleNominaAuditService, DetalleNominaAuditService>(); // NUEVO
-            // ===============================================================
-
-            // 5) MVC + filtro global + JSON (ignora ciclos si algún endpoint devuelve entidades)
-            builder.Services.AddControllers(options =>
+            // 5) MVC + JSON
+            builder.Services.AddControllers(o =>
             {
-                options.Filters.AddService<AuditoriaActionFilter>();
+                o.Filters.AddService<AuditoriaActionFilter>();
             })
             .AddJsonOptions(o =>
             {
-                // Por si alguna entidad EF se expone (igual preferimos DTOs).
-                o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+                o.JsonSerializerOptions.ReferenceHandler =
+                    System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
             });
 
-            // Forzar 422 en errores de validación (front lo pide explícito)
             builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>
                 {
-                    var problemDetails = new ValidationProblemDetails(context.ModelState)
+                    var problem = new ValidationProblemDetails(context.ModelState)
                     {
                         Status = StatusCodes.Status422UnprocessableEntity,
                         Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.2",
-                        Title = "La solicitud no pudo ser procesada por errores de validación.",
+                        Title = "Errores de validación",
                         Detail = "Revisa los errores por campo."
                     };
-
-                    return new UnprocessableEntityObjectResult(problemDetails);
+                    return new UnprocessableEntityObjectResult(problem);
                 };
             });
 
-            // 6) Swagger con JWT (el front usa OpenAPI para tipado/consumo)
+            // 6) Swagger + JWT
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(options =>
+            builder.Services.AddSwaggerGen(o =>
             {
-                options.SwaggerDoc("v1", new OpenApiInfo { Title = "ProyectoNomina", Version = "v1" });
-                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                o.SwaggerDoc("v1", new OpenApiInfo { Title = "ProyectoNomina", Version = "v1" });
+                o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
                     Type = SecuritySchemeType.Http,
@@ -146,145 +170,69 @@ namespace ProyectoNomina.Backend
                     In = ParameterLocation.Header,
                     Description = "Escribe: Bearer {tu token JWT}"
                 });
-                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                o.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
+                        new OpenApiSecurityScheme {
+                            Reference = new OpenApiReference {
+                                Type = ReferenceType.SecurityScheme, Id = "Bearer"
                             }
-                        },
-                        Array.Empty<string>()
+                        }, Array.Empty<string>()
                     }
                 });
-
-                // Si luego agregas el filtro AuthorizeResponsesOperationFilter,
-                // descomenta esta línea:
-                // options.OperationFilter<AuthorizeResponsesOperationFilter>();
             });
 
-            // 7) Subida de archivos (20 MB) coherente con Kestrel e IIS
+            // 7) Límites de subida (20MB)
             builder.Services.Configure<FormOptions>(o =>
             {
-                o.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20 MB
+                o.MultipartBodyLengthLimit = 20 * 1024 * 1024;
                 o.ValueLengthLimit = int.MaxValue;
                 o.MultipartHeadersLengthLimit = 64 * 1024;
             });
-            builder.WebHost.ConfigureKestrel(k =>
-            {
-                k.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20 MB
-            });
-            builder.Services.Configure<IISServerOptions>(o => o.MaxRequestBodySize = 20 * 1024 * 1024);
 
             var app = builder.Build();
 
-            // AUTO-MIGRATION EN PRODUCCIÓN (Railway) - enfoque simple
+            // Migraciones automáticas (una sola vez al arranque)
             if (app.Environment.IsProduction())
             {
-                using (var scope = app.Services.CreateScope())
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                try
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    try 
-                    {
-                        Console.WriteLine("=== Verificando estado de la base de datos ===");
-                        
-                        // Intentar conectar a la base de datos
-                        var canConnect = await db.Database.CanConnectAsync();
-                        Console.WriteLine($"Conexión a BD: {(canConnect ? "OK" : "FALLÓ")}");
-
-                        // Verificar migraciones pendientes
-                        var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
-                        Console.WriteLine($"Migraciones pendientes: {pendingMigrations.Count()}");
-
-                        if (pendingMigrations.Any())
-                        {
-                            Console.WriteLine("Aplicando migraciones...");
-                            await db.Database.MigrateAsync();
-                            Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
-                        }
-                        else
-                        {
-                            Console.WriteLine("=== Base de datos actualizada ===");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"⚠️ Error en migración: {ex.Message}");
-                        
-                        // Si las tablas ya existen, simplemente continuamos
-                        if (ex.Message.Contains("already exists") || ex.Message.Contains("42P07"))
-                        {
-                            Console.WriteLine("=== Las tablas ya existen, continuando... ===");
-                            // No hacer nada, las tablas están ahí y eso es lo importante
-                        }
-                        else
-                        {
-                            Console.WriteLine("=== Error crítico, pero continuando... ===");
-                            // Continuar de todos modos para no impedir el inicio
-                        }
-                    }
+                    Console.WriteLine("=== DB: aplicando migraciones (si hay) ===");
+                    await db.Database.MigrateAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Ignora si ya existen tablas
+                    if (ex.Message.Contains("already exists") || ex.Message.Contains("42P07"))
+                        Console.WriteLine("Tablas ya existen, continuando…");
+                    else
+                        Console.WriteLine($"Aviso migraciones: {ex.Message}");
                 }
             }
 
-            // 7.5) Seed initial data
+            // Seed fijo (reglas laborales)
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await ReglasLaboralesSeeder.SeedAsync(dbContext);
             }
 
-            // 8) Forwarded Headers (si vas detrás de proxy; ajusta KnownProxies/Networks según tu infra)
-            app.UseForwardedHeaders(new ForwardedHeadersOptions
-            {
-                ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
-                // KnownProxies = { IPAddress.Parse("10.0.0.10") },
-                // KnownNetworks = { new IPNetwork(IPAddress.Parse("10.0.0.0"), 8) }
-            });
-
-            // 9) Error handling
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/error");
-            }
-            app.UseGlobalErrorHandler();
-
-            // Middleware para convertir request demasiado grande en 413 con ProblemDetails
-            app.Use(async (context, next) =>
-            {
-                try
-                {
-                    await next();
-                }
-                catch (Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (ex.StatusCode == (int)HttpStatusCode.RequestEntityTooLarge)
-                {
-                    context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-                    context.Response.ContentType = "application/problem+json";
-                    var problem = new ProblemDetails
-                    {
-                        Status = StatusCodes.Status413PayloadTooLarge,
-                        Title = "Archivo demasiado grande",
-                        Detail = "El tamaño máximo permitido es 20 MB. Reduce el archivo e inténtalo de nuevo."
-                    };
-                    await context.Response.WriteAsJsonAsync(problem);
-                }
-            });
-
-            // Swagger (si deseas ocultarlo en prod, colócalo dentro de if Development)
+            // Middlewares
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            if (!app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseHttpsRedirection();
+            }
+            else
             {
                 app.UseHsts();
             }
 
-            app.UseHttpsRedirection();
-            app.UseCors("cors");
-
-            //agregar 'Vary: Origin' justo antes de iniciar la respuesta
+            // Vary: Origin (mejor CORS caching)
             app.Use(async (ctx, next) =>
             {
                 ctx.Response.OnStarting(() =>
@@ -293,74 +241,21 @@ namespace ProyectoNomina.Backend
                         ctx.Response.Headers.Append("Vary", "Origin");
                     return Task.CompletedTask;
                 });
-
                 await next();
             });
 
+            app.UseCors("cors");
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Crear carpeta Uploads/Expedientes si no existe
+            // carpeta Uploads/Expedientes
             var expedientesPath = Path.Combine(app.Environment.ContentRootPath, "Uploads", "Expedientes");
-            if (!Directory.Exists(expedientesPath))
-            {
-                Directory.CreateDirectory(expedientesPath);
-            }
+            Directory.CreateDirectory(expedientesPath);
 
-            // 10) Endpoints
+            // Endpoints
             app.MapControllers();
-
-            // Health endpoint para Railway
             app.MapGet("/health", () => Results.Ok("OK"));
             app.MapGet("/", () => Results.Redirect("/swagger"));
-
-            // Manejar argumentos de línea de comandos para migraciones
-            if (args.Length > 0 && args[0] == "--migrate")
-            {
-                Console.WriteLine("=== Aplicando migraciones de base de datos ===");
-                using var scope = app.Services.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                
-                try
-                {
-                    await dbContext.Database.MigrateAsync();
-                    Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error aplicando migraciones: {ex.Message}");
-                    throw;
-                }
-                return;
-            }
-
-            // Auto-migrar en Railway si no es desarrollo
-            if (!app.Environment.IsDevelopment())
-            {
-                Console.WriteLine("=== Verificando y aplicando migraciones automáticamente ===");
-                using var scope = app.Services.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                
-                try
-                {
-                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-                    if (pendingMigrations.Any())
-                    {
-                        Console.WriteLine($"Aplicando {pendingMigrations.Count()} migraciones pendientes...");
-                        await dbContext.Database.MigrateAsync();
-                        Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
-                    }
-                    else
-                    {
-                        Console.WriteLine("No hay migraciones pendientes");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error en auto-migración: {ex.Message}");
-                    // No lanzar la excepción para permitir que la app se inicie
-                }
-            }
 
             app.Run();
         }
