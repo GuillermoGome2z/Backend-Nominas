@@ -24,8 +24,13 @@ namespace ProyectoNomina.Backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            //  CONFIGURACIÓN PUERTO FIJO
-            builder.WebHost.UseUrls("http://localhost:5009");
+            // Configuración de puerto para Railway
+            if (builder.Environment.IsProduction())
+            {
+                var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+                builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+                Console.WriteLine($"=== Railway Production Mode - Listening on port {port} ===");
+            }
 
             // Configuración QuestPDF (reportes PDF)
             QuestPDF.Settings.License = LicenseType.Community;
@@ -33,15 +38,14 @@ namespace ProyectoNomina.Backend
             // Configurar codificación UTF-8 para el sistema
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-            // 1) DB
+            // 1) DB - POSTGRESQL
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // 2) JWT (defensive config + validaciones estrictas)
-            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-            var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JwtSettings:Issuer no configurado");
-            var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JwtSettings:Audience no configurado");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey no configurado");
+            // 2) JWT (Railway-compatible config)
+            var issuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer no configurado");
+            var audience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience no configurado");
+            var secretKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key no configurado");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -59,9 +63,13 @@ namespace ProyectoNomina.Backend
                     };
                 });
 
-            // 3) CORS (lee orígenes desde appsettings)
-            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                                 ?? new[] { "http://localhost:5173" }; // Vite por defecto
+            // 3) CORS ESTRICTO (Railway-compatible)
+            var corsOriginsConfig = builder.Configuration["Cors:AllowedOrigins"];
+            var allowedOrigins = string.IsNullOrEmpty(corsOriginsConfig) 
+                ? new[] { "http://localhost:5173" } // Desarrollo
+                : corsOriginsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(o => o.Trim())
+                                   .ToArray();
 
             // Azure Blob temporalmente deshabilitado - usando almacenamiento local
             // builder.Services.Configure<AzureBlobOptions>(builder.Configuration.GetSection("AzureBlob"));
@@ -70,7 +78,7 @@ namespace ProyectoNomina.Backend
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("CorsPolicy", policy =>
+                options.AddPolicy("cors", policy =>
                 {
                     policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
@@ -173,6 +181,54 @@ namespace ProyectoNomina.Backend
 
             var app = builder.Build();
 
+            // AUTO-MIGRATION EN PRODUCCIÓN (Railway) - enfoque simple
+            if (app.Environment.IsProduction())
+            {
+                using (var scope = app.Services.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    try 
+                    {
+                        Console.WriteLine("=== Verificando estado de la base de datos ===");
+                        
+                        // Intentar conectar a la base de datos
+                        var canConnect = await db.Database.CanConnectAsync();
+                        Console.WriteLine($"Conexión a BD: {(canConnect ? "OK" : "FALLÓ")}");
+
+                        // Verificar migraciones pendientes
+                        var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+                        Console.WriteLine($"Migraciones pendientes: {pendingMigrations.Count()}");
+
+                        if (pendingMigrations.Any())
+                        {
+                            Console.WriteLine("Aplicando migraciones...");
+                            await db.Database.MigrateAsync();
+                            Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                        }
+                        else
+                        {
+                            Console.WriteLine("=== Base de datos actualizada ===");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Error en migración: {ex.Message}");
+                        
+                        // Si las tablas ya existen, simplemente continuamos
+                        if (ex.Message.Contains("already exists") || ex.Message.Contains("42P07"))
+                        {
+                            Console.WriteLine("=== Las tablas ya existen, continuando... ===");
+                            // No hacer nada, las tablas están ahí y eso es lo importante
+                        }
+                        else
+                        {
+                            Console.WriteLine("=== Error crítico, pero continuando... ===");
+                            // Continuar de todos modos para no impedir el inicio
+                        }
+                    }
+                }
+            }
+
             // 7.5) Seed initial data
             using (var scope = app.Services.CreateScope())
             {
@@ -188,7 +244,11 @@ namespace ProyectoNomina.Backend
                 // KnownNetworks = { new IPNetwork(IPAddress.Parse("10.0.0.0"), 8) }
             });
 
-            // 9) Middlewares
+            // 9) Error handling
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseExceptionHandler("/error");
+            }
             app.UseGlobalErrorHandler();
 
             // Middleware para convertir request demasiado grande en 413 con ProblemDetails
@@ -221,8 +281,8 @@ namespace ProyectoNomina.Backend
                 app.UseHsts();
             }
 
-           // app.UseHttpsRedirection();
-            app.UseCors("CorsPolicy");
+            app.UseHttpsRedirection();
+            app.UseCors("cors");
 
             //agregar 'Vary: Origin' justo antes de iniciar la respuesta
             app.Use(async (ctx, next) =>
@@ -250,9 +310,57 @@ namespace ProyectoNomina.Backend
             // 10) Endpoints
             app.MapControllers();
 
-            // Health y redirección a Swagger
-            app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
+            // Health endpoint para Railway
+            app.MapGet("/health", () => Results.Ok("OK"));
             app.MapGet("/", () => Results.Redirect("/swagger"));
+
+            // Manejar argumentos de línea de comandos para migraciones
+            if (args.Length > 0 && args[0] == "--migrate")
+            {
+                Console.WriteLine("=== Aplicando migraciones de base de datos ===");
+                using var scope = app.Services.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                try
+                {
+                    await dbContext.Database.MigrateAsync();
+                    Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error aplicando migraciones: {ex.Message}");
+                    throw;
+                }
+                return;
+            }
+
+            // Auto-migrar en Railway si no es desarrollo
+            if (!app.Environment.IsDevelopment())
+            {
+                Console.WriteLine("=== Verificando y aplicando migraciones automáticamente ===");
+                using var scope = app.Services.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                try
+                {
+                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                    if (pendingMigrations.Any())
+                    {
+                        Console.WriteLine($"Aplicando {pendingMigrations.Count()} migraciones pendientes...");
+                        await dbContext.Database.MigrateAsync();
+                        Console.WriteLine("=== Migraciones aplicadas exitosamente ===");
+                    }
+                    else
+                    {
+                        Console.WriteLine("No hay migraciones pendientes");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error en auto-migración: {ex.Message}");
+                    // No lanzar la excepción para permitir que la app se inicie
+                }
+            }
 
             app.Run();
         }

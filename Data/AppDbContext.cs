@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProyectoNomina.Backend.Models;
+using System.Linq;
 
 namespace ProyectoNomina.Backend.Data
 {
@@ -35,6 +36,18 @@ namespace ProyectoNomina.Backend.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Configurar DateTime para PostgreSQL - usar timestamp with time zone para UTC
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                var dateTimeProperties = entityType.GetProperties()
+                    .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?));
+
+                foreach (var property in dateTimeProperties)
+                {
+                    property.SetColumnType("timestamp with time zone");
+                }
+            }
+
             // ===== Usuario =====
             modelBuilder.Entity<Usuario>(entity =>
             {
@@ -186,7 +199,7 @@ namespace ProyectoNomina.Backend.Data
                   .IsRequired();
 
                 et.Property(o => o.FechaCreacion)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("now()");
 
                 // FK obligatoria -> Empleado (elige una sola política para evitar conflictos)
                 et.HasOne<Empleado>()
@@ -274,7 +287,7 @@ namespace ProyectoNomina.Backend.Data
                 // Índice único compuesto para evitar duplicados
                 entity.HasIndex(n => new { n.Periodo, n.TipoNomina })
                       .IsUnique()
-                      .HasFilter("[Periodo] IS NOT NULL AND [Estado] <> 'ANULADA'");
+                      .HasFilter("\"Periodo\" IS NOT NULL AND \"Estado\" <> 'ANULADA'");
                 
                 // Índices adicionales para búsquedas
                 entity.HasIndex(n => n.Estado);
