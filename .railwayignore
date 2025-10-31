@@ -1,0 +1,38 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/node_modules/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Application files that shouldn't be deployed
+**/Uploads/
+**/wwwroot/Documentos/
+**/wwwroot/Uploads/
+
+# Environment files (use Railway environment variables instead)
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+
+# Package files
+*.nupkg
+*.snupkg
